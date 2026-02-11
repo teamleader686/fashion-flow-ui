@@ -122,12 +122,12 @@ const Cart = () => {
                 </div>
               </div>
 
-              <button
-                onClick={() => toast.info("Checkout coming soon!")}
-                className="w-full mt-4 py-3 rounded-full bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity"
+              <Link
+                to="/checkout"
+                className="block w-full mt-4 py-3 rounded-full bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity text-center"
               >
                 Proceed to Checkout
-              </button>
+              </Link>
 
               <Link
                 to="/products?category=all"
