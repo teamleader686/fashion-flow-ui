@@ -70,8 +70,8 @@ export const useProducts = () => {
           .map((img: any) => img.image_url) || [];
 
         // Extract unique sizes and colors
-        const sizes = [...new Set(dbProduct.product_variants?.map((v: any) => v.size) || [])];
-        const colors = [...new Set(dbProduct.product_variants?.map((v: any) => v.color_code) || [])];
+        const sizes: string[] = [...new Set(dbProduct.product_variants?.map((v: any) => v.size).filter(Boolean) as string[] || [])];
+        const colors: string[] = [...new Set(dbProduct.product_variants?.map((v: any) => v.color_code).filter(Boolean) as string[] || [])];
 
         // Calculate discount percentage
         const discount = dbProduct.compare_at_price 

@@ -304,7 +304,7 @@ const InstagramUserManagement = () => {
       {/* Add/Edit Dialog */}
       <InstagramUserDialog
         open={dialogOpen}
-        onClose={handleDialogClose}
+        onOpenChange={(open) => { if (!open) handleDialogClose(); }}
         user={editingUser}
       />
 

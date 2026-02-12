@@ -1,7 +1,18 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   LayoutDashboard,
   Package,
@@ -16,116 +27,268 @@ import {
   TrendingUp,
   Menu,
   Instagram,
+  Search,
+  Bell,
+  ChevronLeft,
+  Truck,
+  X,
 } from 'lucide-react';
-import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 type AdminLayoutProps = {
   children: ReactNode;
+};
+
+const menuItems = [
+  { icon: LayoutDashboard, label: 'Dashboard', path: '/admin/dashboard' },
+  { icon: Package, label: 'Products', path: '/admin/products' },
+  { icon: ShoppingCart, label: 'Orders', path: '/admin/orders' },
+  { icon: Truck, label: 'Shipping', path: '/admin/shipping' },
+  { icon: Users, label: 'Customers', path: '/admin/customers' },
+  { icon: Instagram, label: 'Instagram', path: '/admin/instagram-marketing' },
+  { icon: TrendingUp, label: 'Affiliates', path: '/admin/affiliate-marketing' },
+  { icon: Tag, label: 'Coupons', path: '/admin/coupons' },
+  { icon: Gift, label: 'Offers', path: '/admin/offers' },
+  { icon: Star, label: 'Reviews', path: '/admin/reviews' },
+  { icon: Wallet, label: 'Wallet & Loyalty', path: '/admin/wallet' },
+  { icon: Settings, label: 'Settings', path: '/admin/settings' },
+];
+
+const SidebarNav = ({
+  collapsed,
+  onNavigate,
+}: {
+  collapsed: boolean;
+  onNavigate?: () => void;
+}) => {
+  const location = useLocation();
+
+  return (
+    <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+      {menuItems.map((item) => {
+        const Icon = item.icon;
+        const isActive =
+          location.pathname === item.path ||
+          (item.path !== '/admin/dashboard' && location.pathname.startsWith(item.path));
+
+        return (
+          <Link
+            key={item.path}
+            to={item.path}
+            onClick={onNavigate}
+            className={cn(
+              'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
+              isActive
+                ? 'bg-primary/10 text-primary'
+                : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+              collapsed && 'justify-center px-2'
+            )}
+            title={collapsed ? item.label : undefined}
+          >
+            <Icon className="h-5 w-5 shrink-0" />
+            {!collapsed && <span>{item.label}</span>}
+          </Link>
+        );
+      })}
+    </nav>
+  );
 };
 
 const AdminLayout = ({ children }: AdminLayoutProps) => {
   const { signOut, profile } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const isMobile = useIsMobile();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
     navigate('/admin/login');
   };
 
-  const menuItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/admin/dashboard' },
-    { icon: Package, label: 'Products', path: '/admin/products' },
-    { icon: ShoppingCart, label: 'Orders', path: '/admin/orders' },
-    { icon: Users, label: 'Customers', path: '/admin/customers' },
-    { icon: Instagram, label: 'Instagram Marketing', path: '/admin/instagram-marketing' },
-    { icon: TrendingUp, label: 'Affiliate Marketing', path: '/admin/affiliate-marketing' },
-    { icon: Tag, label: 'Coupons', path: '/admin/coupons' },
-    { icon: Gift, label: 'Offers', path: '/admin/offers' },
-    { icon: Star, label: 'Reviews', path: '/admin/reviews' },
-    { icon: Wallet, label: 'Wallet & Loyalty', path: '/admin/wallet' },
-    { icon: Settings, label: 'Settings', path: '/admin/settings' },
-  ];
+  const initials = profile?.full_name
+    ? profile.full_name
+        .split(' ')
+        .map((n: string) => n[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2)
+    : 'AD';
+
+  // Current page title
+  const currentPage =
+    menuItems.find(
+      (item) =>
+        location.pathname === item.path ||
+        (item.path !== '/admin/dashboard' && location.pathname.startsWith(item.path))
+    )?.label || 'Admin';
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Sidebar */}
-      <aside
-        className={cn(
-          'fixed left-0 top-0 z-40 h-screen transition-transform bg-white border-r border-gray-200',
-          sidebarOpen ? 'w-64' : 'w-20'
-        )}
-      >
-        <div className="flex flex-col h-full">
-          {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b">
-            {sidebarOpen && (
-              <h1 className="text-xl font-bold bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">
-                Admin Panel
-              </h1>
+    <div className="min-h-screen bg-muted/30">
+      {/* ──── DESKTOP / TABLET SIDEBAR ──── */}
+      {!isMobile && (
+        <aside
+          className={cn(
+            'fixed left-0 top-0 z-40 h-screen border-r bg-background transition-all duration-300 flex flex-col',
+            sidebarCollapsed ? 'w-[72px]' : 'w-60'
+          )}
+        >
+          {/* Logo */}
+          <div className="flex h-16 items-center justify-between border-b px-4">
+            {!sidebarCollapsed && (
+              <Link to="/admin/dashboard" className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                  <span className="text-sm font-bold text-primary-foreground">SB</span>
+                </div>
+                <span className="font-display text-lg font-bold tracking-tight">StyleBazaar</span>
+              </Link>
             )}
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="h-8 w-8 shrink-0"
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            >
+              {sidebarCollapsed ? <Menu className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+            </Button>
+          </div>
+
+          {/* Nav */}
+          <SidebarNav collapsed={sidebarCollapsed} />
+
+          {/* Footer */}
+          <div className="border-t p-3">
+            <Button
+              variant="ghost"
+              className={cn(
+                'w-full text-destructive hover:text-destructive hover:bg-destructive/10',
+                sidebarCollapsed ? 'justify-center px-2' : 'justify-start'
+              )}
+              onClick={handleSignOut}
+            >
+              <LogOut className="h-5 w-5 shrink-0" />
+              {!sidebarCollapsed && <span className="ml-3">Logout</span>}
+            </Button>
+          </div>
+        </aside>
+      )}
+
+      {/* ──── MOBILE SIDEBAR (Sheet) ──── */}
+      {isMobile && (
+        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+          <SheetContent side="left" className="w-72 p-0">
+            <div className="flex h-16 items-center justify-between border-b px-4">
+              <Link
+                to="/admin/dashboard"
+                className="flex items-center gap-2"
+                onClick={() => setMobileOpen(false)}
+              >
+                <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                  <span className="text-sm font-bold text-primary-foreground">SB</span>
+                </div>
+                <span className="font-display text-lg font-bold tracking-tight">StyleBazaar</span>
+              </Link>
+            </div>
+
+            <SidebarNav collapsed={false} onNavigate={() => setMobileOpen(false)} />
+
+            <div className="border-t p-3">
+              <div className="mb-3 px-3">
+                <p className="text-sm font-medium">{profile?.full_name || 'Admin'}</p>
+                <p className="text-xs text-muted-foreground">{profile?.email}</p>
+              </div>
+              <Button
+                variant="ghost"
+                className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={handleSignOut}
+              >
+                <LogOut className="h-5 w-5" />
+                <span className="ml-3">Logout</span>
+              </Button>
+            </div>
+          </SheetContent>
+        </Sheet>
+      )}
+
+      {/* ──── MAIN AREA ──── */}
+      <div
+        className={cn(
+          'flex flex-col min-h-screen transition-all duration-300',
+          !isMobile && (sidebarCollapsed ? 'ml-[72px]' : 'ml-60')
+        )}
+      >
+        {/* Top Header */}
+        <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-4 lg:px-6">
+          {/* Mobile hamburger */}
+          {isMobile && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9"
+              onClick={() => setMobileOpen(true)}
             >
               <Menu className="h-5 w-5" />
             </Button>
+          )}
+
+          {/* Page title */}
+          <h1 className="text-lg font-semibold lg:text-xl">{currentPage}</h1>
+
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* Search (desktop) */}
+          <div className="hidden md:flex relative w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Search…" className="pl-9 h-9 bg-muted/50" />
           </div>
 
-          {/* Navigation */}
-          <nav className="flex-1 overflow-y-auto p-4 space-y-2">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = location.pathname === item.path;
-              return (
-                <Link key={item.path} to={item.path}>
-                  <Button
-                    variant={isActive ? 'secondary' : 'ghost'}
-                    className={cn(
-                      'w-full justify-start',
-                      !sidebarOpen && 'justify-center px-2'
-                    )}
-                  >
-                    <Icon className="h-5 w-5" />
-                    {sidebarOpen && <span className="ml-3">{item.label}</span>}
-                  </Button>
-                </Link>
-              );
-            })}
-          </nav>
+          {/* Notification bell */}
+          <Button variant="ghost" size="icon" className="h-9 w-9 relative">
+            <Bell className="h-5 w-5" />
+            <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-destructive" />
+          </Button>
 
-          {/* User Info & Logout */}
-          <div className="p-4 border-t">
-            {sidebarOpen && (
-              <div className="mb-3">
-                <p className="text-sm font-medium">{profile?.full_name}</p>
-                <p className="text-xs text-gray-500">{profile?.email}</p>
-              </div>
-            )}
-            <Button
-              variant="outline"
-              className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
-              onClick={handleSignOut}
-            >
-              <LogOut className="h-5 w-5" />
-              {sidebarOpen && <span className="ml-3">Logout</span>}
-            </Button>
-          </div>
-        </div>
-      </aside>
+          {/* Profile dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-9 gap-2 px-2">
+                <Avatar className="h-7 w-7">
+                  <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="hidden md:inline text-sm font-medium">
+                  {profile?.full_name || 'Admin'}
+                </span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48 bg-background">
+              <DropdownMenuLabel>
+                <p className="text-sm font-medium">{profile?.full_name || 'Admin'}</p>
+                <p className="text-xs text-muted-foreground">{profile?.email}</p>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => navigate('/admin/settings')}>
+                <Settings className="h-4 w-4 mr-2" />
+                Settings
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
+                <LogOut className="h-4 w-4 mr-2" />
+                Logout
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </header>
 
-      {/* Main Content */}
-      <main
-        className={cn(
-          'transition-all',
-          sidebarOpen ? 'ml-64' : 'ml-20'
-        )}
-      >
-        <div className="p-8">{children}</div>
-      </main>
+        {/* Page Content */}
+        <main className="flex-1 p-4 lg:p-6">
+          {children}
+        </main>
+      </div>
     </div>
   );
 };

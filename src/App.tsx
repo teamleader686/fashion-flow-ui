@@ -19,7 +19,10 @@ import AdminLogin from "./pages/admin/AdminLogin";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminProducts from "./pages/admin/AdminProducts";
 import AdminOrders from "./pages/admin/AdminOrders";
+import AdminShipping from "./pages/admin/AdminShipping";
 import AdminCustomers from "./pages/admin/AdminCustomers";
+import AdminReviews from "./pages/admin/AdminReviews";
+import AdminSettings from "./pages/admin/AdminSettings";
 import ProductForm from "./pages/admin/ProductForm";
 import InstagramMarketing from "./pages/admin/InstagramMarketing";
 import InstagramLogin from "./pages/InstagramLogin";
@@ -29,6 +32,7 @@ import AffiliateDashboard from "./pages/AffiliateDashboard";
 import CouponManagement from "./pages/admin/CouponManagement";
 import OfferManagement from "./pages/admin/OfferManagement";
 import WalletManagement from "./pages/admin/WalletManagement";
+import AffiliateCoupons from "./pages/admin/AffiliateCoupons";
 import ProtectedRoute from "@/components/admin/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -55,94 +59,21 @@ const App = () => (
               
               {/* Admin Routes */}
               <Route path="/admin/login" element={<AdminLogin />} />
-              <Route
-                path="/admin/dashboard"
-                element={
-                  <ProtectedRoute>
-                    <AdminDashboard />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/products"
-                element={
-                  <ProtectedRoute>
-                    <AdminProducts />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/products/new"
-                element={
-                  <ProtectedRoute>
-                    <ProductForm />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/products/edit/:id"
-                element={
-                  <ProtectedRoute>
-                    <ProductForm />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/orders"
-                element={
-                  <ProtectedRoute>
-                    <AdminOrders />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/customers"
-                element={
-                  <ProtectedRoute>
-                    <AdminCustomers />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/instagram-marketing"
-                element={
-                  <ProtectedRoute>
-                    <InstagramMarketing />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/affiliate-marketing"
-                element={
-                  <ProtectedRoute>
-                    <AffiliateMarketing />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/coupons"
-                element={
-                  <ProtectedRoute>
-                    <CouponManagement />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/offers"
-                element={
-                  <ProtectedRoute>
-                    <OfferManagement />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/wallet"
-                element={
-                  <ProtectedRoute>
-                    <WalletManagement />
-                  </ProtectedRoute>
-                }
-              />
+              <Route path="/admin/dashboard" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+              <Route path="/admin/products" element={<ProtectedRoute><AdminProducts /></ProtectedRoute>} />
+              <Route path="/admin/products/new" element={<ProtectedRoute><ProductForm /></ProtectedRoute>} />
+              <Route path="/admin/products/edit/:id" element={<ProtectedRoute><ProductForm /></ProtectedRoute>} />
+              <Route path="/admin/orders" element={<ProtectedRoute><AdminOrders /></ProtectedRoute>} />
+              <Route path="/admin/shipping" element={<ProtectedRoute><AdminShipping /></ProtectedRoute>} />
+              <Route path="/admin/customers" element={<ProtectedRoute><AdminCustomers /></ProtectedRoute>} />
+              <Route path="/admin/instagram-marketing" element={<ProtectedRoute><InstagramMarketing /></ProtectedRoute>} />
+              <Route path="/admin/affiliate-marketing" element={<ProtectedRoute><AffiliateMarketing /></ProtectedRoute>} />
+              <Route path="/admin/affiliate-coupons" element={<ProtectedRoute><AffiliateCoupons /></ProtectedRoute>} />
+              <Route path="/admin/coupons" element={<ProtectedRoute><CouponManagement /></ProtectedRoute>} />
+              <Route path="/admin/offers" element={<ProtectedRoute><OfferManagement /></ProtectedRoute>} />
+              <Route path="/admin/wallet" element={<ProtectedRoute><WalletManagement /></ProtectedRoute>} />
+              <Route path="/admin/reviews" element={<ProtectedRoute><AdminReviews /></ProtectedRoute>} />
+              <Route path="/admin/settings" element={<ProtectedRoute><AdminSettings /></ProtectedRoute>} />
               
               {/* Instagram User Routes */}
               <Route path="/instagram-login" element={<InstagramLogin />} />
