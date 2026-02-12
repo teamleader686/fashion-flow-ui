@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase, Order } from '@/lib/supabase';
+import { supabase, Order, Shipment, Return } from '@/lib/supabase';
 import { toast } from 'sonner';
 
 export const useOrdersRealtime = () => {
@@ -147,7 +147,7 @@ export const useOrdersRealtime = () => {
           .from('shipments')
           .update({
             ...shipmentData,
-            ...(shipmentData.status === 'shipped' && { shipped_at: new Date().toISOString() }),
+            ...(shipmentData.status === 'picked_up' && { shipped_at: new Date().toISOString() }),
             ...(shipmentData.status === 'delivered' && { delivered_at: new Date().toISOString() })
           })
           .eq('order_id', orderId);

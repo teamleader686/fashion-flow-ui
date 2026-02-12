@@ -169,88 +169,81 @@ export default function WalletManagement() {
           />
         </div>
 
-        {/* Wallets Table */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">User ID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Balance</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Loyalty Coins</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Affiliate</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Refund</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredWallets.map((wallet) => (
-                <tr key={wallet.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-sm font-mono">{wallet.user_id.slice(0, 8)}...</td>
-                  <td className="px-6 py-4 text-sm font-semibold">₹{wallet.total_balance}</td>
-                  <td className="px-6 py-4 text-sm text-yellow-600 font-semibold">{wallet.loyalty_balance}</td>
-                  <td className="px-6 py-4 text-sm">₹{wallet.affiliate_balance}</td>
-                  <td className="px-6 py-4 text-sm">₹{wallet.refund_balance}</td>
-                  <td className="px-6 py-4">
-                    {wallet.frozen ? (
-                      <span className="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">
-                        Frozen
-                      </span>
-                    ) : (
-                      <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
-                        Active
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedWallet(wallet);
-                          setActionType('credit');
-                        }}
-                        title="Credit"
-                      >
-                        <Plus className="w-4 h-4 text-green-600" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedWallet(wallet);
-                          setActionType('debit');
-                        }}
-                        title="Debit"
-                      >
-                        <Minus className="w-4 h-4 text-red-600" />
-                      </Button>
-                      {wallet.frozen ? (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleUnfreeze(wallet.user_id)}
-                          title="Unfreeze"
-                        >
-                          <Unlock className="w-4 h-4 text-green-600" />
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleFreeze(wallet.user_id)}
-                          title="Freeze"
-                        >
-                          <Lock className="w-4 h-4 text-orange-600" />
-                        </Button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {/* Desktop Table */}
+        <div className="hidden lg:block">
+          <Card>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b bg-muted/50">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">User ID</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Total Balance</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Loyalty Coins</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Affiliate</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Refund</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Status</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {filteredWallets.map((wallet) => (
+                      <tr key={wallet.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="px-6 py-4 text-sm font-mono">{wallet.user_id.slice(0, 8)}...</td>
+                        <td className="px-6 py-4 text-sm font-semibold">₹{wallet.total_balance}</td>
+                        <td className="px-6 py-4 text-sm text-yellow-600 font-semibold">{wallet.loyalty_balance}</td>
+                        <td className="px-6 py-4 text-sm">₹{wallet.affiliate_balance}</td>
+                        <td className="px-6 py-4 text-sm">₹{wallet.refund_balance}</td>
+                        <td className="px-6 py-4">
+                          <Badge variant={wallet.frozen ? 'destructive' : 'default'}>{wallet.frozen ? 'Frozen' : 'Active'}</Badge>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button variant="ghost" size="icon" onClick={() => { setSelectedWallet(wallet); setActionType('credit'); }} title="Credit"><Plus className="w-4 h-4 text-green-600" /></Button>
+                            <Button variant="ghost" size="icon" onClick={() => { setSelectedWallet(wallet); setActionType('debit'); }} title="Debit"><Minus className="w-4 h-4 text-destructive" /></Button>
+                            {wallet.frozen ? (
+                              <Button variant="ghost" size="icon" onClick={() => handleUnfreeze(wallet.user_id)} title="Unfreeze"><Unlock className="w-4 h-4 text-green-600" /></Button>
+                            ) : (
+                              <Button variant="ghost" size="icon" onClick={() => handleFreeze(wallet.user_id)} title="Freeze"><Lock className="w-4 h-4 text-orange-600" /></Button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Mobile/Tablet Cards */}
+        <div className="lg:hidden space-y-3">
+          {filteredWallets.map((wallet) => (
+            <Card key={wallet.id}>
+              <CardContent className="p-4">
+                <div className="flex justify-between items-start mb-3">
+                  <code className="text-sm font-mono text-muted-foreground">{wallet.user_id.slice(0, 12)}...</code>
+                  <Badge variant={wallet.frozen ? 'destructive' : 'default'}>{wallet.frozen ? 'Frozen' : 'Active'}</Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-3 mb-3 text-sm">
+                  <div><p className="text-muted-foreground">Total</p><p className="font-semibold">₹{wallet.total_balance}</p></div>
+                  <div><p className="text-muted-foreground">Loyalty</p><p className="font-semibold text-yellow-600">{wallet.loyalty_balance}</p></div>
+                  <div><p className="text-muted-foreground">Affiliate</p><p className="font-semibold">₹{wallet.affiliate_balance}</p></div>
+                  <div><p className="text-muted-foreground">Refund</p><p className="font-semibold">₹{wallet.refund_balance}</p></div>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => { setSelectedWallet(wallet); setActionType('credit'); }} className="flex-1"><Plus className="w-4 h-4 mr-1 text-green-600" />Credit</Button>
+                  <Button variant="outline" size="sm" onClick={() => { setSelectedWallet(wallet); setActionType('debit'); }} className="flex-1"><Minus className="w-4 h-4 mr-1 text-destructive" />Debit</Button>
+                  {wallet.frozen ? (
+                    <Button variant="outline" size="sm" onClick={() => handleUnfreeze(wallet.user_id)}><Unlock className="w-4 h-4 text-green-600" /></Button>
+                  ) : (
+                    <Button variant="outline" size="sm" onClick={() => handleFreeze(wallet.user_id)}><Lock className="w-4 h-4 text-orange-600" /></Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
         {/* Credit/Debit Modal */}

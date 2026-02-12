@@ -236,131 +236,104 @@ const AdminProducts = () => {
                 </Button>
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead>SKU</TableHead>
-                    <TableHead>Price</TableHead>
-                    <TableHead>Stock</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Features</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredProducts.map((product) => {
-                    const activeOffer = getActiveOffer(product);
-                    const hasLoyalty = product.loyalty_config?.[0]?.is_enabled;
-                    const hasAffiliate = product.affiliate_config?.[0]?.is_enabled;
+              <>
+              <div className="hidden lg:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Product</TableHead>
+                      <TableHead>SKU</TableHead>
+                      <TableHead>Price</TableHead>
+                      <TableHead>Stock</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Features</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredProducts.map((product) => {
+                      const activeOffer = getActiveOffer(product);
+                      const hasLoyalty = product.loyalty_config?.[0]?.is_enabled;
+                      const hasAffiliate = product.affiliate_config?.[0]?.is_enabled;
+                      return (
+                        <TableRow key={product.id}>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <img src={getPrimaryImage(product)} alt={product.name} className="w-12 h-12 object-cover rounded" />
+                              <div>
+                                <div className="font-medium">{product.name}</div>
+                                <div className="text-sm text-muted-foreground">{product.category?.name || 'Uncategorized'}</div>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell><code className="text-xs bg-muted px-2 py-1 rounded">{product.sku || 'N/A'}</code></TableCell>
+                          <TableCell>
+                            <div className="font-medium">₹{product.price.toLocaleString()}</div>
+                            {activeOffer && <div className="text-xs text-green-600">{activeOffer.banner_tag}</div>}
+                          </TableCell>
+                          <TableCell><Badge variant={product.stock_quantity <= product.low_stock_threshold ? 'destructive' : 'secondary'}>{product.stock_quantity}</Badge></TableCell>
+                          <TableCell><Badge variant={product.is_active ? 'default' : 'secondary'}>{product.is_active ? 'Active' : 'Inactive'}</Badge></TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              {hasLoyalty && <Badge variant="outline" className="text-xs">🪙 Loyalty</Badge>}
+                              {hasAffiliate && <Badge variant="outline" className="text-xs">🤝 Affiliate</Badge>}
+                              {activeOffer && <Badge variant="outline" className="text-xs text-green-600">🎁 Offer</Badge>}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button variant="ghost" size="icon" onClick={() => toggleProductStatus(product.id, product.is_active)}>
+                                {product.is_active ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                              </Button>
+                              <Button variant="ghost" size="icon" onClick={() => navigate(`/admin/products/edit/${product.id}`)}><Edit className="h-4 w-4" /></Button>
+                              <Button variant="ghost" size="icon" onClick={() => { setProductToDelete(product.id); setDeleteDialogOpen(true); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
 
-                    return (
-                      <TableRow key={product.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <img
-                              src={getPrimaryImage(product)}
-                              alt={product.name}
-                              className="w-12 h-12 object-cover rounded"
-                            />
-                            <div>
-                              <div className="font-medium">{product.name}</div>
-                              <div className="text-sm text-gray-500">
-                                {product.category?.name || 'Uncategorized'}
-                              </div>
-                            </div>
+              {/* Mobile/Tablet Cards */}
+              <div className="lg:hidden space-y-3">
+                {filteredProducts.map((product) => {
+                  const activeOffer = getActiveOffer(product);
+                  return (
+                    <div key={product.id} className="flex gap-3 p-3 border rounded-lg">
+                      <img src={getPrimaryImage(product)} alt={product.name} className="w-16 h-16 object-cover rounded shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <h3 className="font-medium truncate">{product.name}</h3>
+                            <p className="text-sm text-muted-foreground">{product.category?.name || 'Uncategorized'}</p>
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <code className="text-xs bg-gray-100 px-2 py-1 rounded">
-                            {product.sku || 'N/A'}
-                          </code>
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            <div className="font-medium">
-                              ₹{product.price.toLocaleString()}
-                            </div>
-                            {activeOffer && (
-                              <div className="text-xs text-green-600">
-                                {activeOffer.banner_tag}
-                              </div>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              product.stock_quantity <= product.low_stock_threshold
-                                ? 'destructive'
-                                : 'secondary'
-                            }
-                          >
-                            {product.stock_quantity}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={product.is_active ? 'default' : 'secondary'}>
+                          <Badge variant={product.is_active ? 'default' : 'secondary'} className="shrink-0 text-xs">
                             {product.is_active ? 'Active' : 'Inactive'}
                           </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            {hasLoyalty && (
-                              <Badge variant="outline" className="text-xs">
-                                🪙 Loyalty
-                              </Badge>
-                            )}
-                            {hasAffiliate && (
-                              <Badge variant="outline" className="text-xs">
-                                🤝 Affiliate
-                              </Badge>
-                            )}
-                            {activeOffer && (
-                              <Badge variant="outline" className="text-xs text-green-600">
-                                🎁 Offer
-                              </Badge>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => toggleProductStatus(product.id, product.is_active)}
-                              title={product.is_active ? 'Deactivate' : 'Activate'}
-                            >
-                              {product.is_active ? (
-                                <Eye className="h-4 w-4" />
-                              ) : (
-                                <EyeOff className="h-4 w-4" />
-                              )}
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => navigate(`/admin/products/edit/${product.id}`)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => {
-                                setProductToDelete(product.id);
-                                setDeleteDialogOpen(true);
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4 text-red-500" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                        </div>
+                        <div className="flex items-center gap-3 mt-2 text-sm">
+                          <span className="font-semibold">₹{product.price.toLocaleString()}</span>
+                          <Badge variant={product.stock_quantity <= product.low_stock_threshold ? 'destructive' : 'secondary'} className="text-xs">
+                            Stock: {product.stock_quantity}
+                          </Badge>
+                        </div>
+                        <div className="flex gap-1 mt-2">
+                          <Button variant="outline" size="sm" onClick={() => navigate(`/admin/products/edit/${product.id}`)}><Edit className="h-3 w-3 mr-1" />Edit</Button>
+                          <Button variant="outline" size="sm" onClick={() => toggleProductStatus(product.id, product.is_active)}>
+                            {product.is_active ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => { setProductToDelete(product.id); setDeleteDialogOpen(true); }}>
+                            <Trash2 className="h-3 w-3 text-destructive" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              </>
             )}
           </CardContent>
         </Card>

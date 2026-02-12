@@ -136,7 +136,7 @@ const InstagramLayout = ({ children, user }: InstagramLayoutProps) => {
                   <span className="text-xs font-medium text-yellow-800">Total Coins</span>
                   <div className="flex items-center gap-1">
                     <Award className="w-4 h-4 text-yellow-600" />
-                    <span className="text-sm font-bold text-yellow-600">{user.total_coins}</span>
+                    <span className="text-sm font-bold text-yellow-600">{user.total_coins_earned || 0}</span>
                   </div>
                 </div>
               </div>

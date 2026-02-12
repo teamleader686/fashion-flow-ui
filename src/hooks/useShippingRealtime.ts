@@ -109,7 +109,7 @@ export const useShippingRealtime = () => {
             status: shipmentData.status,
             shipped_at: shipmentData.status === 'picked_up' || shipmentData.status === 'in_transit' 
               ? new Date().toISOString() 
-              : existingShipment.shipped_at,
+              : (existingShipment as any).shipped_at,
             delivered_at: shipmentData.status === 'delivered' 
               ? new Date().toISOString() 
               : null

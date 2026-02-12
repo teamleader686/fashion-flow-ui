@@ -7,7 +7,7 @@ import InstagramStoryCard from '@/components/instagram/InstagramStoryCard';
 import CoinHistoryCard from '@/components/instagram/CoinHistoryCard';
 import InstagramLayout from '@/components/instagram/InstagramLayout';
 import { useInstagramAssignments, useInstagramCoinLogs } from '@/hooks/useInstagramMarketing';
-import type { InstagramUser } from '@/types/instagram';
+import type { InstagramUser } from '@/lib/supabase';
 
 export default function InstagramDashboard() {
   const navigate = useNavigate();
@@ -77,7 +77,7 @@ export default function InstagramDashboard() {
             <CardContent>
               <div className="text-2xl font-bold text-yellow-600 flex items-center gap-2">
                 <Award className="w-5 h-5" />
-                {user.total_coins}
+                {user.total_coins_earned || 0}
               </div>
             </CardContent>
           </Card>
