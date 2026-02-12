@@ -1,8 +1,9 @@
 import Layout from "@/components/layout/Layout";
 import ProductCard from "@/components/ProductCard";
-import { products } from "@/data/mockData";
+import { useProducts } from "@/hooks/useProducts";
 
 const Offers = () => {
+  const { products, loading } = useProducts();
   const discountedProducts = [...products].sort((a, b) => b.discount - a.discount);
 
   return (
@@ -26,11 +27,17 @@ const Offers = () => {
         </div>
 
         <h2 className="text-xl font-bold mb-4">Best Deals</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4">
-          {discountedProducts.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
+        {loading ? (
+          <div className="text-center py-16">
+            <p className="text-muted-foreground">Loading offers...</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4">
+            {discountedProducts.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        )}
       </div>
     </Layout>
   );

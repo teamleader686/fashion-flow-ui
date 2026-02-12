@@ -1,12 +1,13 @@
 import Layout from "@/components/layout/Layout";
 import ProductCard from "@/components/ProductCard";
 import { useCart } from "@/contexts/CartContext";
-import { products } from "@/data/mockData";
+import { useProducts } from "@/hooks/useProducts";
 import { Heart } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const Wishlist = () => {
   const { wishlist } = useCart();
+  const { products, loading } = useProducts();
   const wishlistProducts = products.filter((p) => wishlist.includes(p.id));
 
   return (
@@ -16,7 +17,11 @@ const Wishlist = () => {
           My Wishlist ({wishlist.length})
         </h1>
 
-        {wishlistProducts.length > 0 ? (
+        {loading ? (
+          <div className="text-center py-16">
+            <p className="text-muted-foreground">Loading wishlist...</p>
+          </div>
+        ) : wishlistProducts.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4">
             {wishlistProducts.map((product) => (
               <ProductCard key={product.id} product={product} />

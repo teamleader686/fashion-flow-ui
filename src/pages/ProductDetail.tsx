@@ -1,6 +1,6 @@
 import { useParams, Link } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
-import { products } from "@/data/mockData";
+import { useProducts } from "@/hooks/useProducts";
 import { useCart } from "@/contexts/CartContext";
 import { useState } from "react";
 import { Heart, Star, ShoppingBag, Truck, RotateCcw, Shield, ChevronLeft } from "lucide-react";
@@ -10,11 +10,25 @@ import { toast } from "sonner";
 
 const ProductDetail = () => {
   const { slug } = useParams();
+  const { products, loading } = useProducts();
   const product = products.find((p) => p.slug === slug);
   const { addItem, wishlist, toggleWishlist } = useCart();
 
   const [selectedSize, setSelectedSize] = useState("");
   const [selectedColor, setSelectedColor] = useState("");
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="container py-16 text-center">
+          <div className="animate-pulse">
+            <div className="h-8 bg-secondary rounded w-1/3 mx-auto mb-4"></div>
+            <div className="h-4 bg-secondary rounded w-1/4 mx-auto"></div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   if (!product) {
     return (

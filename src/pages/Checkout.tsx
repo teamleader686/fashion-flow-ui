@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
 import { useCart } from "@/contexts/CartContext";
+import { useOrderPlacement } from "@/hooks/useOrderPlacement";
 import {
   ChevronLeft,
   MapPin,
@@ -54,6 +55,7 @@ interface AddressForm {
 const Checkout = () => {
   const navigate = useNavigate();
   const { items, totalPrice, totalItems, clearCart } = useCart();
+  const { placeOrder, loading: placingOrder } = useOrderPlacement();
 
   // Address
   const [address, setAddress] = useState<AddressForm>({
@@ -165,16 +167,53 @@ const Checkout = () => {
   };
 
   // Place order
-  const handlePlaceOrder = () => {
+  const handlePlaceOrder = async () => {
     if (!validateAddress()) {
       setExpandedSection("address");
       toast.error("Please fill in your delivery address");
       return;
     }
-    // Mock order placement
-    const orderNumber = "SB" + Date.now().toString().slice(-8);
-    clearCart();
-    navigate(`/order-success?order=${orderNumber}`);
+
+    // Prepare order data
+    const orderData = {
+      customer_name: address.fullName,
+      customer_email: address.addressLine2 || undefined, // Using addressLine2 as email placeholder
+      customer_phone: address.phone,
+      shipping_address_line1: address.addressLine1,
+      shipping_address_line2: address.addressLine2 || undefined,
+      shipping_city: address.city,
+      shipping_state: address.state,
+      shipping_zip: address.pincode,
+      shipping_country: 'India',
+      subtotal,
+      shipping_cost: shipping,
+      discount_amount: 0,
+      coupon_discount: couponDiscount,
+      wallet_amount_used: 0,
+      loyalty_coins_used: useCoins ? coinsToUse : 0,
+      loyalty_coins_value: coinsValue,
+      total_amount: finalTotal,
+      coupon_code: appliedCoupon?.code,
+      payment_method: paymentMethod,
+      items: items.map(item => ({
+        product_id: item.product.id,
+        product_name: item.product.name,
+        product_image: item.product.image,
+        sku: item.product.slug,
+        size: item.selectedSize,
+        color: item.selectedColor,
+        quantity: item.quantity,
+        unit_price: item.product.price,
+        total_price: item.product.price * item.quantity,
+      })),
+    };
+
+    const orderNumber = await placeOrder(orderData);
+    
+    if (orderNumber) {
+      clearCart();
+      navigate(`/order-success?order=${orderNumber}`);
+    }
   };
 
   const toggleSection = (section: string) => {
@@ -685,9 +724,10 @@ const Checkout = () => {
 
               <button
                 onClick={handlePlaceOrder}
-                className="w-full py-3 rounded-full bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity"
+                disabled={placingOrder}
+                className="w-full py-3 rounded-full bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {paymentMethod === "cod" ? "Place Order (COD)" : `Pay ₹${finalTotal.toLocaleString()}`}
+                {placingOrder ? 'Placing Order...' : (paymentMethod === "cod" ? "Place Order (COD)" : `Pay ₹${finalTotal.toLocaleString()}`)}
               </button>
 
               {/* Trust badges */}

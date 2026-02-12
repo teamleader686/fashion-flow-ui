@@ -1,5 +1,12 @@
 import React, { createContext, useContext, useState, useCallback } from "react";
-import type { Product, CartItem } from "@/data/mockData";
+import type { Product } from "@/hooks/useProducts";
+
+export interface CartItem {
+  product: Product;
+  quantity: number;
+  selectedSize: string;
+  selectedColor: string;
+}
 
 interface CartContextType {
   items: CartItem[];

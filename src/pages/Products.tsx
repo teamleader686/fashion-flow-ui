@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
 import ProductCard from "@/components/ProductCard";
-import { products, categories } from "@/data/mockData";
+import { useProducts, useCategories } from "@/hooks/useProducts";
 import { SlidersHorizontal, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -18,6 +18,9 @@ const Products = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const categoryParam = searchParams.get("category") || "all";
   const searchQuery = searchParams.get("search") || "";
+
+  const { products, loading: productsLoading } = useProducts();
+  const { categories, loading: categoriesLoading } = useCategories();
 
   const [sortBy, setSortBy] = useState("popular");
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 10000]);
@@ -71,6 +74,8 @@ const Products = () => {
   const categoryTitle = categoryParam === "all"
     ? searchQuery ? `Search: "${searchQuery}"` : "All Products"
     : categories.find((c) => c.slug === categoryParam)?.name || "Products";
+
+  const loading = productsLoading || categoriesLoading;
 
   return (
     <Layout>
@@ -192,7 +197,17 @@ const Products = () => {
               </select>
             </div>
 
-            {filteredProducts.length > 0 ? (
+            {loading ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 lg:gap-4">
+                {[...Array(8)].map((_, i) => (
+                  <div key={i} className="animate-pulse">
+                    <div className="aspect-[3/4] bg-secondary rounded-xl mb-2"></div>
+                    <div className="h-4 bg-secondary rounded w-3/4 mb-2"></div>
+                    <div className="h-4 bg-secondary rounded w-1/2"></div>
+                  </div>
+                ))}
+              </div>
+            ) : filteredProducts.length > 0 ? (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 lg:gap-4">
                 {filteredProducts.map((product) => (
                   <ProductCard key={product.id} product={product} />

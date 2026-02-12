@@ -1,6 +1,6 @@
 import { Heart, Star } from "lucide-react";
 import { Link } from "react-router-dom";
-import type { Product } from "@/data/mockData";
+import type { Product } from "@/hooks/useProducts";
 import { useCart } from "@/contexts/CartContext";
 import { motion } from "framer-motion";
 

@@ -3,16 +3,20 @@ import HeroBanner from "@/components/home/HeroBanner";
 import CategoryCircles from "@/components/home/CategoryCircles";
 import OfferBanner from "@/components/home/OfferBanner";
 import ProductCard from "@/components/ProductCard";
-import { products } from "@/data/mockData";
+import ReferralTracker from "@/components/ReferralTracker";
+import { useProducts } from "@/hooks/useProducts";
 import { Link } from "react-router-dom";
 
 const Index = () => {
-  const featuredProducts = products.filter((p) => p.isFeatured);
-  const newArrivals = products.filter((p) => p.isNew);
+  const { products, loading } = useProducts();
+  
+  const featuredProducts = products.filter((p) => p.isFeatured).slice(0, 4);
+  const newArrivals = products.filter((p) => p.isNew).slice(0, 4);
   const allProducts = products.slice(0, 8);
 
   return (
     <Layout>
+      <ReferralTracker />
       <HeroBanner />
       <CategoryCircles />
       <OfferBanner />
