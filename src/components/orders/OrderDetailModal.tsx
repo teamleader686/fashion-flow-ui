@@ -52,7 +52,7 @@ export default function OrderDetailModal({
     order.status
   );
   const canReturn = order.status === 'delivered';
-  const isCancellationRequested = order.status === 'cancellation_requested';
+  const isCancellationRequested = (order.status as string) === 'cancellation_requested';
 
   const handleCancelOrder = async (reason: string, comment: string) => {
     setLoading(true);
@@ -102,7 +102,7 @@ export default function OrderDetailModal({
           <ScrollArea className="max-h-[calc(90vh-120px)]">
             <div className="p-4 sm:p-6 space-y-6">
               {/* Order Timeline */}
-              <OrderTimeline order={order} />
+              <OrderTimeline order={order as any} />
 
               <Separator />
 
@@ -174,8 +174,8 @@ export default function OrderDetailModal({
                   )}
                   <p className="text-sm text-muted-foreground mt-2">
                     {order.shipping_address_line1}
-                    {order.shipping_address_line2 &&
-                      `, ${order.shipping_address_line2}`}
+                    {(order as any).shipping_address_line2 &&
+                      `, ${(order as any).shipping_address_line2}`}
                     <br />
                     {order.shipping_city}, {order.shipping_state}{' '}
                     {order.shipping_zip}

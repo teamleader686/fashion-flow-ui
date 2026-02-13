@@ -163,34 +163,17 @@ export const useUserOrderStats = () => {
           .from('shipments')
           .select('id', { count: 'exact', head: true })
           .eq('status', 'in_transit')
-          .in('order_id', 
-            supabase
-              .from('orders')
-              .select('id')
-              .eq('user_id', user.id)
-          ),
+          .eq('user_id', user.id),
 
         supabase
           .from('shipments')
           .select('id', { count: 'exact', head: true })
-          .eq('status', 'out_for_delivery')
-          .in('order_id',
-            supabase
-              .from('orders')
-              .select('id')
-              .eq('user_id', user.id)
-          ),
+          .eq('status', 'out_for_delivery'),
 
         supabase
           .from('shipments')
           .select('id', { count: 'exact', head: true })
-          .eq('status', 'delivered')
-          .in('order_id',
-            supabase
-              .from('orders')
-              .select('id')
-              .eq('user_id', user.id)
-          ),
+          .eq('status', 'delivered'),
       ]);
 
       // Calculate spending totals
