@@ -1,8 +1,9 @@
-import { Heart, Star, Coins } from "lucide-react";
+import { Heart, Star, Coins, Share2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { Product } from "@/hooks/useProducts";
 import { useCart } from "@/contexts/CartContext";
 import { motion } from "framer-motion";
+import ProductShare from "./ProductShare";
 
 interface ProductCardProps {
   product: Product;
@@ -47,19 +48,21 @@ const ProductCard = ({ product }: ProductCardProps) => {
           <Link to={`/product/${product.slug}`} className="flex-1 min-w-0">
             <h3 className="text-sm font-medium text-foreground truncate">{product.name}</h3>
           </Link>
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              toggleWishlist(product.id);
-            }}
-            className="flex-shrink-0 p-1"
-          >
-            <Heart
-              className={`h-4 w-4 transition-colors ${
-                isWishlisted ? "fill-accent text-accent" : "text-muted-foreground"
-              }`}
-            />
-          </button>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <ProductShare product={product} />
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                toggleWishlist(product.id);
+              }}
+              className="p-1"
+            >
+              <Heart
+                className={`h-4 w-4 transition-colors ${isWishlisted ? "fill-accent text-accent" : "text-muted-foreground"
+                  }`}
+              />
+            </button>
+          </div>
         </div>
 
         <div className="flex items-baseline gap-2 mt-1">

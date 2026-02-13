@@ -18,19 +18,15 @@ import {
   X,
   ChevronDown,
   ChevronUp,
+  Loader2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
+import { useEffect } from "react";
 
-// Mock coupons
-const AVAILABLE_COUPONS = [
-  { code: "WELCOME50", type: "percentage" as const, value: 50, maxDiscount: 200, minOrder: 500, description: "50% off up to ₹200" },
-  { code: "FLAT200", type: "flat" as const, value: 200, maxDiscount: 200, minOrder: 999, description: "Flat ₹200 off on orders above ₹999" },
-  { code: "FESTIVE30", type: "percentage" as const, value: 30, maxDiscount: 500, minOrder: 1500, description: "30% off up to ₹500 on festive collection" },
-];
-
-// Mock loyalty
-const LOYALTY_BALANCE = 320;
+// Mock loyalty settings - can be moved to state if needed
 const COINS_PER_RUPEE = 1; // 1 coin = ₹1
 const MAX_COINS_PERCENT = 50; // max 50% of order
 
@@ -52,12 +48,21 @@ interface AddressForm {
   pincode: string;
 }
 
+import { AddressSection } from "@/components/checkout/AddressSection";
+import { UserAddress } from "@/hooks/useAddresses";
+
 const Checkout = () => {
   const navigate = useNavigate();
+  const { user, profile } = useAuth();
   const { items, totalPrice, totalItems, clearCart } = useCart();
   const { placeOrder, loading: placingOrder } = useOrderPlacement();
 
-  // Address
+  // Fetched data
+  const [availableCoupons, setAvailableCoupons] = useState<any[]>([]);
+  const [loyaltyBalance, setLoyaltyBalance] = useState(0);
+  const [loadingData, setLoadingData] = useState(true);
+
+  // Address - for guest or currently selected
   const [address, setAddress] = useState<AddressForm>({
     fullName: "",
     phone: "",
@@ -68,10 +73,26 @@ const Checkout = () => {
     pincode: "",
   });
   const [addressErrors, setAddressErrors] = useState<Partial<AddressForm>>({});
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+
+  // When a saved address is selected
+  const handleAddressSelect = (addr: UserAddress) => {
+    setSelectedAddressId(addr.id);
+    setAddress({
+      fullName: addr.full_name,
+      phone: addr.phone,
+      addressLine1: addr.address_line1,
+      addressLine2: addr.address_line2 || addr.landmark || "",
+      city: addr.city,
+      state: addr.state,
+      pincode: addr.zip_code,
+    });
+    setAddressErrors({});
+  };
 
   // Coupon
   const [couponCode, setCouponCode] = useState("");
-  const [appliedCoupon, setAppliedCoupon] = useState<typeof AVAILABLE_COUPONS[0] | null>(null);
+  const [appliedCoupon, setAppliedCoupon] = useState<any | null>(null);
   const [showCoupons, setShowCoupons] = useState(false);
 
   // Loyalty coins
@@ -90,31 +111,69 @@ const Checkout = () => {
 
   const couponDiscount = useMemo(() => {
     if (!appliedCoupon) return 0;
-    if (subtotal < appliedCoupon.minOrder) return 0;
-    if (appliedCoupon.type === "percentage") {
-      return Math.min(Math.floor(subtotal * appliedCoupon.value / 100), appliedCoupon.maxDiscount);
+    // Map DB column names (handling both potential schemas if mixed, but prioritizing actual likely schema)
+    const minOrder = appliedCoupon.min_order_amount ?? appliedCoupon.min_order_value ?? 0;
+    const type = appliedCoupon.type ?? appliedCoupon.discount_type;
+    const value = appliedCoupon.value ?? appliedCoupon.discount_value ?? 0;
+    const maxDiscount = appliedCoupon.max_discount ?? appliedCoupon.max_discount_amount;
+
+    if (subtotal < minOrder) return 0;
+    if (type === "percentage") {
+      const discount = Math.floor(subtotal * value / 100);
+      return maxDiscount
+        ? Math.min(discount, maxDiscount)
+        : discount;
     }
-    return appliedCoupon.value;
+    return value;
   }, [appliedCoupon, subtotal]);
 
   const maxCoinsUsable = Math.min(
-    LOYALTY_BALANCE,
+    loyaltyBalance,
     Math.floor((subtotal - couponDiscount) * MAX_COINS_PERCENT / 100)
   );
 
   const coinsValue = useCoins ? Math.min(coinsToUse, maxCoinsUsable) * COINS_PER_RUPEE : 0;
 
-  // Redirect if cart empty
-  if (items.length === 0) {
-    return (
-      <Layout>
-        <div className="container py-16 text-center">
-          <h1 className="text-xl font-bold mb-2">No items to checkout</h1>
-          <Link to="/cart" className="text-primary hover:underline text-sm">Go to cart</Link>
-        </div>
-      </Layout>
-    );
-  }
+  // Fetch coupons
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoadingData(true);
+
+        // Fetch user's loyalty balance
+        if (user) {
+          const { data: wallet, error: walletError } = await supabase
+            .from('loyalty_coins')
+            .select('available_coins')
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+          if (!walletError && wallet) {
+            setLoyaltyBalance(wallet.available_coins);
+          }
+        }
+
+        // Fetch active coupons
+        const { data: coupons, error: couponError } = await supabase
+          .from('coupons')
+          .select('*')
+          .gte('expiry_date', new Date().toISOString());
+
+        if (!couponError) {
+          setAvailableCoupons(coupons || []);
+        } else {
+          console.error('Error fetching coupons:', couponError);
+        }
+      } catch (err) {
+        console.error("Error fetching checkout data:", err);
+      } finally {
+        setLoadingData(false);
+      }
+    };
+
+    fetchData();
+  }, [user]);
+
   const finalTotal = Math.max(0, subtotal + shipping - couponDiscount - coinsValue);
 
   // Validate address
@@ -139,6 +198,19 @@ const Checkout = () => {
     return Object.keys(errors).length === 0;
   };
 
+  // Redirect if cart empty (moved after hooks)
+  if (items.length === 0) {
+    return (
+      <Layout>
+        <div className="container py-16 text-center">
+          <h1 className="text-xl font-bold mb-2">No items to checkout</h1>
+          <Link to="/cart" className="text-primary hover:underline text-sm">Go to cart</Link>
+        </div>
+      </Layout>
+    );
+  }
+
+
   // Apply coupon
   const handleApplyCoupon = () => {
     const code = couponCode.trim().toUpperCase();
@@ -146,18 +218,20 @@ const Checkout = () => {
       toast.error("Please enter a coupon code");
       return;
     }
-    const found = AVAILABLE_COUPONS.find((c) => c.code === code);
+    // Check both code and coupon_code field to be safe
+    const found = availableCoupons.find((c) => (c.code === code || c.coupon_code === code));
     if (!found) {
       toast.error("Invalid coupon code");
       return;
     }
-    if (subtotal < found.minOrder) {
-      toast.error(`Minimum order of ₹${found.minOrder} required`);
+    const minOrder = found.min_order_amount ?? found.min_order_value ?? 0;
+    if (subtotal < minOrder) {
+      toast.error(`Minimum order of ₹${minOrder} required`);
       return;
     }
     setAppliedCoupon(found);
     setShowCoupons(false);
-    toast.success(`Coupon ${found.code} applied!`);
+    toast.success(`Coupon ${code} applied!`);
   };
 
   const removeCoupon = () => {
@@ -193,7 +267,7 @@ const Checkout = () => {
       loyalty_coins_used: useCoins ? coinsToUse : 0,
       loyalty_coins_value: coinsValue,
       total_amount: finalTotal,
-      coupon_code: appliedCoupon?.code,
+      coupon_code: appliedCoupon?.code || appliedCoupon?.coupon_code,
       payment_method: paymentMethod,
       items: items.map(item => ({
         product_id: item.product.id,
@@ -209,7 +283,7 @@ const Checkout = () => {
     };
 
     const orderNumber = await placeOrder(orderData);
-    
+
     if (orderNumber) {
       clearCart();
       navigate(`/order-success?order=${orderNumber}`);
@@ -260,108 +334,117 @@ const Checkout = () => {
                     exit={{ height: 0, opacity: 0 }}
                     className="overflow-hidden"
                   >
-                    <div className="px-4 pb-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {/* Full Name */}
-                      <div className="sm:col-span-2">
-                        <label className="text-xs font-medium text-muted-foreground mb-1 block">Full Name *</label>
-                        <input
-                          type="text"
-                          placeholder="Enter full name"
-                          maxLength={100}
-                          value={address.fullName}
-                          onChange={(e) => setAddress({ ...address, fullName: e.target.value })}
-                          className={`w-full rounded-lg border px-3 py-2.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 ${addressErrors.fullName ? "border-accent" : "border-border"}`}
+                    <div className="px-4 pb-4">
+                      {user ? (
+                        <AddressSection
+                          selectedAddressId={selectedAddressId}
+                          onSelect={handleAddressSelect}
                         />
-                        {addressErrors.fullName && <p className="text-[11px] text-accent mt-0.5">{addressErrors.fullName}</p>}
-                      </div>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {/* Full Name */}
+                          <div className="sm:col-span-2">
+                            <label className="text-xs font-medium text-muted-foreground mb-1 block">Full Name *</label>
+                            <input
+                              type="text"
+                              placeholder="Enter full name"
+                              maxLength={100}
+                              value={address.fullName}
+                              onChange={(e) => setAddress({ ...address, fullName: e.target.value })}
+                              className={`w-full rounded-lg border px-3 py-2.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 ${addressErrors.fullName ? "border-accent" : "border-border"}`}
+                            />
+                            {addressErrors.fullName && <p className="text-[11px] text-accent mt-0.5">{addressErrors.fullName}</p>}
+                          </div>
 
-                      {/* Phone */}
-                      <div>
-                        <label className="text-xs font-medium text-muted-foreground mb-1 block">Phone Number *</label>
-                        <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">+91</span>
-                          <input
-                            type="tel"
-                            placeholder="9876543210"
-                            maxLength={10}
-                            value={address.phone}
-                            onChange={(e) => setAddress({ ...address, phone: e.target.value.replace(/\D/g, "").slice(0, 10) })}
-                            className={`w-full rounded-lg border px-3 py-2.5 text-sm bg-background pl-12 focus:outline-none focus:ring-2 focus:ring-primary/30 ${addressErrors.phone ? "border-accent" : "border-border"}`}
-                          />
+                          {/* Phone */}
+                          <div>
+                            <label className="text-xs font-medium text-muted-foreground mb-1 block">Phone Number *</label>
+                            <div className="relative">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">+91</span>
+                              <input
+                                type="tel"
+                                placeholder="9876543210"
+                                maxLength={10}
+                                value={address.phone}
+                                onChange={(e) => setAddress({ ...address, phone: e.target.value.replace(/\D/g, "").slice(0, 10) })}
+                                className={`w-full rounded-lg border px-3 py-2.5 text-sm bg-background pl-12 focus:outline-none focus:ring-2 focus:ring-primary/30 ${addressErrors.phone ? "border-accent" : "border-border"}`}
+                              />
+                            </div>
+                            {addressErrors.phone && <p className="text-[11px] text-accent mt-0.5">{addressErrors.phone}</p>}
+                          </div>
+
+                          {/* PIN Code */}
+                          <div>
+                            <label className="text-xs font-medium text-muted-foreground mb-1 block">PIN Code *</label>
+                            <input
+                              type="text"
+                              placeholder="400001"
+                              maxLength={6}
+                              value={address.pincode}
+                              onChange={(e) => setAddress({ ...address, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) })}
+                              className={`w-full rounded-lg border px-3 py-2.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 ${addressErrors.pincode ? "border-accent" : "border-border"}`}
+                            />
+                            {addressErrors.pincode && <p className="text-[11px] text-accent mt-0.5">{addressErrors.pincode}</p>}
+                          </div>
+
+                          {/* Address Line 1 */}
+                          <div className="sm:col-span-2">
+                            <label className="text-xs font-medium text-muted-foreground mb-1 block">Address Line 1 *</label>
+                            <input
+                              type="text"
+                              placeholder="House no., Building, Street"
+                              maxLength={200}
+                              value={address.addressLine1}
+                              onChange={(e) => setAddress({ ...address, addressLine1: e.target.value })}
+                              className={`w-full rounded-lg border px-3 py-2.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 ${addressErrors.addressLine1 ? "border-accent" : "border-border"}`}
+                            />
+                            {addressErrors.addressLine1 && <p className="text-[11px] text-accent mt-0.5">{addressErrors.addressLine1}</p>}
+                          </div>
+
+                          {/* Address Line 2 */}
+                          <div className="sm:col-span-2">
+                            <label className="text-xs font-medium text-muted-foreground mb-1 block">Address Line 2</label>
+                            <input
+                              type="text"
+                              placeholder="Landmark, Area (optional)"
+                              maxLength={200}
+                              value={address.addressLine2}
+                              onChange={(e) => setAddress({ ...address, addressLine2: e.target.value })}
+                              className="w-full rounded-lg border border-border px-3 py-2.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+                            />
+                          </div>
+
+                          {/* City */}
+                          <div>
+                            <label className="text-xs font-medium text-muted-foreground mb-1 block">City *</label>
+                            <input
+                              type="text"
+                              placeholder="City"
+                              maxLength={100}
+                              value={address.city}
+                              onChange={(e) => setAddress({ ...address, city: e.target.value })}
+                              className={`w-full rounded-lg border px-3 py-2.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 ${addressErrors.city ? "border-accent" : "border-border"}`}
+                            />
+                            {addressErrors.city && <p className="text-[11px] text-accent mt-0.5">{addressErrors.city}</p>}
+                          </div>
+
+                          {/* State */}
+                          <div>
+                            <label className="text-xs font-medium text-muted-foreground mb-1 block">State *</label>
+                            <select
+                              value={address.state}
+                              onChange={(e) => setAddress({ ...address, state: e.target.value })}
+                              className={`w-full rounded-lg border px-3 py-2.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 ${addressErrors.state ? "border-accent" : "border-border"}`}
+                            >
+                              <option value="">Select state</option>
+                              {indianStates.map((s) => (
+                                <option key={s} value={s}>{s}</option>
+                              ))}
+                            </select>
+                            {addressErrors.state && <p className="text-[11px] text-accent mt-0.5">{addressErrors.state}</p>}
+                          </div>
                         </div>
-                        {addressErrors.phone && <p className="text-[11px] text-accent mt-0.5">{addressErrors.phone}</p>}
-                      </div>
-
-                      {/* PIN Code */}
-                      <div>
-                        <label className="text-xs font-medium text-muted-foreground mb-1 block">PIN Code *</label>
-                        <input
-                          type="text"
-                          placeholder="400001"
-                          maxLength={6}
-                          value={address.pincode}
-                          onChange={(e) => setAddress({ ...address, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) })}
-                          className={`w-full rounded-lg border px-3 py-2.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 ${addressErrors.pincode ? "border-accent" : "border-border"}`}
-                        />
-                        {addressErrors.pincode && <p className="text-[11px] text-accent mt-0.5">{addressErrors.pincode}</p>}
-                      </div>
-
-                      {/* Address Line 1 */}
-                      <div className="sm:col-span-2">
-                        <label className="text-xs font-medium text-muted-foreground mb-1 block">Address Line 1 *</label>
-                        <input
-                          type="text"
-                          placeholder="House no., Building, Street"
-                          maxLength={200}
-                          value={address.addressLine1}
-                          onChange={(e) => setAddress({ ...address, addressLine1: e.target.value })}
-                          className={`w-full rounded-lg border px-3 py-2.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 ${addressErrors.addressLine1 ? "border-accent" : "border-border"}`}
-                        />
-                        {addressErrors.addressLine1 && <p className="text-[11px] text-accent mt-0.5">{addressErrors.addressLine1}</p>}
-                      </div>
-
-                      {/* Address Line 2 */}
-                      <div className="sm:col-span-2">
-                        <label className="text-xs font-medium text-muted-foreground mb-1 block">Address Line 2</label>
-                        <input
-                          type="text"
-                          placeholder="Landmark, Area (optional)"
-                          maxLength={200}
-                          value={address.addressLine2}
-                          onChange={(e) => setAddress({ ...address, addressLine2: e.target.value })}
-                          className="w-full rounded-lg border border-border px-3 py-2.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
-                        />
-                      </div>
-
-                      {/* City */}
-                      <div>
-                        <label className="text-xs font-medium text-muted-foreground mb-1 block">City *</label>
-                        <input
-                          type="text"
-                          placeholder="City"
-                          maxLength={100}
-                          value={address.city}
-                          onChange={(e) => setAddress({ ...address, city: e.target.value })}
-                          className={`w-full rounded-lg border px-3 py-2.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 ${addressErrors.city ? "border-accent" : "border-border"}`}
-                        />
-                        {addressErrors.city && <p className="text-[11px] text-accent mt-0.5">{addressErrors.city}</p>}
-                      </div>
-
-                      {/* State */}
-                      <div>
-                        <label className="text-xs font-medium text-muted-foreground mb-1 block">State *</label>
-                        <select
-                          value={address.state}
-                          onChange={(e) => setAddress({ ...address, state: e.target.value })}
-                          className={`w-full rounded-lg border px-3 py-2.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 ${addressErrors.state ? "border-accent" : "border-border"}`}
-                        >
-                          <option value="">Select state</option>
-                          {indianStates.map((s) => (
-                            <option key={s} value={s}>{s}</option>
-                          ))}
-                        </select>
-                        {addressErrors.state && <p className="text-[11px] text-accent mt-0.5">{addressErrors.state}</p>}
-                      </div>
+                      )}
                     </div>
                   </motion.div>
                 )}
@@ -402,8 +485,8 @@ const Checkout = () => {
                       {appliedCoupon ? (
                         <div className="flex items-center justify-between p-3 bg-primary/5 border border-primary/20 rounded-lg">
                           <div>
-                            <p className="text-sm font-bold text-primary">{appliedCoupon.code}</p>
-                            <p className="text-xs text-muted-foreground">{appliedCoupon.description}</p>
+                            <p className="text-sm font-bold text-primary">{appliedCoupon.coupon_code}</p>
+                            <p className="text-xs text-muted-foreground">{appliedCoupon.description || appliedCoupon.coupon_title}</p>
                             <p className="text-xs font-semibold text-discount mt-0.5">You save ₹{couponDiscount}</p>
                           </div>
                           <button onClick={removeCoupon} className="p-1.5 hover:bg-secondary rounded-full">
@@ -444,33 +527,37 @@ const Checkout = () => {
                                 exit={{ height: 0, opacity: 0 }}
                                 className="mt-2 space-y-2 overflow-hidden"
                               >
-                                {AVAILABLE_COUPONS.map((coupon) => (
-                                  <div
-                                    key={coupon.code}
-                                    className="flex items-center justify-between p-3 border border-dashed border-border rounded-lg"
-                                  >
-                                    <div>
-                                      <p className="text-sm font-bold">{coupon.code}</p>
-                                      <p className="text-[11px] text-muted-foreground">{coupon.description}</p>
-                                      <p className="text-[11px] text-muted-foreground">Min order: ₹{coupon.minOrder}</p>
-                                    </div>
-                                    <button
-                                      onClick={() => {
-                                        setCouponCode(coupon.code);
-                                        if (subtotal >= coupon.minOrder) {
-                                          setAppliedCoupon(coupon);
-                                          setShowCoupons(false);
-                                          toast.success(`Coupon ${coupon.code} applied!`);
-                                        } else {
-                                          toast.error(`Minimum order of ₹${coupon.minOrder} required`);
-                                        }
-                                      }}
-                                      className="text-xs font-semibold text-primary hover:underline whitespace-nowrap"
+                                {availableCoupons.length === 0 ? (
+                                  <p className="text-xs text-muted-foreground py-2">No coupons available right now</p>
+                                ) : (
+                                  availableCoupons.map((coupon) => (
+                                    <div
+                                      key={coupon.id}
+                                      className="flex items-center justify-between p-3 border border-dashed border-border rounded-lg"
                                     >
-                                      Apply
-                                    </button>
-                                  </div>
-                                ))}
+                                      <div>
+                                        <p className="text-sm font-bold">{coupon.coupon_code}</p>
+                                        <p className="text-[11px] text-muted-foreground">{coupon.description || coupon.coupon_title}</p>
+                                        <p className="text-[11px] text-muted-foreground">Min order: ₹{coupon.min_order_value}</p>
+                                      </div>
+                                      <button
+                                        onClick={() => {
+                                          setCouponCode(coupon.coupon_code);
+                                          if (subtotal >= coupon.min_order_value) {
+                                            setAppliedCoupon(coupon);
+                                            setShowCoupons(false);
+                                            toast.success(`Coupon ${coupon.coupon_code} applied!`);
+                                          } else {
+                                            toast.error(`Minimum order of ₹${coupon.min_order_value} required`);
+                                          }
+                                        }}
+                                        className="text-xs font-semibold text-primary hover:underline whitespace-nowrap"
+                                      >
+                                        Apply
+                                      </button>
+                                    </div>
+                                  ))
+                                )}
                               </motion.div>
                             )}
                           </AnimatePresence>
@@ -494,7 +581,7 @@ const Checkout = () => {
                   </div>
                   <div className="text-left">
                     <h2 className="font-semibold text-sm">Loyalty Coins</h2>
-                    <p className="text-[11px] text-muted-foreground">Balance: {LOYALTY_BALANCE} coins</p>
+                    <p className="text-[11px] text-muted-foreground">Balance: {loyaltyBalance} coins</p>
                   </div>
                   {useCoins && coinsValue > 0 && (
                     <span className="text-xs font-semibold text-discount bg-primary/10 px-2 py-0.5 rounded-full">
@@ -592,9 +679,8 @@ const Checkout = () => {
                     <div className="px-4 pb-4 space-y-2">
                       {/* Online Payment */}
                       <label
-                        className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                          paymentMethod === "online" ? "border-primary bg-primary/5" : "border-border hover:bg-secondary/50"
-                        }`}
+                        className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${paymentMethod === "online" ? "border-primary bg-primary/5" : "border-border hover:bg-secondary/50"
+                          }`}
                       >
                         <input
                           type="radio"
@@ -618,9 +704,8 @@ const Checkout = () => {
 
                       {/* Wallet */}
                       <label
-                        className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                          paymentMethod === "wallet" ? "border-primary bg-primary/5" : "border-border hover:bg-secondary/50"
-                        }`}
+                        className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${paymentMethod === "wallet" ? "border-primary bg-primary/5" : "border-border hover:bg-secondary/50"
+                          }`}
                       >
                         <input
                           type="radio"
@@ -639,9 +724,8 @@ const Checkout = () => {
 
                       {/* COD */}
                       <label
-                        className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                          paymentMethod === "cod" ? "border-primary bg-primary/5" : "border-border hover:bg-secondary/50"
-                        }`}
+                        className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${paymentMethod === "cod" ? "border-primary bg-primary/5" : "border-border hover:bg-secondary/50"
+                          }`}
                       >
                         <input
                           type="radio"
@@ -700,7 +784,7 @@ const Checkout = () => {
                 </div>
                 {couponDiscount > 0 && (
                   <div className="flex justify-between text-discount">
-                    <span>Coupon ({appliedCoupon?.code})</span>
+                    <span>Coupon ({appliedCoupon?.coupon_code})</span>
                     <span>-₹{couponDiscount}</span>
                   </div>
                 )}
@@ -725,9 +809,16 @@ const Checkout = () => {
               <button
                 onClick={handlePlaceOrder}
                 disabled={placingOrder}
-                className="w-full py-3 rounded-full bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-3 rounded-full bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                {placingOrder ? 'Placing Order...' : (paymentMethod === "cod" ? "Place Order (COD)" : `Pay ₹${finalTotal.toLocaleString()}`)}
+                {placingOrder ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Placing Order...
+                  </>
+                ) : (
+                  paymentMethod === "cod" ? "Place Order (COD)" : `Pay ₹${finalTotal.toLocaleString()}`
+                )}
               </button>
 
               {/* Trust badges */}

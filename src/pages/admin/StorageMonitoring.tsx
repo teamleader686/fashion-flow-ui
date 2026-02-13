@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { RefreshCw, ArrowLeft, Download } from 'lucide-react';
 import { toast } from 'sonner';
 
+import AdminLayout from '@/components/admin/AdminLayout';
+
 export default function StorageMonitoring() {
   const navigate = useNavigate();
   const { stats, loading, refetch } = useStorageStats();
@@ -34,80 +36,82 @@ export default function StorageMonitoring() {
   };
 
   return (
-    <div className="container max-w-7xl mx-auto p-4 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate('/admin/store')}
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Store
+    <AdminLayout>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/admin/store')}
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Store
+              </Button>
+            </div>
+            <h1 className="text-3xl font-bold">Storage Monitoring</h1>
+            <p className="text-muted-foreground">
+              Monitor your Supabase database and storage usage
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button onClick={handleExport} variant="outline">
+              <Download className="h-4 w-4 mr-2" />
+              Export Report
+            </Button>
+            <Button onClick={refetch} variant="outline">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
             </Button>
           </div>
-          <h1 className="text-3xl font-bold">Storage Monitoring</h1>
-          <p className="text-muted-foreground">
-            Monitor your Supabase database and storage usage
-          </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button onClick={handleExport} variant="outline">
-            <Download className="h-4 w-4 mr-2" />
-            Export Report
-          </Button>
-          <Button onClick={refetch} variant="outline">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
+
+        {/* Storage Overview */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Storage Chart */}
+          <StorageChart
+            totalStorage={stats.totalStorage}
+            usedStorage={stats.usedStorage}
+            remainingStorage={stats.remainingStorage}
+            usagePercentage={stats.usagePercentage}
+            loading={loading}
+          />
+
+          {/* Storage Breakdown */}
+          <StorageBreakdown
+            breakdown={stats.breakdown}
+            totalUsed={stats.usedStorage}
+            loading={loading}
+          />
         </div>
-      </div>
 
-      {/* Storage Overview */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Storage Chart */}
-        <StorageChart
-          totalStorage={stats.totalStorage}
-          usedStorage={stats.usedStorage}
-          remainingStorage={stats.remainingStorage}
-          usagePercentage={stats.usagePercentage}
-          loading={loading}
-        />
-
-        {/* Storage Breakdown */}
-        <StorageBreakdown
-          breakdown={stats.breakdown}
-          totalUsed={stats.usedStorage}
-          loading={loading}
-        />
-      </div>
-
-      {/* Additional Info */}
-      <div className="bg-muted/50 rounded-lg p-6 space-y-4">
-        <h3 className="font-semibold text-lg">About Storage Monitoring</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-muted-foreground">
-          <div>
-            <p className="font-medium text-foreground mb-2">What's Included:</p>
-            <ul className="list-disc list-inside space-y-1">
-              <li>Product images storage</li>
-              <li>Category images storage</li>
-              <li>User avatars storage</li>
-              <li>Database size estimation</li>
-            </ul>
-          </div>
-          <div>
-            <p className="font-medium text-foreground mb-2">Updates:</p>
-            <ul className="list-disc list-inside space-y-1">
-              <li>Auto-refresh every 5 minutes</li>
-              <li>Manual refresh available</li>
-              <li>Real-time usage tracking</li>
-              <li>Alert at 80% usage</li>
-            </ul>
+        {/* Additional Info */}
+        <div className="bg-muted/50 rounded-lg p-6 space-y-4">
+          <h3 className="font-semibold text-lg">About Storage Monitoring</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-muted-foreground">
+            <div>
+              <p className="font-medium text-foreground mb-2">What's Included:</p>
+              <ul className="list-disc list-inside space-y-1">
+                <li>Product images storage</li>
+                <li>Category images storage</li>
+                <li>User avatars storage</li>
+                <li>Database size estimation</li>
+              </ul>
+            </div>
+            <div>
+              <p className="font-medium text-foreground mb-2">Updates:</p>
+              <ul className="list-disc list-inside space-y-1">
+                <li>Auto-refresh every 5 minutes</li>
+                <li>Manual refresh available</li>
+                <li>Real-time usage tracking</li>
+                <li>Alert at 80% usage</li>
+              </ul>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </AdminLayout>
   );
 }

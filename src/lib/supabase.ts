@@ -18,6 +18,7 @@ export type UserProfile = {
   phone: string;
   role: 'customer' | 'admin';
   is_active: boolean;
+  loyalty_coins_balance?: number;
   created_at: string;
   updated_at: string;
 };

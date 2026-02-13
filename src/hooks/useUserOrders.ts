@@ -137,7 +137,18 @@ export function useUserOrders() {
     reason: string
   ): Promise<boolean> => {
     try {
-      // Check if returns table exists, if not just update order status
+      // 1. Create return record
+      const { error: returnError } = await supabase
+        .from('returns')
+        .insert({
+          order_id: orderId,
+          reason: reason,
+          status: 'pending'
+        });
+
+      if (returnError) throw returnError;
+
+      // 2. Update order status
       const { error } = await supabase
         .from('orders')
         .update({

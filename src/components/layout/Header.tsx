@@ -175,6 +175,9 @@ const Header = () => {
                 <Link to="/account" onClick={() => setMenuOpen(false)} className="block py-3 px-3 rounded-lg text-foreground hover:bg-secondary font-medium">
                   My Account
                 </Link>
+                <Link to="/wallet" onClick={() => setMenuOpen(false)} className="block py-3 px-3 rounded-lg text-foreground hover:bg-secondary font-medium">
+                  My Wallet
+                </Link>
                 <Link to="/wishlist" onClick={() => setMenuOpen(false)} className="block py-3 px-3 rounded-lg text-foreground hover:bg-secondary font-medium">
                   Wishlist ({wishlist.length})
                 </Link>

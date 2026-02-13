@@ -1,8 +1,5 @@
 -- ============================================================================
--- ADD RETURNS TABLE TO DATABASE
--- ============================================================================
--- This table is referenced in the code but missing from the schema
--- Run this in Supabase SQL Editor
+-- ADD RETURNS TABLE TO DATABASE (FIXED & IDEMPOTENT)
 -- ============================================================================
 
 -- Create returns table
@@ -27,6 +24,11 @@ CREATE INDEX IF NOT EXISTS idx_returns_created_at ON public.returns(created_at D
 
 -- Enable Row Level Security
 ALTER TABLE public.returns ENABLE ROW LEVEL SECURITY;
+
+-- CLEANUP OLD POLICIES
+DROP POLICY IF EXISTS "Users can view their own returns" ON public.returns;
+DROP POLICY IF EXISTS "Users can create returns for their orders" ON public.returns;
+DROP POLICY IF EXISTS "Admins can manage returns" ON public.returns;
 
 -- RLS Policy: Users can view their own returns
 CREATE POLICY "Users can view their own returns"
@@ -61,13 +63,7 @@ CREATE POLICY "Admins can manage returns"
     );
 
 -- Create trigger for updated_at
+DROP TRIGGER IF EXISTS update_returns_updated_at ON public.returns;
 CREATE TRIGGER update_returns_updated_at
     BEFORE UPDATE ON public.returns
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
--- ============================================================================
--- VERIFICATION QUERY
--- ============================================================================
--- Run this to verify the table was created successfully:
--- SELECT * FROM public.returns LIMIT 1;
-

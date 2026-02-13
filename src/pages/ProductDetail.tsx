@@ -3,11 +3,14 @@ import Layout from "@/components/layout/Layout";
 import { useProducts } from "@/hooks/useProducts";
 import { useCart } from "@/contexts/CartContext";
 import { useState } from "react";
-import { Heart, Star, ShoppingBag, Truck, RotateCcw, Shield, ChevronLeft, Coins } from "lucide-react";
+import { Heart, Star, ShoppingBag, Truck, RotateCcw, Shield, ChevronLeft, Coins, Share2 } from "lucide-react";
 import { motion } from "framer-motion";
 import ProductCard from "@/components/ProductCard";
+import ProductShare from "@/components/ProductShare";
 import { toast } from "sonner";
 import { ProductDetailSkeleton } from "@/components/shimmer/ProductDetailSkeleton";
+import { useEffect } from "react";
+import SEO from "@/components/layout/SEO";
 
 const ProductDetail = () => {
   const { slug } = useParams();
@@ -17,6 +20,11 @@ const ProductDetail = () => {
 
   const [selectedSize, setSelectedSize] = useState("");
   const [selectedColor, setSelectedColor] = useState("");
+
+  // Scroll to top on mount or slug change
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [slug]);
 
   if (loading) {
     return (
@@ -53,6 +61,13 @@ const ProductDetail = () => {
 
   return (
     <Layout>
+      <SEO
+        title={product.name}
+        description={product.description}
+        image={product.image}
+        url={window.location.href}
+        type="product"
+      />
       <div className="container py-4 lg:py-8">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
@@ -141,9 +156,8 @@ const ProductDetail = () => {
                   <button
                     key={color}
                     onClick={() => setSelectedColor(color)}
-                    className={`w-8 h-8 rounded-full border-2 transition-all ${
-                      selectedColor === color ? "border-primary scale-110" : "border-border"
-                    }`}
+                    className={`w-8 h-8 rounded-full border-2 transition-all ${selectedColor === color ? "border-primary scale-110" : "border-border"
+                      }`}
                     style={{ backgroundColor: color }}
                   />
                 ))}
@@ -158,11 +172,10 @@ const ProductDetail = () => {
                   <button
                     key={size}
                     onClick={() => setSelectedSize(size)}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                      selectedSize === size
-                        ? "bg-foreground text-card border-foreground"
-                        : "border-border hover:bg-secondary"
-                    }`}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${selectedSize === size
+                      ? "bg-foreground text-card border-foreground"
+                      : "border-border hover:bg-secondary"
+                      }`}
                   >
                     {size}
                   </button>
@@ -179,14 +192,24 @@ const ProductDetail = () => {
                 <ShoppingBag className="h-4 w-4" />
                 Add to Cart
               </button>
-              <button
-                onClick={() => toggleWishlist(product.id)}
-                className={`px-4 py-3 rounded-full border-2 transition-colors ${
-                  isWishlisted ? "border-accent bg-accent/10" : "border-border hover:bg-secondary"
-                }`}
-              >
-                <Heart className={`h-5 w-5 ${isWishlisted ? "fill-accent text-accent" : ""}`} />
-              </button>
+
+              <div className="flex gap-2">
+                <ProductShare
+                  product={product}
+                  trigger={
+                    <button className="px-4 py-3 rounded-full border-2 border-border hover:bg-secondary transition-colors">
+                      <Share2 className="h-5 w-5" />
+                    </button>
+                  }
+                />
+                <button
+                  onClick={() => toggleWishlist(product.id)}
+                  className={`px-4 py-3 rounded-full border-2 transition-colors ${isWishlisted ? "border-accent bg-accent/10" : "border-border hover:bg-secondary"
+                    }`}
+                >
+                  <Heart className={`h-5 w-5 ${isWishlisted ? "fill-accent text-accent" : ""}`} />
+                </button>
+              </div>
             </div>
 
             {/* Features */}

@@ -1,263 +1,246 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import type {
-  Wallet,
-  WalletTransaction,
-  LoyaltyTransaction,
-  WalletBalance,
-  CreditWalletParams,
-  DebitWalletParams,
-  CreditCoinsParams,
-  RedeemCoinsParams
-} from '@/types/wallet';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
-export function useWallet(userId?: string) {
-  const [wallet, setWallet] = useState<Wallet | null>(null);
+export interface WalletTransaction {
+  id: string;
+  user_id: string;
+  order_id: string | null;
+  type: 'earn' | 'redeem' | 'refund' | 'admin_adjust' | 'affiliate_credit' | 'promotional';
+  coins: number;
+  amount: number;
+  wallet_type: string;
+  description: string;
+  balance_after: number;
+  status: string;
+  created_at: string;
+}
+
+export interface WalletData {
+  id: string;
+  user_id: string;
+  available_balance: number;
+  loyalty_balance: number; // Mapping for admin consistency
+  affiliate_balance: number;
+  refund_balance: number;
+  promotional_balance: number;
+  total_balance: number;
+  total_earned: number;
+  total_redeemed: number;
+  frozen: boolean;
+  frozen_reason: string;
+}
+
+// Hook for User-side Wallet
+export const useWallet = () => {
+  const { user } = useAuth();
+  const [wallet, setWallet] = useState<WalletData | null>(null);
+  const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchWallet = async () => {
-    if (!userId) return;
+  const fetchWalletData = useCallback(async () => {
+    if (!user) return;
 
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('wallets')
+
+      const { data: walletData, error: walletError } = await supabase
+        .from('loyalty_wallet')
         .select('*')
-        .eq('user_id', userId)
-        .single();
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (walletError) {
+        throw walletError;
+      }
+
+      if (walletData) {
+        setWallet({
+          ...walletData,
+          loyalty_balance: walletData.available_balance // compatibility
+        });
+      } else {
+        setWallet(null);
+      }
+
+      const { data: txData, error: txError } = await supabase
+        .from('loyalty_transactions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (txError) throw txError;
+      setTransactions(txData || []);
+
+    } catch (err: any) {
+      console.error('Error fetching wallet data:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchWalletData();
+    if (!user) return;
+
+    const channel = supabase.channel('user_wallet_updates')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'loyalty_wallet', filter: `user_id=eq.${user.id}` }, () => fetchWalletData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'loyalty_transactions', filter: `user_id=eq.${user.id}` }, () => fetchWalletData())
+      .subscribe();
+
+    return () => { channel.unsubscribe(); };
+  }, [user, fetchWalletData]);
+
+  return { wallet, transactions, loading, error, refetch: fetchWalletData };
+};
+
+// Hook for Admin: Fetch all wallets
+export const useAllWallets = () => {
+  const [wallets, setWallets] = useState<WalletData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchAllWallets = useCallback(async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('loyalty_wallet')
+        .select('*')
+        .order('updated_at', { ascending: false });
 
       if (error) throw error;
-      setWallet(data);
+
+      const mappedData = (data || []).map(w => ({
+        ...w,
+        loyalty_balance: w.available_balance // compatibility with admin UI
+      }));
+
+      setWallets(mappedData);
     } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchWallet();
-  }, [userId]);
-
-  return { wallet, loading, error, refetch: fetchWallet };
-}
-
-export function useWalletBalance(userId?: string) {
-  const [balance, setBalance] = useState<WalletBalance | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchBalance = async () => {
-      if (!userId) return;
-
-      try {
-        setLoading(true);
-        const { data, error} = await supabase.rpc('get_wallet_balance', {
-          p_user_id: userId
-        });
-
-        if (error) throw error;
-        setBalance(data && data.length > 0 ? data[0] : null);
-      } catch (err) {
-        console.error('Error fetching wallet balance:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchBalance();
-  }, [userId]);
-
-  return { balance, loading };
-}
-
-export function useWalletTransactions(userId?: string) {
-  const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const fetchTransactions = async () => {
-    if (!userId) return;
-
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('wallet_transactions')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(100);
-
-      if (error) throw error;
-      setTransactions(data || []);
-    } catch (err) {
-      console.error('Error fetching wallet transactions:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchTransactions();
-  }, [userId]);
-
-  return { transactions, loading, refetch: fetchTransactions };
-}
-
-export function useLoyaltyTransactions(userId?: string) {
-  const [transactions, setTransactions] = useState<LoyaltyTransaction[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const fetchTransactions = async () => {
-    if (!userId) return;
-
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('loyalty_transactions')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(100);
-
-      if (error) throw error;
-      setTransactions(data || []);
-    } catch (err) {
-      console.error('Error fetching loyalty transactions:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchTransactions();
-  }, [userId]);
-
-  return { transactions, loading, refetch: fetchTransactions };
-}
-
-export function useWalletActions() {
-  const creditWallet = async (params: CreditWalletParams) => {
-    const { data, error } = await supabase.rpc('credit_wallet', {
-      p_user_id: params.user_id,
-      p_wallet_type: params.wallet_type,
-      p_amount: params.amount,
-      p_source: params.source,
-      p_reference_id: params.reference_id || null,
-      p_description: params.description || null,
-      p_created_by: params.created_by || null
-    });
-
-    if (error) throw error;
-    return data;
-  };
-
-  const debitWallet = async (params: DebitWalletParams) => {
-    const { data, error } = await supabase.rpc('debit_wallet', {
-      p_user_id: params.user_id,
-      p_wallet_type: params.wallet_type,
-      p_amount: params.amount,
-      p_source: params.source,
-      p_reference_id: params.reference_id || null,
-      p_description: params.description || null,
-      p_created_by: params.created_by || null
-    });
-
-    if (error) throw error;
-    return data;
-  };
-
-  const creditCoins = async (params: CreditCoinsParams) => {
-    const { data, error } = await supabase.rpc('credit_loyalty_coins', {
-      p_user_id: params.user_id,
-      p_order_id: params.order_id,
-      p_coins: params.coins,
-      p_type: params.type || 'earn',
-      p_description: params.description || null,
-      p_expires_at: params.expires_at || null
-    });
-
-    if (error) throw error;
-    return data;
-  };
-
-  const redeemCoins = async (params: RedeemCoinsParams) => {
-    const { data, error } = await supabase.rpc('redeem_loyalty_coins', {
-      p_user_id: params.user_id,
-      p_order_id: params.order_id,
-      p_coins: params.coins,
-      p_description: params.description || null
-    });
-
-    if (error) throw error;
-    return data;
-  };
-
-  const freezeWallet = async (userId: string, reason: string) => {
-    const { data: user } = await supabase.auth.getUser();
-
-    const { error } = await supabase
-      .from('wallets')
-      .update({
-        frozen: true,
-        frozen_reason: reason,
-        frozen_at: new Date().toISOString(),
-        frozen_by: user.user?.id
-      })
-      .eq('user_id', userId);
-
-    if (error) throw error;
-  };
-
-  const unfreezeWallet = async (userId: string) => {
-    const { error } = await supabase
-      .from('wallets')
-      .update({
-        frozen: false,
-        frozen_reason: null,
-        frozen_at: null,
-        frozen_by: null
-      })
-      .eq('user_id', userId);
-
-    if (error) throw error;
-  };
-
-  return {
-    creditWallet,
-    debitWallet,
-    creditCoins,
-    redeemCoins,
-    freezeWallet,
-    unfreezeWallet
-  };
-}
-
-// Hook for admin to view all wallets
-export function useAllWallets() {
-  const [wallets, setWallets] = useState<Wallet[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const fetchWallets = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('wallets')
-        .select('*')
-        .order('total_balance', { ascending: false });
-
-      if (error) throw error;
-      setWallets(data || []);
-    } catch (err) {
-      console.error('Error fetching wallets:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchWallets();
   }, []);
 
-  return { wallets, loading, refetch: fetchWallets };
-}
+  useEffect(() => {
+    fetchAllWallets();
+  }, [fetchAllWallets]);
+
+  return { wallets, loading, error, refetch: fetchAllWallets };
+};
+
+// Hook for Admin: Wallet Actions
+export const useWalletActions = () => {
+  const [loading, setLoading] = useState(false);
+
+  const creditWallet = async ({ user_id, amount, description, wallet_type }: any) => {
+    setLoading(true);
+    try {
+      // If loyalty type, we use the loyalty_transactions table to trigger the update
+      if (wallet_type === 'loyalty') {
+        const { error } = await supabase
+          .from('loyalty_transactions')
+          .insert({
+            user_id,
+            type: 'admin_adjust',
+            coins: Math.round(amount),
+            description: description || 'Admin adjustment',
+            wallet_type: 'loyalty'
+          });
+        if (error) throw error;
+      } else {
+        // For other types, direct update (since triggers are simplified)
+        // In a real system, you'd have more triggers or RPCs
+        const updateField = `${wallet_type}_balance`;
+        const { data: current } = await supabase.from('loyalty_wallet').select(updateField).eq('user_id', user_id).single();
+        const newBalance = (current?.[updateField] || 0) + amount;
+
+        const { error } = await supabase
+          .from('loyalty_wallet')
+          .update({ [updateField]: newBalance, updated_at: new Date().toISOString() })
+          .eq('user_id', user_id);
+        if (error) throw error;
+      }
+      toast.success('Wallet credited successfully');
+    } catch (error: any) {
+      toast.error(error.message);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const debitWallet = async ({ user_id, amount, description, wallet_type }: any) => {
+    setLoading(true);
+    try {
+      if (wallet_type === 'loyalty') {
+        const { error } = await supabase
+          .from('loyalty_transactions')
+          .insert({
+            user_id,
+            type: 'admin_adjust',
+            coins: -Math.round(amount),
+            description: description || 'Admin adjustment',
+            wallet_type: 'loyalty'
+          });
+        if (error) throw error;
+      } else {
+        const updateField = `${wallet_type}_balance`;
+        const { data: current } = await supabase.from('loyalty_wallet').select(updateField).eq('user_id', user_id).single();
+        const newBalance = Math.max(0, (current?.[updateField] || 0) - amount);
+
+        const { error } = await supabase
+          .from('loyalty_wallet')
+          .update({ [updateField]: newBalance, updated_at: new Date().toISOString() })
+          .eq('user_id', user_id);
+        if (error) throw error;
+      }
+      toast.success('Wallet debited successfully');
+    } catch (error: any) {
+      toast.error(error.message);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const freezeWallet = async (user_id: string, reason: string) => {
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('loyalty_wallet')
+        .update({ frozen: true, frozen_reason: reason, updated_at: new Date().toISOString() })
+        .eq('user_id', user_id);
+      if (error) throw error;
+      toast.success('Wallet frozen');
+    } catch (error: any) {
+      toast.error(error.message);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const unfreezeWallet = async (user_id: string) => {
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('loyalty_wallet')
+        .update({ frozen: false, frozen_reason: null, updated_at: new Date().toISOString() })
+        .eq('user_id', user_id);
+      if (error) throw error;
+      toast.success('Wallet unfrozen');
+    } catch (error: any) {
+      toast.error(error.message);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { creditWallet, debitWallet, freezeWallet, unfreezeWallet, loading };
+};

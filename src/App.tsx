@@ -15,10 +15,13 @@ import Checkout from "./pages/Checkout";
 import OrderSuccess from "./pages/OrderSuccess";
 import Wishlist from "./pages/Wishlist";
 import Account from "./pages/Account";
+import Profile from "./pages/Profile";
+import Addresses from "./pages/Addresses";
 import Offers from "./pages/Offers";
 import Notifications from "./pages/Notifications";
 import MyOrders from "./pages/MyOrders";
 import UserOrderDashboard from "./pages/UserOrderDashboard";
+import Wallet from "./pages/Wallet";
 import NotFound from "./pages/NotFound";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -58,51 +61,54 @@ const App = () => (
             <NavigationProvider>
               <ScrollToTop />
               <Routes>
-              {/* Public Routes */}
-              <Route path="/" element={<Index />} />
-              <Route path="/products" element={<Products />} />
-              <Route path="/product/:slug" element={<ProductDetail />} />
-              <Route path="/cart" element={<Cart />} />
-              <Route path="/checkout" element={<Checkout />} />
-              <Route path="/order-success" element={<OrderSuccess />} />
-              <Route path="/wishlist" element={<Wishlist />} />
-              <Route path="/account" element={<Account />} />
-              <Route path="/offers" element={<Offers />} />
-              <Route path="/notifications" element={<Notifications />} />
-              <Route path="/my-orders" element={<MyOrders />} />
-              <Route path="/order-dashboard" element={<UserOrderDashboard />} />
-              
-              {/* Admin Routes */}
-              <Route path="/admin/login" element={<AdminLogin />} />
-              <Route path="/admin/dashboard" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
-              <Route path="/admin/products" element={<ProtectedRoute><AdminProducts /></ProtectedRoute>} />
-              <Route path="/admin/products/new" element={<ProtectedRoute><ProductForm /></ProtectedRoute>} />
-              <Route path="/admin/products/edit/:id" element={<ProtectedRoute><ProductForm /></ProtectedRoute>} />
-              <Route path="/admin/categories" element={<ProtectedRoute><CategoryManagement /></ProtectedRoute>} />
-              <Route path="/admin/orders" element={<ProtectedRoute><AdminOrders /></ProtectedRoute>} />
-              <Route path="/admin/cancellation-requests" element={<ProtectedRoute><CancellationRequests /></ProtectedRoute>} />
-              <Route path="/admin/shipping" element={<ProtectedRoute><AdminShipping /></ProtectedRoute>} />
-              <Route path="/admin/customers" element={<ProtectedRoute><AdminCustomers /></ProtectedRoute>} />
-              <Route path="/admin/instagram-marketing" element={<ProtectedRoute><InstagramMarketing /></ProtectedRoute>} />
-              <Route path="/admin/affiliate-marketing" element={<ProtectedRoute><AffiliateMarketing /></ProtectedRoute>} />
-              <Route path="/admin/affiliate-coupons" element={<ProtectedRoute><AffiliateCoupons /></ProtectedRoute>} />
-              <Route path="/admin/coupons" element={<ProtectedRoute><CouponManagement /></ProtectedRoute>} />
-              <Route path="/admin/offers" element={<ProtectedRoute><OfferManagement /></ProtectedRoute>} />
-              <Route path="/admin/wallet" element={<ProtectedRoute><WalletManagement /></ProtectedRoute>} />
-              <Route path="/admin/reviews" element={<ProtectedRoute><AdminReviews /></ProtectedRoute>} />
-              <Route path="/admin/settings" element={<ProtectedRoute><AdminSettings /></ProtectedRoute>} />
-              <Route path="/admin/store" element={<ProtectedRoute><StoreManagement /></ProtectedRoute>} />
-              <Route path="/admin/store/storage" element={<ProtectedRoute><StorageMonitoring /></ProtectedRoute>} />
-              <Route path="/admin/notifications" element={<ProtectedRoute><AdminNotifications /></ProtectedRoute>} />
-              
-              {/* Instagram User Routes */}
-              <Route path="/instagram-login" element={<InstagramLogin />} />
-              <Route path="/instagram-dashboard" element={<InstagramDashboard />} />
-              
-              {/* Affiliate User Routes */}
-              <Route path="/affiliate-dashboard" element={<AffiliateDashboard />} />
-              
-              <Route path="*" element={<NotFound />} />
+                {/* Public Routes */}
+                <Route path="/" element={<Index />} />
+                <Route path="/products" element={<Products />} />
+                <Route path="/product/:slug" element={<ProductDetail />} />
+                <Route path="/cart" element={<Cart />} />
+                <Route path="/checkout" element={<Checkout />} />
+                <Route path="/order-success" element={<OrderSuccess />} />
+                <Route path="/wishlist" element={<Wishlist />} />
+                <Route path="/account" element={<Account />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/addresses" element={<Addresses />} />
+                <Route path="/offers" element={<Offers />} />
+                <Route path="/notifications" element={<Notifications />} />
+                <Route path="/my-orders" element={<MyOrders />} />
+                <Route path="/order-dashboard" element={<UserOrderDashboard />} />
+                <Route path="/wallet" element={<Wallet />} />
+
+                {/* Admin Routes */}
+                <Route path="/admin/login" element={<AdminLogin />} />
+                <Route path="/admin/dashboard" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+                <Route path="/admin/products" element={<ProtectedRoute><AdminProducts /></ProtectedRoute>} />
+                <Route path="/admin/products/new" element={<ProtectedRoute><ProductForm /></ProtectedRoute>} />
+                <Route path="/admin/products/edit/:id" element={<ProtectedRoute><ProductForm /></ProtectedRoute>} />
+                <Route path="/admin/categories" element={<ProtectedRoute><CategoryManagement /></ProtectedRoute>} />
+                <Route path="/admin/orders" element={<ProtectedRoute><AdminOrders /></ProtectedRoute>} />
+                <Route path="/admin/cancellation-requests" element={<ProtectedRoute><CancellationRequests /></ProtectedRoute>} />
+                <Route path="/admin/shipping" element={<ProtectedRoute><AdminShipping /></ProtectedRoute>} />
+                <Route path="/admin/customers" element={<ProtectedRoute><AdminCustomers /></ProtectedRoute>} />
+                <Route path="/admin/instagram-marketing" element={<ProtectedRoute><InstagramMarketing /></ProtectedRoute>} />
+                <Route path="/admin/affiliate-marketing" element={<ProtectedRoute><AffiliateMarketing /></ProtectedRoute>} />
+                <Route path="/admin/affiliate-coupons" element={<ProtectedRoute><AffiliateCoupons /></ProtectedRoute>} />
+                <Route path="/admin/coupons" element={<ProtectedRoute><CouponManagement /></ProtectedRoute>} />
+                <Route path="/admin/offers" element={<ProtectedRoute><OfferManagement /></ProtectedRoute>} />
+                <Route path="/admin/wallet" element={<ProtectedRoute><WalletManagement /></ProtectedRoute>} />
+                <Route path="/admin/reviews" element={<ProtectedRoute><AdminReviews /></ProtectedRoute>} />
+                <Route path="/admin/settings" element={<ProtectedRoute><AdminSettings /></ProtectedRoute>} />
+                <Route path="/admin/store" element={<ProtectedRoute><StoreManagement /></ProtectedRoute>} />
+                <Route path="/admin/store/storage" element={<ProtectedRoute><StorageMonitoring /></ProtectedRoute>} />
+                <Route path="/admin/notifications" element={<ProtectedRoute><AdminNotifications /></ProtectedRoute>} />
+
+                {/* Instagram User Routes */}
+                <Route path="/instagram-login" element={<InstagramLogin />} />
+                <Route path="/instagram-dashboard" element={<InstagramDashboard />} />
+
+                {/* Affiliate User Routes */}
+                <Route path="/affiliate-dashboard" element={<AffiliateDashboard />} />
+
+                <Route path="*" element={<NotFound />} />
               </Routes>
             </NavigationProvider>
           </BrowserRouter>

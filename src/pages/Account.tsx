@@ -1,49 +1,99 @@
 import Layout from "@/components/layout/Layout";
-import { User, Package, MapPin, Wallet, Gift, LogIn } from "lucide-react";
+import { User, Package, MapPin, Wallet, Gift, LogIn, ChevronRight, Settings, Heart } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
 
 const menuItems = [
-  { icon: Package, label: "My Orders", desc: "Track, return, or buy again", link: "/my-orders" },
-  { icon: MapPin, label: "Addresses", desc: "Manage delivery addresses", link: "/account" },
-  { icon: Wallet, label: "My Wallet", desc: "Balance & transactions", link: "/account" },
-  { icon: Gift, label: "Rewards & Coins", desc: "Earn & redeem loyalty coins", link: "/account" },
+  { icon: Package, label: "My Orders", desc: "Track, return, or buy again", link: "/my-orders", color: "text-blue-500", bg: "bg-blue-50" },
+  { icon: Heart, label: "Wishlist", desc: "Your favorite items", link: "/wishlist", color: "text-pink-500", bg: "bg-pink-50" },
+  { icon: MapPin, label: "Addresses", desc: "Manage delivery addresses", link: "/addresses", color: "text-orange-500", bg: "bg-orange-50" },
+  { icon: Wallet, label: "My Wallet & Rewards", desc: "Balance, coins & transactions", link: "/wallet", color: "text-emerald-500", bg: "bg-emerald-50" },
 ];
 
 const Account = () => {
+  const { user, profile, loading, signOut } = useAuth();
+
+  if (loading) return (
+    <Layout>
+      <div className="container py-8 max-w-2xl mx-auto space-y-4">
+        <div className="h-32 bg-secondary/50 rounded-2xl animate-pulse" />
+        <div className="h-16 bg-secondary/50 rounded-xl animate-pulse" />
+        <div className="h-16 bg-secondary/50 rounded-xl animate-pulse" />
+      </div>
+    </Layout>
+  );
+
   return (
     <Layout>
       <div className="container py-4 lg:py-8 max-w-2xl mx-auto">
-        {/* Guest state */}
-        <div className="bg-card rounded-xl border border-border p-6 text-center mb-6">
-          <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center mx-auto mb-3">
-            <User className="h-8 w-8 text-muted-foreground" />
+        {/* Profile Card */}
+        {user ? (
+          <div className="bg-gradient-to-br from-primary/10 via-background to-secondary/30 rounded-2xl border border-primary/10 p-6 mb-8 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <User size={120} />
+            </div>
+            <div className="flex items-center gap-5 relative z-10">
+              <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-2xl font-bold shadow-lg shadow-primary/20">
+                {profile?.full_name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase()}
+              </div>
+              <div className="flex-1">
+                <h1 className="text-xl font-bold tracking-tight">{profile?.full_name || 'User'}</h1>
+                <p className="text-sm text-muted-foreground">{user.email}</p>
+              </div>
+              <Link to="/profile">
+                <Button variant="ghost" size="icon" className="rounded-full hover:bg-white/50">
+                  <Settings className="h-5 w-5 text-muted-foreground" />
+                </Button>
+              </Link>
+            </div>
           </div>
-          <h1 className="text-lg font-bold mb-1">Welcome to StyleBazaar</h1>
-          <p className="text-sm text-muted-foreground mb-4">Sign in to access your account</p>
-          <button className="px-8 py-2.5 rounded-full bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity">
-            <LogIn className="h-4 w-4 inline-block mr-2" />
-            Sign In / Sign Up
-          </button>
-        </div>
+        ) : (
+          <div className="bg-card rounded-2xl border border-dashed border-border p-8 text-center mb-8">
+            <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center mx-auto mb-4">
+              <User className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <h1 className="text-xl font-bold mb-2">Welcome to StyleBazaar</h1>
+            <p className="text-sm text-muted-foreground mb-6">Sign in to track orders, manage addresses and more.</p>
+            <Button asChild className="rounded-full px-10">
+              <Link to="/auth">
+                <LogIn className="h-4 w-4 mr-2" />
+                Sign In / Sign Up
+              </Link>
+            </Button>
+          </div>
+        )}
 
         {/* Menu items */}
-        <div className="space-y-2">
-          {menuItems.map(({ icon: Icon, label, desc, link }) => (
+        <div className="grid gap-3">
+          {menuItems.map(({ icon: Icon, label, desc, link, color, bg }) => (
             <Link
               key={label}
               to={link}
-              className="w-full flex items-center gap-4 p-4 bg-card rounded-xl border border-border hover:bg-secondary/50 transition-colors text-left block"
+              className="group flex items-center gap-4 p-4 bg-card rounded-xl border border-border/60 hover:border-primary/50 hover:shadow-sm transition-all text-left"
             >
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <Icon className="h-5 w-5 text-primary" />
+              <div className={`w-12 h-12 rounded-xl ${bg} flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform`}>
+                <Icon className={`h-6 w-6 ${color}`} />
               </div>
-              <div>
-                <h3 className="font-medium text-sm">{label}</h3>
-                <p className="text-xs text-muted-foreground">{desc}</p>
+              <div className="flex-1">
+                <h3 className="font-semibold text-sm">{label}</h3>
+                <p className="text-xs text-muted-foreground leading-tight">{desc}</p>
               </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:translate-x-1 transition-transform" />
             </Link>
           ))}
         </div>
+
+        {user && (
+          <div className="mt-8 text-center">
+            <button
+              onClick={() => signOut()}
+              className="text-sm font-medium text-destructive hover:underline transition-all"
+            >
+              Log Out From Account
+            </button>
+          </div>
+        )}
       </div>
     </Layout>
   );

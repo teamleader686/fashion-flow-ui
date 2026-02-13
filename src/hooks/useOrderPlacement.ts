@@ -50,10 +50,10 @@ export const useOrderPlacement = () => {
       // If referral code exists, get affiliate ID
       if (referralCode) {
         const { data: affiliate } = await supabase
-          .from('affiliates')
-          .select('id, commission_type, commission_value, status')
-          .eq('referral_code', referralCode)
-          .eq('status', 'active')
+          .from('affiliate_users')
+          .select('id, commission_type, commission_value') // status might not be needed or exists? Schema has is_active
+          .eq('affiliate_code', referralCode)
+          .eq('is_active', true) // 'status' -> 'is_active'
           .single();
 
         if (affiliate) {
@@ -88,12 +88,15 @@ export const useOrderPlacement = () => {
           payment_status: orderData.payment_method === 'cod' ? 'pending' : 'paid',
           status: 'pending',
           affiliate_id: affiliateId,
-          referral_code: referralCode,
+          // referral_code removed as it doesn't exist in orders table
         }])
         .select()
         .single();
 
-      if (orderError) throw orderError;
+      if (orderError) {
+        console.error('Supabase Order Insert Error:', orderError);
+        throw orderError;
+      }
 
       // 2. Create order items
       const orderItems = orderData.items.map(item => ({
@@ -113,7 +116,10 @@ export const useOrderPlacement = () => {
         .from('order_items')
         .insert(orderItems);
 
-      if (itemsError) throw itemsError;
+      if (itemsError) {
+        console.error('Supabase Order Items Insert Error:', itemsError);
+        throw itemsError;
+      }
 
       // 3. Create initial shipment record
       const { error: shipmentError } = await supabase
@@ -128,7 +134,7 @@ export const useOrderPlacement = () => {
       // 4. Track affiliate order and calculate commission
       if (affiliateId) {
         const { data: affiliate } = await supabase
-          .from('affiliates')
+          .from('affiliate_users')
           .select('commission_type, commission_value')
           .eq('id', affiliateId)
           .single();
@@ -148,28 +154,32 @@ export const useOrderPlacement = () => {
             .insert({
               order_id: order.id,
               affiliate_id: affiliateId,
-              user_id: user?.id || null,
-              order_total: orderData.total_amount,
+              // user_id removed as it doesn't exist in affiliate_orders table
+              order_amount: orderData.total_amount, // Mapped to order_amount
               commission_amount: commissionAmount,
-              commission_status: 'pending',
+              status: 'pending', // Mapped from commission_status
+              commission_type: affiliate.commission_type,
+              commission_rate: affiliate.commission_value,
             })
             .select()
             .single();
 
           if (!affiliateOrderError && affiliateOrder) {
             // Create commission record
-            await supabase
+            const { error: commissionError } = await supabase
               .from('affiliate_commissions')
               .insert({
                 affiliate_id: affiliateId,
                 order_id: order.id,
-                affiliate_order_id: affiliateOrder.id,
+                // affiliate_order_id removed as it doesn't exist in affiliate_commissions table
                 commission_type: affiliate.commission_type,
-                commission_value: affiliate.commission_value,
+                commission_rate: affiliate.commission_value, // Mapped to commission_rate based on schema
                 order_amount: orderData.total_amount,
                 commission_amount: commissionAmount,
                 status: 'pending',
               });
+
+            if (commissionError) console.warn('Affiliate commission creation warning:', commissionError);
           }
         }
 
@@ -181,7 +191,7 @@ export const useOrderPlacement = () => {
       return order.order_number;
     } catch (error: any) {
       console.error('Error placing order:', error);
-      toast.error('Failed to place order. Please try again.');
+      toast.error(error.message || 'Failed to place order. Please try again.');
       return null;
     } finally {
       setLoading(false);

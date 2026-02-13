@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import AdminLayout from '@/components/admin/AdminLayout';
 import { useStoreData, useStoreTable } from '@/hooks/useStoreData';
 import StatsCards from '@/components/admin/store/StatsCards';
 import DataTable from '@/components/admin/store/DataTable';
@@ -178,146 +179,148 @@ export default function StoreManagement() {
   ];
 
   return (
-    <div className="container max-w-7xl mx-auto p-4 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Store Management</h1>
-          <p className="text-muted-foreground">
-            Manage all your store data and monitor statistics
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button onClick={() => navigate('/admin/store/storage')} variant="outline">
-            <Database className="h-4 w-4 mr-2" />
-            Storage Monitoring
-          </Button>
-          <Button onClick={handleRefresh} variant="outline">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <StatsCards stats={stats} loading={statsLoading} />
-
-      {/* Data Tables */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="products">Products</TabsTrigger>
-          <TabsTrigger value="orders">Orders</TabsTrigger>
-          <TabsTrigger value="users">Users</TabsTrigger>
-          <TabsTrigger value="marketing">Marketing</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Recent Orders */}
-            <DataTable
-              title="Recent Orders"
-              data={orders.data.slice(0, 5)}
-              columns={orderColumns.slice(0, 4)}
-              loading={orders.loading}
-              page={0}
-              totalPages={1}
-              onNextPage={() => {}}
-              onPrevPage={() => {}}
-              onView={(row) => navigate(`/admin/orders/${row.id}`)}
-              searchable={false}
-            />
-
-            {/* Low Stock Products */}
-            <DataTable
-              title="Low Stock Products"
-              data={products.data.filter((p) => p.stock_quantity < 10).slice(0, 5)}
-              columns={productColumns.slice(0, 3)}
-              loading={products.loading}
-              page={0}
-              totalPages={1}
-              onNextPage={() => {}}
-              onPrevPage={() => {}}
-              onEdit={(row) => navigate(`/admin/products/edit/${row.id}`)}
-              searchable={false}
-            />
+    <AdminLayout>
+      <div className="container max-w-7xl mx-auto p-4 space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold">Store Management</h1>
+            <p className="text-muted-foreground">
+              Manage all your store data and monitor statistics
+            </p>
           </div>
-        </TabsContent>
-
-        <TabsContent value="products" className="space-y-4">
-          <div className="flex justify-end">
-            <Button onClick={() => navigate('/admin/products/new')}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Product
+          <div className="flex items-center gap-2">
+            <Button onClick={() => navigate('/admin/store/storage')} variant="outline">
+              <Database className="h-4 w-4 mr-2" />
+              Storage Monitoring
+            </Button>
+            <Button onClick={handleRefresh} variant="outline">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
             </Button>
           </div>
-          <DataTable
-            title="All Products"
-            data={products.data}
-            columns={productColumns}
-            loading={products.loading}
-            page={products.page}
-            totalPages={products.totalPages}
-            onNextPage={products.nextPage}
-            onPrevPage={products.prevPage}
-            onEdit={(row) => navigate(`/admin/products/edit/${row.id}`)}
-            onDelete={products.deleteRecord}
-          />
-        </TabsContent>
+        </div>
 
-        <TabsContent value="orders" className="space-y-4">
-          <DataTable
-            title="All Orders"
-            data={orders.data}
-            columns={orderColumns}
-            loading={orders.loading}
-            page={orders.page}
-            totalPages={orders.totalPages}
-            onNextPage={orders.nextPage}
-            onPrevPage={orders.prevPage}
-            onView={(row) => navigate(`/admin/orders/${row.id}`)}
-          />
-        </TabsContent>
+        {/* Stats Cards */}
+        <StatsCards stats={stats} loading={statsLoading} />
 
-        <TabsContent value="users" className="space-y-4">
-          <DataTable
-            title="All Users"
-            data={users.data}
-            columns={userColumns}
-            loading={users.loading}
-            page={users.page}
-            totalPages={users.totalPages}
-            onNextPage={users.nextPage}
-            onPrevPage={users.prevPage}
-          />
-        </TabsContent>
+        {/* Data Tables */}
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="products">Products</TabsTrigger>
+            <TabsTrigger value="orders">Orders</TabsTrigger>
+            <TabsTrigger value="users">Users</TabsTrigger>
+            <TabsTrigger value="marketing">Marketing</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="marketing" className="space-y-6">
-          <DataTable
-            title="Coupons"
-            data={coupons.data}
-            columns={couponColumns}
-            loading={coupons.loading}
-            page={coupons.page}
-            totalPages={coupons.totalPages}
-            onNextPage={coupons.nextPage}
-            onPrevPage={coupons.prevPage}
-            onDelete={coupons.deleteRecord}
-          />
+          <TabsContent value="overview" className="space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Recent Orders */}
+              <DataTable
+                title="Recent Orders"
+                data={orders.data.slice(0, 5)}
+                columns={orderColumns.slice(0, 4)}
+                loading={orders.loading}
+                page={0}
+                totalPages={1}
+                onNextPage={() => { }}
+                onPrevPage={() => { }}
+                onView={(row) => navigate(`/admin/orders/${row.id}`)}
+                searchable={false}
+              />
 
-          <DataTable
-            title="Offers"
-            data={offers.data}
-            columns={offerColumns}
-            loading={offers.loading}
-            page={offers.page}
-            totalPages={offers.totalPages}
-            onNextPage={offers.nextPage}
-            onPrevPage={offers.prevPage}
-            onDelete={offers.deleteRecord}
-          />
-        </TabsContent>
-      </Tabs>
-    </div>
+              {/* Low Stock Products */}
+              <DataTable
+                title="Low Stock Products"
+                data={products.data.filter((p) => p.stock_quantity < 10).slice(0, 5)}
+                columns={productColumns.slice(0, 3)}
+                loading={products.loading}
+                page={0}
+                totalPages={1}
+                onNextPage={() => { }}
+                onPrevPage={() => { }}
+                onEdit={(row) => navigate(`/admin/products/edit/${row.id}`)}
+                searchable={false}
+              />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="products" className="space-y-4">
+            <div className="flex justify-end">
+              <Button onClick={() => navigate('/admin/products/new')}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Product
+              </Button>
+            </div>
+            <DataTable
+              title="All Products"
+              data={products.data}
+              columns={productColumns}
+              loading={products.loading}
+              page={products.page}
+              totalPages={products.totalPages}
+              onNextPage={products.nextPage}
+              onPrevPage={products.prevPage}
+              onEdit={(row) => navigate(`/admin/products/edit/${row.id}`)}
+              onDelete={products.deleteRecord}
+            />
+          </TabsContent>
+
+          <TabsContent value="orders" className="space-y-4">
+            <DataTable
+              title="All Orders"
+              data={orders.data}
+              columns={orderColumns}
+              loading={orders.loading}
+              page={orders.page}
+              totalPages={orders.totalPages}
+              onNextPage={orders.nextPage}
+              onPrevPage={orders.prevPage}
+              onView={(row) => navigate(`/admin/orders/${row.id}`)}
+            />
+          </TabsContent>
+
+          <TabsContent value="users" className="space-y-4">
+            <DataTable
+              title="All Users"
+              data={users.data}
+              columns={userColumns}
+              loading={users.loading}
+              page={users.page}
+              totalPages={users.totalPages}
+              onNextPage={users.nextPage}
+              onPrevPage={users.prevPage}
+            />
+          </TabsContent>
+
+          <TabsContent value="marketing" className="space-y-6">
+            <DataTable
+              title="Coupons"
+              data={coupons.data}
+              columns={couponColumns}
+              loading={coupons.loading}
+              page={coupons.page}
+              totalPages={coupons.totalPages}
+              onNextPage={coupons.nextPage}
+              onPrevPage={coupons.prevPage}
+              onDelete={coupons.deleteRecord}
+            />
+
+            <DataTable
+              title="Offers"
+              data={offers.data}
+              columns={offerColumns}
+              loading={offers.loading}
+              page={offers.page}
+              totalPages={offers.totalPages}
+              onNextPage={offers.nextPage}
+              onPrevPage={offers.prevPage}
+              onDelete={offers.deleteRecord}
+            />
+          </TabsContent>
+        </Tabs>
+      </div>
+    </AdminLayout>
   );
 }
