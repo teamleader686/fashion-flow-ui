@@ -72,6 +72,8 @@ export type Product = {
   loyalty_config?: ProductLoyaltyConfig;
   affiliate_config?: ProductAffiliateConfig;
   active_offer?: ProductOffer;
+  available_sizes?: string[];
+  available_colors?: { name: string; hex: string }[];
 };
 
 export type ProductImage = {

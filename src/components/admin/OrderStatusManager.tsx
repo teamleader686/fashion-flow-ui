@@ -30,7 +30,7 @@ const statusOptions = [
 
 export default function OrderStatusManager({ order }: OrderStatusManagerProps) {
   const { updateOrderStatus } = useOrders();
-  const [selectedStatus, setSelectedStatus] = useState(order.status);
+  const [selectedStatus, setSelectedStatus] = useState<string>(order.status);
   const [updating, setUpdating] = useState(false);
 
   const handleUpdateStatus = async () => {

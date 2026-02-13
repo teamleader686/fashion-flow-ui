@@ -18,6 +18,9 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import CancellationReviewDialog from '@/components/admin/CancellationReviewDialog';
 import { notificationService } from '@/lib/notificationService';
+import { CancellationSkeleton, StatsCardsSkeleton } from '@/components/shimmer/AdminShimmer';
+import AdminPagination from '@/components/admin/AdminPagination';
+import { usePagination } from '@/hooks/usePagination';
 
 interface CancellationRequest {
   id: string;
@@ -245,9 +248,7 @@ export default function CancellationRequests() {
           <CardContent className="p-0">
             <ScrollArea className="h-[calc(100vh-450px)]">
               {loading ? (
-                <div className="p-8 text-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                </div>
+                <CancellationSkeleton count={5} />
               ) : filteredRequests.length === 0 ? (
                 <div className="p-12 text-center">
                   <AlertCircle className="h-12 w-12 mx-auto text-muted-foreground mb-3" />

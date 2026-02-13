@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import { useUserOrders } from '@/hooks/useUserOrders';
 import { useAuth } from '@/contexts/AuthContext';
-import { Order } from '@/lib/supabase';
+import { Order as SupabaseOrder } from '@/lib/supabase';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -21,7 +21,7 @@ export default function MyOrders() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { orders, loading, cancelOrder, requestReturn } = useUserOrders();
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
   // Redirect if not logged in
@@ -144,8 +144,8 @@ export default function MyOrders() {
               {filteredOrders.map((order) => (
                 <OrderCard
                   key={order.id}
-                  order={order}
-                  onViewDetails={setSelectedOrder}
+                  order={order as any}
+                  onViewDetails={(o: any) => setSelectedOrder(o)}
                 />
               ))}
             </div>
@@ -155,7 +155,7 @@ export default function MyOrders() {
 
       {/* Order Detail Modal */}
       <OrderDetailModal
-        order={selectedOrder}
+        order={selectedOrder as any}
         open={!!selectedOrder}
         onClose={() => setSelectedOrder(null)}
         onCancelOrder={cancelOrder}
