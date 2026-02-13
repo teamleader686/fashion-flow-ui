@@ -1,4 +1,4 @@
-import { Heart, Star } from "lucide-react";
+import { Heart, Star, Coins } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { Product } from "@/hooks/useProducts";
 import { useCart } from "@/contexts/CartContext";
@@ -77,6 +77,16 @@ const ProductCard = ({ product }: ProductCardProps) => {
             ✨ Best Price ₹{product.bestPrice.toLocaleString()}
           </span>
         </div>
+
+        {/* Loyalty Coins Badge */}
+        {product.loyaltyCoins && product.loyaltyCoins > 0 && (
+          <div className="mt-1.5">
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">
+              <Coins className="h-3 w-3" />
+              Earn {product.loyaltyCoins} coins
+            </span>
+          </div>
+        )}
 
         {product.colors.length > 0 && (
           <div className="flex items-center gap-1.5 mt-2">

@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useAllWallets, useWalletActions } from '@/hooks/useWallet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Wallet, Lock, Unlock, Plus, Minus, Search, TrendingUp } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 

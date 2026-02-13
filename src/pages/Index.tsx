@@ -6,6 +6,8 @@ import ProductCard from "@/components/ProductCard";
 import ReferralTracker from "@/components/ReferralTracker";
 import { useProducts } from "@/hooks/useProducts";
 import { Link } from "react-router-dom";
+import { HeroSkeleton } from "@/components/shimmer/BannerSkeleton";
+import { ProductGridSkeleton } from "@/components/shimmer/ProductCardSkeleton";
 
 const Index = () => {
   const { products, loading } = useProducts();
@@ -17,37 +19,50 @@ const Index = () => {
   return (
     <Layout>
       <ReferralTracker />
-      <HeroBanner />
-      <CategoryCircles />
-      <OfferBanner />
-
-      {/* Featured Products */}
-      <section className="py-6 lg:py-10">
-        <div className="container">
-          <div className="flex items-center justify-between mb-4 lg:mb-6">
-            <h2 className="text-xl lg:text-2xl font-bold">Loved By All</h2>
-            <Link to="/products?category=all" className="text-sm font-semibold text-primary hover:underline">
-              View All →
-            </Link>
+      
+      {loading ? (
+        <>
+          <HeroSkeleton />
+          <div className="container py-6">
+            <ProductGridSkeleton count={4} />
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-5">
-            {featuredProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
+          <div className="container py-6">
+            <ProductGridSkeleton count={4} />
           </div>
-        </div>
-      </section>
+        </>
+      ) : (
+        <>
+          <HeroBanner />
+          <CategoryCircles />
+          <OfferBanner />
 
-      {/* New Arrivals */}
-      {newArrivals.length > 0 && (
-        <section className="py-6 lg:py-10 bg-secondary/50">
-          <div className="container">
-            <div className="flex items-center justify-between mb-4 lg:mb-6">
-              <h2 className="text-xl lg:text-2xl font-bold">New Arrivals</h2>
-              <Link to="/products?category=all" className="text-sm font-semibold text-primary hover:underline">
-                View All →
-              </Link>
+          {/* Featured Products */}
+          <section className="py-6 lg:py-10">
+            <div className="container">
+              <div className="flex items-center justify-between mb-4 lg:mb-6">
+                <h2 className="text-xl lg:text-2xl font-bold">Loved By All</h2>
+                <Link to="/products?category=all" className="text-sm font-semibold text-primary hover:underline">
+                  View All →
+                </Link>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-5">
+                {featuredProducts.map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </div>
             </div>
+          </section>
+
+          {/* New Arrivals */}
+          {newArrivals.length > 0 && (
+            <section className="py-6 lg:py-10 bg-secondary/50">
+              <div className="container">
+                <div className="flex items-center justify-between mb-4 lg:mb-6">
+                  <h2 className="text-xl lg:text-2xl font-bold">New Arrivals</h2>
+                  <Link to="/products?category=all" className="text-sm font-semibold text-primary hover:underline">
+                    View All →
+                  </Link>
+                </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-5">
               {newArrivals.map((product) => (
                 <ProductCard key={product.id} product={product} />
@@ -68,6 +83,8 @@ const Index = () => {
           </div>
         </div>
       </section>
+        </>
+      )}
 
       {/* Footer */}
       <footer className="border-t border-border bg-card py-8 lg:py-12">

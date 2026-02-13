@@ -21,6 +21,7 @@ export interface Product {
   isFeatured?: boolean;
   description: string;
   stock: number;
+  loyaltyCoins?: number; // Added loyalty coins
 }
 
 export const useProducts = () => {
@@ -28,34 +29,18 @@ export const useProducts = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchProducts();
-
-    // Setup realtime subscription
-    const subscription = supabase
-      .channel('products_changes')
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'products' },
-        () => {
-          fetchProducts();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
-
+  // Define fetchProducts outside useEffect to avoid closure issues
   const fetchProducts = async () => {
     try {
+      setLoading(true);
       const { data, error: fetchError } = await supabase
         .from('products')
         .select(`
           *,
           category:categories(name, slug),
           product_images(image_url, is_primary, display_order),
-          product_variants(size, color, color_code, stock_quantity)
+          product_variants(size, color, color_code, stock_quantity),
+          loyalty_config:product_loyalty_config(is_enabled, coins_earned_per_purchase)
         `)
         .eq('is_active', true)
         .order('created_at', { ascending: false });
@@ -87,6 +72,10 @@ export const useProducts = () => {
           0
         ) || dbProduct.stock_quantity || 0;
 
+        // Get loyalty coins
+        const loyaltyConfig = Array.isArray(dbProduct.loyalty_config) ? dbProduct.loyalty_config[0] : dbProduct.loyalty_config;
+        const loyaltyCoins = loyaltyConfig?.is_enabled ? loyaltyConfig.coins_earned_per_purchase : 0;
+
         return {
           id: dbProduct.id,
           name: dbProduct.name,
@@ -106,6 +95,7 @@ export const useProducts = () => {
           isFeatured: dbProduct.is_featured || false,
           description: dbProduct.description || '',
           stock: totalStock,
+          loyaltyCoins, // Added loyalty coins
         };
       });
 
@@ -114,10 +104,31 @@ export const useProducts = () => {
     } catch (err: any) {
       console.error('Error fetching products:', err);
       setError(err.message);
+      setProducts([]); // Set empty array on error
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    // Fetch products immediately on mount
+    fetchProducts();
+
+    // Setup realtime subscription
+    const subscription = supabase
+      .channel('products_changes')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'products' },
+        () => {
+          fetchProducts();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []); // Empty dependency array - only run on mount/unmount
 
   return { products, loading, error, refetch: fetchProducts };
 };
@@ -126,27 +137,49 @@ export const useProducts = () => {
 export const useCategories = () => {
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
-
+  // Define fetchCategories outside useEffect
   const fetchCategories = async () => {
     try {
-      const { data, error } = await supabase
+      setLoading(true);
+      const { data, error: fetchError } = await supabase
         .from('categories')
         .select('*')
         .eq('is_active', true)
         .order('display_order', { ascending: true });
 
-      if (error) throw error;
+      if (fetchError) throw fetchError;
       setCategories(data || []);
-    } catch (err) {
+      setError(null);
+    } catch (err: any) {
       console.error('Error fetching categories:', err);
+      setError(err.message);
+      setCategories([]); // Set empty array on error
     } finally {
       setLoading(false);
     }
   };
 
-  return { categories, loading, refetch: fetchCategories };
+  useEffect(() => {
+    // Fetch categories immediately on mount
+    fetchCategories();
+
+    // Setup realtime subscription for categories
+    const subscription = supabase
+      .channel('categories_changes')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'categories' },
+        () => {
+          fetchCategories();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []); // Empty dependency array - only run on mount/unmount
+
+  return { categories, loading, error, refetch: fetchCategories };
 };

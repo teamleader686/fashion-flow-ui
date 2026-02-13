@@ -35,16 +35,18 @@ export default function AssignCoinsDialog({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Assign Coins</DialogTitle>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader className="px-6 pt-6 pb-4">
+          <DialogTitle className="text-2xl font-semibold">Assign Coins</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div>
-            <Label htmlFor="user_id">Select Instagram User *</Label>
+        <form onSubmit={handleSubmit(onSubmit)} className="px-6 pb-6 space-y-5">
+          <div className="space-y-2.5">
+            <Label htmlFor="user_id" className="text-sm font-medium">
+              Select Instagram User <span className="text-destructive">*</span>
+            </Label>
             <Select onValueChange={(value) => setValue('user_id', value)}>
-              <SelectTrigger>
+              <SelectTrigger className="h-11">
                 <SelectValue placeholder="Choose user" />
               </SelectTrigger>
               <SelectContent>
@@ -55,36 +57,61 @@ export default function AssignCoinsDialog({ open, onOpenChange }: Props) {
                 ))}
               </SelectContent>
             </Select>
-            {errors.user_id && <p className="text-sm text-red-500 mt-1">User is required</p>}
+            {errors.user_id && (
+              <p className="text-sm text-red-500 mt-1.5">User is required</p>
+            )}
           </div>
 
-          <div>
-            <Label htmlFor="coins">Coins Amount *</Label>
+          <div className="space-y-2.5">
+            <Label htmlFor="coins" className="text-sm font-medium">
+              Coins Amount <span className="text-destructive">*</span>
+            </Label>
             <Input
               id="coins"
               type="number"
               {...register('coins', { required: 'Coins amount is required', min: 1 })}
               placeholder="Enter coins amount"
+              className="h-11 text-base"
             />
-            {errors.coins && <p className="text-sm text-red-500 mt-1">{errors.coins.message as string}</p>}
+            {errors.coins && (
+              <p className="text-sm text-red-500 mt-1.5">
+                {errors.coins.message as string}
+              </p>
+            )}
           </div>
 
-          <div>
-            <Label htmlFor="reason">Reason *</Label>
+          <div className="space-y-2.5">
+            <Label htmlFor="reason" className="text-sm font-medium">
+              Reason <span className="text-destructive">*</span>
+            </Label>
             <Textarea
               id="reason"
               {...register('reason', { required: 'Reason is required' })}
               placeholder="e.g., Story Completed, Campaign Bonus"
               rows={3}
+              className="text-base resize-none"
             />
-            {errors.reason && <p className="text-sm text-red-500 mt-1">{errors.reason.message as string}</p>}
+            {errors.reason && (
+              <p className="text-sm text-red-500 mt-1.5">
+                {errors.reason.message as string}
+              </p>
+            )}
           </div>
 
-          <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 sm:gap-2 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              className="h-11 px-6 text-base w-full sm:w-auto"
+            >
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="h-11 px-6 text-base w-full sm:w-auto"
+            >
               {isSubmitting ? 'Assigning...' : 'Assign Coins'}
             </Button>
           </div>

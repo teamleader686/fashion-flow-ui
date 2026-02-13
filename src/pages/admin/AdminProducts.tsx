@@ -26,6 +26,11 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useNavigate } from 'react-router-dom';
+import ProductTableSkeleton from '@/components/shimmer/ProductTableSkeleton';
+import ProductCardsSkeleton from '@/components/shimmer/ProductCardsSkeleton';
+import { Pagination, PaginationCompact } from '@/components/ui/pagination';
+
+const ITEMS_PER_PAGE = 10;
 
 const AdminProducts = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -33,6 +38,8 @@ const AdminProducts = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -52,11 +59,18 @@ const AdminProducts = () => {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [currentPage, searchQuery]);
 
   const fetchProducts = async () => {
     try {
-      const { data, error } = await supabase
+      setLoading(true);
+      
+      // Calculate range for pagination
+      const from = (currentPage - 1) * ITEMS_PER_PAGE;
+      const to = from + ITEMS_PER_PAGE - 1;
+
+      // Build query
+      let query = supabase
         .from('products')
         .select(`
           *,
@@ -65,11 +79,21 @@ const AdminProducts = () => {
           loyalty_config:product_loyalty_config(*),
           affiliate_config:product_affiliate_config(*),
           active_offer:product_offers(*)
-        `)
-        .order('created_at', { ascending: false });
+        `, { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
+      // Add search filter if query exists
+      if (searchQuery.trim()) {
+        query = query.or(`name.ilike.%${searchQuery}%,sku.ilike.%${searchQuery}%`);
+      }
+
+      const { data, error, count } = await query;
 
       if (error) throw error;
+      
       setProducts(data || []);
+      setTotalCount(count || 0);
     } catch (error: any) {
       console.error('Error fetching products:', error);
       toast.error('Failed to load products');
@@ -114,10 +138,17 @@ const AdminProducts = () => {
     }
   };
 
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.sku?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleSearch = (value: string) => {
+    setSearchQuery(value);
+    setCurrentPage(1); // Reset to first page on search
+  };
+
+  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
   const getPrimaryImage = (product: Product) => {
     const primaryImage = product.product_images?.find(img => img.is_primary);
@@ -139,14 +170,14 @@ const AdminProducts = () => {
     <AdminLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold">Products</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold">Products</h1>
             <p className="text-gray-500 mt-1">Manage your product catalog</p>
           </div>
           <Button
             onClick={() => navigate('/admin/products/new')}
-            className="bg-gradient-to-r from-pink-500 to-purple-600"
+            className="bg-gradient-to-r from-pink-500 to-purple-600 w-full sm:w-auto"
           >
             <Plus className="h-4 w-4 mr-2" />
             Add Product
@@ -154,49 +185,49 @@ const AdminProducts = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">
+            <CardHeader className="pb-2 sm:pb-3">
+              <CardTitle className="text-xs sm:text-sm font-medium text-gray-600">
                 Total Products
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{products.length}</div>
+              <div className="text-xl sm:text-2xl font-bold">{totalCount}</div>
             </CardContent>
           </Card>
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">
+            <CardHeader className="pb-2 sm:pb-3">
+              <CardTitle className="text-xs sm:text-sm font-medium text-gray-600">
                 Active Products
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">
+              <div className="text-xl sm:text-2xl font-bold text-green-600">
                 {products.filter(p => p.is_active).length}
               </div>
             </CardContent>
           </Card>
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">
+            <CardHeader className="pb-2 sm:pb-3">
+              <CardTitle className="text-xs sm:text-sm font-medium text-gray-600">
                 Low Stock
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-orange-600">
+              <div className="text-xl sm:text-2xl font-bold text-orange-600">
                 {products.filter(p => p.stock_quantity <= p.low_stock_threshold).length}
               </div>
             </CardContent>
           </Card>
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">
+            <CardHeader className="pb-2 sm:pb-3">
+              <CardTitle className="text-xs sm:text-sm font-medium text-gray-600">
                 With Offers
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-purple-600">
+              <div className="text-xl sm:text-2xl font-bold text-purple-600">
                 {products.filter(p => getActiveOffer(p)).length}
               </div>
             </CardContent>
@@ -205,13 +236,13 @@ const AdminProducts = () => {
 
         {/* Search */}
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="pt-4 sm:pt-6">
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <Input
                 placeholder="Search products by name or SKU..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => handleSearch(e.target.value)}
                 className="pl-10"
               />
             </div>
@@ -220,119 +251,370 @@ const AdminProducts = () => {
 
         {/* Products Table */}
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="pt-4 sm:pt-6">
             {loading ? (
-              <div className="text-center py-8">Loading products...</div>
-            ) : filteredProducts.length === 0 ? (
-              <div className="text-center py-8">
-                <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">No products found</p>
-                <Button
-                  onClick={() => navigate('/admin/products/new')}
-                  variant="outline"
-                  className="mt-4"
-                >
-                  Add Your First Product
-                </Button>
+              <>
+                <ProductTableSkeleton rows={ITEMS_PER_PAGE} />
+                <ProductCardsSkeleton count={ITEMS_PER_PAGE} />
+              </>
+            ) : products.length === 0 ? (
+              <div className="text-center py-12">
+                <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500 text-lg mb-2">
+                  {searchQuery ? 'No products found' : 'No products yet'}
+                </p>
+                <p className="text-gray-400 text-sm mb-4">
+                  {searchQuery
+                    ? 'Try adjusting your search'
+                    : 'Start by adding your first product'}
+                </p>
+                {!searchQuery && (
+                  <Button
+                    onClick={() => navigate('/admin/products/new')}
+                    variant="outline"
+                    className="mt-2"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Your First Product
+                  </Button>
+                )}
               </div>
             ) : (
               <>
-              <div className="hidden lg:block overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Product</TableHead>
-                      <TableHead>SKU</TableHead>
-                      <TableHead>Price</TableHead>
-                      <TableHead>Stock</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Features</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredProducts.map((product) => {
-                      const activeOffer = getActiveOffer(product);
-                      const hasLoyalty = product.loyalty_config?.[0]?.is_enabled;
-                      const hasAffiliate = product.affiliate_config?.[0]?.is_enabled;
-                      return (
-                        <TableRow key={product.id}>
-                          <TableCell>
-                            <div className="flex items-center gap-3">
-                              <img src={getPrimaryImage(product)} alt={product.name} className="w-12 h-12 object-cover rounded" />
-                              <div>
-                                <div className="font-medium">{product.name}</div>
-                                <div className="text-sm text-muted-foreground">{product.category?.name || 'Uncategorized'}</div>
+                {/* Desktop Table */}
+                <div className="hidden lg:block overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Product</TableHead>
+                        <TableHead>SKU</TableHead>
+                        <TableHead>Price</TableHead>
+                        <TableHead>Stock</TableHead>
+                        <TableHead>Variants</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Features</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {products.map((product) => {
+                        const activeOffer = getActiveOffer(product);
+                        const hasLoyalty = product.loyalty_config?.[0]?.is_enabled;
+                        const hasAffiliate = product.affiliate_config?.[0]?.is_enabled;
+                        return (
+                          <TableRow key={product.id}>
+                            <TableCell>
+                              <div className="flex items-center gap-3">
+                                <img
+                                  src={getPrimaryImage(product)}
+                                  alt={product.name}
+                                  className="w-12 h-12 object-cover rounded"
+                                />
+                                <div>
+                                  <div className="font-medium">{product.name}</div>
+                                  <div className="text-sm text-muted-foreground">
+                                    {product.category?.name || 'Uncategorized'}
+                                  </div>
+                                </div>
                               </div>
-                            </div>
-                          </TableCell>
-                          <TableCell><code className="text-xs bg-muted px-2 py-1 rounded">{product.sku || 'N/A'}</code></TableCell>
-                          <TableCell>
-                            <div className="font-medium">₹{product.price.toLocaleString()}</div>
-                            {activeOffer && <div className="text-xs text-green-600">{activeOffer.banner_tag}</div>}
-                          </TableCell>
-                          <TableCell><Badge variant={product.stock_quantity <= product.low_stock_threshold ? 'destructive' : 'secondary'}>{product.stock_quantity}</Badge></TableCell>
-                          <TableCell><Badge variant={product.is_active ? 'default' : 'secondary'}>{product.is_active ? 'Active' : 'Inactive'}</Badge></TableCell>
-                          <TableCell>
-                            <div className="flex gap-1">
-                              {hasLoyalty && <Badge variant="outline" className="text-xs">🪙 Loyalty</Badge>}
-                              {hasAffiliate && <Badge variant="outline" className="text-xs">🤝 Affiliate</Badge>}
-                              {activeOffer && <Badge variant="outline" className="text-xs text-green-600">🎁 Offer</Badge>}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              <Button variant="ghost" size="icon" onClick={() => toggleProductStatus(product.id, product.is_active)}>
-                                {product.is_active ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                              </Button>
-                              <Button variant="ghost" size="icon" onClick={() => navigate(`/admin/products/edit/${product.id}`)}><Edit className="h-4 w-4" /></Button>
-                              <Button variant="ghost" size="icon" onClick={() => { setProductToDelete(product.id); setDeleteDialogOpen(true); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
+                            </TableCell>
+                            <TableCell>
+                              <code className="text-xs bg-muted px-2 py-1 rounded">
+                                {product.sku || 'N/A'}
+                              </code>
+                            </TableCell>
+                            <TableCell>
+                              <div className="font-medium">
+                                ₹{product.price.toLocaleString()}
+                              </div>
+                              {activeOffer && (
+                                <div className="text-xs text-green-600">
+                                  {activeOffer.banner_tag}
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  product.stock_quantity <= product.low_stock_threshold
+                                    ? 'destructive'
+                                    : 'secondary'
+                                }
+                              >
+                                {product.stock_quantity}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="space-y-1">
+                                {product.available_sizes && product.available_sizes.length > 0 && (
+                                  <div className="flex flex-wrap gap-1">
+                                    {product.available_sizes.slice(0, 3).map((size: string) => (
+                                      <Badge key={size} variant="outline" className="text-xs">
+                                        {size}
+                                      </Badge>
+                                    ))}
+                                    {product.available_sizes.length > 3 && (
+                                      <Badge variant="outline" className="text-xs">
+                                        +{product.available_sizes.length - 3}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                )}
+                                {product.available_colors && product.available_colors.length > 0 && (
+                                  <div className="flex gap-1">
+                                    {product.available_colors.slice(0, 4).map((color: any) => (
+                                      <div
+                                        key={color.name}
+                                        className="w-5 h-5 rounded-full border border-gray-300"
+                                        style={{ backgroundColor: color.hex }}
+                                        title={color.name}
+                                      />
+                                    ))}
+                                    {product.available_colors.length > 4 && (
+                                      <Badge variant="outline" className="text-xs">
+                                        +{product.available_colors.length - 4}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                )}
+                                {(!product.available_sizes || product.available_sizes.length === 0) &&
+                                 (!product.available_colors || product.available_colors.length === 0) && (
+                                  <span className="text-xs text-gray-400">No variants</span>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={product.is_active ? 'default' : 'secondary'}>
+                                {product.is_active ? 'Active' : 'Inactive'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-1">
+                                {hasLoyalty && (
+                                  <Badge variant="outline" className="text-xs">
+                                    🪙 Loyalty
+                                  </Badge>
+                                )}
+                                {hasAffiliate && (
+                                  <Badge variant="outline" className="text-xs">
+                                    🤝 Affiliate
+                                  </Badge>
+                                )}
+                                {activeOffer && (
+                                  <Badge variant="outline" className="text-xs text-green-600">
+                                    🎁 Offer
+                                  </Badge>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() =>
+                                    toggleProductStatus(product.id, product.is_active)
+                                  }
+                                >
+                                  {product.is_active ? (
+                                    <Eye className="h-4 w-4" />
+                                  ) : (
+                                    <EyeOff className="h-4 w-4" />
+                                  )}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() =>
+                                    navigate(`/admin/products/edit/${product.id}`)
+                                  }
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => {
+                                    setProductToDelete(product.id);
+                                    setDeleteDialogOpen(true);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
 
-              {/* Mobile/Tablet Cards */}
-              <div className="lg:hidden space-y-3">
-                {filteredProducts.map((product) => {
-                  const activeOffer = getActiveOffer(product);
-                  return (
-                    <div key={product.id} className="flex gap-3 p-3 border rounded-lg">
-                      <img src={getPrimaryImage(product)} alt={product.name} className="w-16 h-16 object-cover rounded shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <h3 className="font-medium truncate">{product.name}</h3>
-                            <p className="text-sm text-muted-foreground">{product.category?.name || 'Uncategorized'}</p>
+                {/* Mobile/Tablet Cards */}
+                <div className="lg:hidden space-y-3">
+                  {products.map((product) => {
+                    const activeOffer = getActiveOffer(product);
+                    const hasLoyalty = product.loyalty_config?.[0]?.is_enabled;
+                    const hasAffiliate = product.affiliate_config?.[0]?.is_enabled;
+                    return (
+                      <div key={product.id} className="flex gap-3 p-3 border rounded-lg">
+                        <img
+                          src={getPrimaryImage(product)}
+                          alt={product.name}
+                          className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <h3 className="font-medium truncate">{product.name}</h3>
+                              <p className="text-sm text-muted-foreground">
+                                {product.category?.name || 'Uncategorized'}
+                              </p>
+                            </div>
+                            <Badge
+                              variant={product.is_active ? 'default' : 'secondary'}
+                              className="shrink-0 text-xs"
+                            >
+                              {product.is_active ? 'Active' : 'Inactive'}
+                            </Badge>
                           </div>
-                          <Badge variant={product.is_active ? 'default' : 'secondary'} className="shrink-0 text-xs">
-                            {product.is_active ? 'Active' : 'Inactive'}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-3 mt-2 text-sm">
-                          <span className="font-semibold">₹{product.price.toLocaleString()}</span>
-                          <Badge variant={product.stock_quantity <= product.low_stock_threshold ? 'destructive' : 'secondary'} className="text-xs">
-                            Stock: {product.stock_quantity}
-                          </Badge>
-                        </div>
-                        <div className="flex gap-1 mt-2">
-                          <Button variant="outline" size="sm" onClick={() => navigate(`/admin/products/edit/${product.id}`)}><Edit className="h-3 w-3 mr-1" />Edit</Button>
-                          <Button variant="outline" size="sm" onClick={() => toggleProductStatus(product.id, product.is_active)}>
-                            {product.is_active ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                          </Button>
-                          <Button variant="outline" size="sm" onClick={() => { setProductToDelete(product.id); setDeleteDialogOpen(true); }}>
-                            <Trash2 className="h-3 w-3 text-destructive" />
-                          </Button>
+                          <div className="flex items-center gap-3 mt-2 text-sm">
+                            <span className="font-semibold">
+                              ₹{product.price.toLocaleString()}
+                            </span>
+                            <Badge
+                              variant={
+                                product.stock_quantity <= product.low_stock_threshold
+                                  ? 'destructive'
+                                  : 'secondary'
+                              }
+                              className="text-xs"
+                            >
+                              Stock: {product.stock_quantity}
+                            </Badge>
+                          </div>
+                          {/* Variants Display */}
+                          {((product.available_sizes && product.available_sizes.length > 0) ||
+                            (product.available_colors && product.available_colors.length > 0)) && (
+                            <div className="mt-2 space-y-1">
+                              {product.available_sizes && product.available_sizes.length > 0 && (
+                                <div className="flex flex-wrap gap-1">
+                                  {product.available_sizes.slice(0, 4).map((size: string) => (
+                                    <Badge key={size} variant="outline" className="text-xs">
+                                      {size}
+                                    </Badge>
+                                  ))}
+                                  {product.available_sizes.length > 4 && (
+                                    <Badge variant="outline" className="text-xs">
+                                      +{product.available_sizes.length - 4}
+                                    </Badge>
+                                  )}
+                                </div>
+                              )}
+                              {product.available_colors && product.available_colors.length > 0 && (
+                                <div className="flex gap-1">
+                                  {product.available_colors.slice(0, 5).map((color: any) => (
+                                    <div
+                                      key={color.name}
+                                      className="w-5 h-5 rounded-full border border-gray-300"
+                                      style={{ backgroundColor: color.hex }}
+                                      title={color.name}
+                                    />
+                                  ))}
+                                  {product.available_colors.length > 5 && (
+                                    <Badge variant="outline" className="text-xs">
+                                      +{product.available_colors.length - 5}
+                                    </Badge>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {(hasLoyalty || hasAffiliate || activeOffer) && (
+                            <div className="flex gap-1 mt-2 flex-wrap">
+                              {hasLoyalty && (
+                                <Badge variant="outline" className="text-xs">
+                                  🪙
+                                </Badge>
+                              )}
+                              {hasAffiliate && (
+                                <Badge variant="outline" className="text-xs">
+                                  🤝
+                                </Badge>
+                              )}
+                              {activeOffer && (
+                                <Badge variant="outline" className="text-xs text-green-600">
+                                  🎁
+                                </Badge>
+                              )}
+                            </div>
+                          )}
+                          <div className="flex gap-1 mt-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => navigate(`/admin/products/edit/${product.id}`)}
+                            >
+                              <Edit className="h-3 w-3 mr-1" />
+                              Edit
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => toggleProductStatus(product.id, product.is_active)}
+                            >
+                              {product.is_active ? (
+                                <EyeOff className="h-3 w-3" />
+                              ) : (
+                                <Eye className="h-3 w-3" />
+                              )}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setProductToDelete(product.id);
+                                setDeleteDialogOpen(true);
+                              }}
+                            >
+                              <Trash2 className="h-3 w-3 text-destructive" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
+                    );
+                  })}
+                </div>
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="mt-6 space-y-4">
+                    {/* Desktop Pagination */}
+                    <div className="hidden sm:block">
+                      <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        onPageChange={handlePageChange}
+                      />
                     </div>
-                  );
-                })}
-              </div>
+
+                    {/* Mobile Pagination */}
+                    <div className="sm:hidden">
+                      <PaginationCompact
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        onPageChange={handlePageChange}
+                      />
+                    </div>
+
+                    {/* Results Info */}
+                    <div className="text-center text-sm text-muted-foreground">
+                      Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to{' '}
+                      {Math.min(currentPage * ITEMS_PER_PAGE, totalCount)} of {totalCount}{' '}
+                      products
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </CardContent>

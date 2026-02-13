@@ -3,10 +3,10 @@ import { User, Package, MapPin, Wallet, Gift, LogIn } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const menuItems = [
-  { icon: Package, label: "My Orders", desc: "Track, return, or buy again" },
-  { icon: MapPin, label: "Addresses", desc: "Manage delivery addresses" },
-  { icon: Wallet, label: "My Wallet", desc: "Balance & transactions" },
-  { icon: Gift, label: "Rewards & Coins", desc: "Earn & redeem loyalty coins" },
+  { icon: Package, label: "My Orders", desc: "Track, return, or buy again", link: "/my-orders" },
+  { icon: MapPin, label: "Addresses", desc: "Manage delivery addresses", link: "/account" },
+  { icon: Wallet, label: "My Wallet", desc: "Balance & transactions", link: "/account" },
+  { icon: Gift, label: "Rewards & Coins", desc: "Earn & redeem loyalty coins", link: "/account" },
 ];
 
 const Account = () => {
@@ -28,10 +28,11 @@ const Account = () => {
 
         {/* Menu items */}
         <div className="space-y-2">
-          {menuItems.map(({ icon: Icon, label, desc }) => (
-            <button
+          {menuItems.map(({ icon: Icon, label, desc, link }) => (
+            <Link
               key={label}
-              className="w-full flex items-center gap-4 p-4 bg-card rounded-xl border border-border hover:bg-secondary/50 transition-colors text-left"
+              to={link}
+              className="w-full flex items-center gap-4 p-4 bg-card rounded-xl border border-border hover:bg-secondary/50 transition-colors text-left block"
             >
               <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                 <Icon className="h-5 w-5 text-primary" />
@@ -40,7 +41,7 @@ const Account = () => {
                 <h3 className="font-medium text-sm">{label}</h3>
                 <p className="text-xs text-muted-foreground">{desc}</p>
               </div>
-            </button>
+            </Link>
           ))}
         </div>
       </div>

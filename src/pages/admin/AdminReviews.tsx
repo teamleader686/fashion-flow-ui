@@ -33,15 +33,41 @@ export default function AdminReviews() {
     try {
       const { data, error } = await supabase
         .from('product_reviews')
-        .select(`
-          *,
-          product:products(name),
-          user_profile:user_profiles(full_name, email)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setReviews(data || []);
+
+      // Fetch related data separately
+      const reviewsWithRelations = await Promise.all(
+        (data || []).map(async (review) => {
+          // Fetch product
+          const { data: product } = await supabase
+            .from('products')
+            .select('name')
+            .eq('id', review.product_id)
+            .single();
+
+          // Fetch user profile
+          let userProfile = null;
+          if (review.user_id) {
+            const { data: profile } = await supabase
+              .from('user_profiles')
+              .select('full_name, email')
+              .eq('user_id', review.user_id)
+              .single();
+            userProfile = profile;
+          }
+
+          return {
+            ...review,
+            product,
+            user_profile: userProfile
+          };
+        })
+      );
+
+      setReviews(reviewsWithRelations);
     } catch (error) {
       console.error('Error fetching reviews:', error);
     } finally {

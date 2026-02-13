@@ -5,6 +5,8 @@ import ProductCard from "@/components/ProductCard";
 import { useProducts, useCategories } from "@/hooks/useProducts";
 import { SlidersHorizontal, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { ProductGridSkeleton } from "@/components/shimmer/ProductCardSkeleton";
+import { ShimmerText, ShimmerCard } from "@/components/ui/shimmer";
 
 const sortOptions = [
   { label: "Popularity", value: "popular" },
@@ -198,15 +200,7 @@ const Products = () => {
             </div>
 
             {loading ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 lg:gap-4">
-                {[...Array(8)].map((_, i) => (
-                  <div key={i} className="animate-pulse">
-                    <div className="aspect-[3/4] bg-secondary rounded-xl mb-2"></div>
-                    <div className="h-4 bg-secondary rounded w-3/4 mb-2"></div>
-                    <div className="h-4 bg-secondary rounded w-1/2"></div>
-                  </div>
-                ))}
-              </div>
+              <ProductGridSkeleton count={8} />
             ) : filteredProducts.length > 0 ? (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 lg:gap-4">
                 {filteredProducts.map((product) => (

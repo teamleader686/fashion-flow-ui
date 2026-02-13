@@ -3,10 +3,11 @@ import Layout from "@/components/layout/Layout";
 import { useProducts } from "@/hooks/useProducts";
 import { useCart } from "@/contexts/CartContext";
 import { useState } from "react";
-import { Heart, Star, ShoppingBag, Truck, RotateCcw, Shield, ChevronLeft } from "lucide-react";
+import { Heart, Star, ShoppingBag, Truck, RotateCcw, Shield, ChevronLeft, Coins } from "lucide-react";
 import { motion } from "framer-motion";
 import ProductCard from "@/components/ProductCard";
 import { toast } from "sonner";
+import { ProductDetailSkeleton } from "@/components/shimmer/ProductDetailSkeleton";
 
 const ProductDetail = () => {
   const { slug } = useParams();
@@ -20,12 +21,7 @@ const ProductDetail = () => {
   if (loading) {
     return (
       <Layout>
-        <div className="container py-16 text-center">
-          <div className="animate-pulse">
-            <div className="h-8 bg-secondary rounded w-1/3 mx-auto mb-4"></div>
-            <div className="h-4 bg-secondary rounded w-1/4 mx-auto"></div>
-          </div>
-        </div>
+        <ProductDetailSkeleton />
       </Layout>
     );
   }
@@ -114,6 +110,28 @@ const ProductDetail = () => {
               </span>
               <p className="text-xs text-muted-foreground">inclusive of all taxes</p>
             </div>
+
+            {/* Loyalty Coins Section */}
+            {product.loyaltyCoins && product.loyaltyCoins > 0 && (
+              <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
+                    <Coins className="h-5 w-5 text-yellow-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-yellow-900 text-sm mb-1">
+                      Loyalty Rewards
+                    </h3>
+                    <p className="text-sm text-yellow-800">
+                      Earn <span className="font-bold">{product.loyaltyCoins} loyalty coins</span> when you purchase this product!
+                    </p>
+                    <p className="text-xs text-yellow-700 mt-1">
+                      Use coins to get discounts on future purchases • 1 coin = ₹1
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Colors */}
             <div>

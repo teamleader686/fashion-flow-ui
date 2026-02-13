@@ -3,8 +3,10 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import NotificationBell from '@/components/notifications/NotificationBell';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,6 +34,9 @@ import {
   ChevronLeft,
   Truck,
   X,
+  XCircle,
+  FolderTree,
+  Database,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -43,7 +48,9 @@ type AdminLayoutProps = {
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/admin/dashboard' },
   { icon: Package, label: 'Products', path: '/admin/products' },
+  { icon: FolderTree, label: 'Categories', path: '/admin/categories' },
   { icon: ShoppingCart, label: 'Orders', path: '/admin/orders' },
+  { icon: XCircle, label: 'Cancellations', path: '/admin/cancellation-requests' },
   { icon: Truck, label: 'Shipping', path: '/admin/shipping' },
   { icon: Users, label: 'Customers', path: '/admin/customers' },
   { icon: Instagram, label: 'Instagram', path: '/admin/instagram-marketing' },
@@ -52,6 +59,7 @@ const menuItems = [
   { icon: Gift, label: 'Offers', path: '/admin/offers' },
   { icon: Star, label: 'Reviews', path: '/admin/reviews' },
   { icon: Wallet, label: 'Wallet & Loyalty', path: '/admin/wallet' },
+  { icon: Database, label: 'Store Management', path: '/admin/store' },
   { icon: Settings, label: 'Settings', path: '/admin/settings' },
 ];
 
@@ -65,7 +73,7 @@ const SidebarNav = ({
   const location = useLocation();
 
   return (
-    <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+    <nav className="px-3 py-4 space-y-1">
       {menuItems.map((item) => {
         const Icon = item.icon;
         const isActive =
@@ -156,10 +164,12 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
           </div>
 
           {/* Nav */}
-          <SidebarNav collapsed={sidebarCollapsed} />
+          <div className="flex-1 overflow-y-auto">
+            <SidebarNav collapsed={sidebarCollapsed} />
+          </div>
 
           {/* Footer */}
-          <div className="border-t p-3">
+          <div className="border-t p-3 shrink-0">
             <Button
               variant="ghost"
               className={cn(
@@ -178,8 +188,11 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
       {/* ──── MOBILE SIDEBAR (Sheet) ──── */}
       {isMobile && (
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-          <SheetContent side="left" className="w-72 p-0">
-            <div className="flex h-16 items-center justify-between border-b px-4">
+          <SheetContent side="left" className="w-72 p-0 flex flex-col" aria-describedby={undefined}>
+            <VisuallyHidden>
+              <SheetTitle>Navigation Menu</SheetTitle>
+            </VisuallyHidden>
+            <div className="flex h-16 items-center justify-between border-b px-4 shrink-0">
               <Link
                 to="/admin/dashboard"
                 className="flex items-center gap-2"
@@ -192,9 +205,11 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
               </Link>
             </div>
 
-            <SidebarNav collapsed={false} onNavigate={() => setMobileOpen(false)} />
+            <div className="flex-1 overflow-y-auto">
+              <SidebarNav collapsed={false} onNavigate={() => setMobileOpen(false)} />
+            </div>
 
-            <div className="border-t p-3">
+            <div className="border-t p-3 shrink-0">
               <div className="mb-3 px-3">
                 <p className="text-sm font-medium">{profile?.full_name || 'Admin'}</p>
                 <p className="text-xs text-muted-foreground">{profile?.email}</p>
@@ -246,10 +261,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
           </div>
 
           {/* Notification bell */}
-          <Button variant="ghost" size="icon" className="h-9 w-9 relative">
-            <Bell className="h-5 w-5" />
-            <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-destructive" />
-          </Button>
+          <NotificationBell role="admin" />
 
           {/* Profile dropdown */}
           <DropdownMenu>

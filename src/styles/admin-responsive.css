@@ -1,0 +1,98 @@
+/* Admin Panel Responsive Utilities */
+
+/* Ensure no horizontal overflow on mobile */
+@media (max-width: 767px) {
+  body {
+    overflow-x: hidden;
+  }
+  
+  /* Touch-friendly button sizes */
+  button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Prevent text overflow */
+  .truncate-mobile {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* Tablet optimizations */
+@media (min-width: 768px) and (max-width: 1023px) {
+  /* Adjust sidebar width for tablets */
+  aside {
+    width: 240px;
+  }
+  
+  /* Optimize chart heights */
+  .recharts-wrapper {
+    max-height: 350px;
+  }
+}
+
+/* Desktop optimizations */
+@media (min-width: 1024px) {
+  /* Full sidebar */
+  aside {
+    width: 240px;
+  }
+  
+  /* Larger charts */
+  .recharts-wrapper {
+    max-height: 400px;
+  }
+  
+  /* Better spacing */
+  .admin-content {
+    padding: 1.5rem;
+  }
+}
+
+/* Print styles for reports */
+@media print {
+  aside,
+  header,
+  button {
+    display: none !important;
+  }
+  
+  .admin-content {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .card {
+    border-width: 2px;
+  }
+  
+  button {
+    border-width: 2px;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Dark mode optimizations (if implemented) */
+@media (prefers-color-scheme: dark) {
+  .chart-tooltip {
+    background-color: rgba(0, 0, 0, 0.9);
+    color: white;
+  }
+}

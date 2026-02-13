@@ -13,29 +13,49 @@ export const useShippingRealtime = () => {
       
       const { data: orders, error } = await supabase
         .from('orders')
-        .select(`
-          *,
-          order_items (*),
-          shipments (*),
-          user_profiles (
-            full_name,
-            email,
-            phone
-          )
-        `)
+        .select('*')
         .in('status', ['confirmed', 'processing', 'packed', 'shipped', 'out_for_delivery'])
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      // Transform data to match Order type
-      const transformedOrders = orders?.map(order => ({
-        ...order,
-        shipment: order.shipments?.[0] || null,
-        user_profile: order.user_profiles
-      })) || [];
+      // Fetch related data separately to avoid join errors
+      const ordersWithRelations = await Promise.all(
+        (orders || []).map(async (order) => {
+          // Fetch order items
+          const { data: items } = await supabase
+            .from('order_items')
+            .select('*')
+            .eq('order_id', order.id);
 
-      setShippingOrders(transformedOrders);
+          // Fetch shipment
+          const { data: shipments } = await supabase
+            .from('shipments')
+            .select('*')
+            .eq('order_id', order.id)
+            .limit(1);
+
+          // Fetch user profile if user_id exists
+          let userProfile = null;
+          if (order.user_id) {
+            const { data: profile } = await supabase
+              .from('user_profiles')
+              .select('full_name, email, phone')
+              .eq('user_id', order.user_id)
+              .single();
+            userProfile = profile;
+          }
+
+          return {
+            ...order,
+            order_items: items || [],
+            shipment: shipments?.[0] || null,
+            user_profile: userProfile
+          };
+        })
+      );
+
+      setShippingOrders(ordersWithRelations);
     } catch (error: any) {
       console.error('Error fetching shipping orders:', error);
       toast.error('Failed to load shipping orders');
