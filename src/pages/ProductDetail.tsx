@@ -15,6 +15,7 @@ import SEO from "@/components/layout/SEO";
 import { supabase } from "@/lib/supabase";
 import CloudImage from "@/components/ui/CloudImage";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LazySection } from "@/components/layout/LazySection";
 
 const ProductDetail = () => {
   const { slug } = useParams();
@@ -613,14 +614,16 @@ const ProductDetail = () => {
 
         {/* Related Products */}
         {relatedProducts.length > 0 && (
-          <section className="mt-12">
-            <h2 className="text-xl font-bold mb-4">You May Also Like</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4">
-              {relatedProducts.map((p) => (
-                <ProductCard key={p.id} product={p} />
-              ))}
-            </div>
-          </section>
+          <LazySection>
+            <section className="mt-12">
+              <h2 className="text-xl font-bold mb-4">You May Also Like</h2>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4">
+                {relatedProducts.map((p) => (
+                  <ProductCard key={p.id} product={p} />
+                ))}
+              </div>
+            </section>
+          </LazySection>
         )}
       </div>
     </Layout>

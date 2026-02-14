@@ -1,4 +1,5 @@
 import { Order } from '@/contexts/OrderContext';
+import CloudImage from '@/components/ui/CloudImage';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -79,10 +80,11 @@ export default function OrderCard({ order, onViewDetails }: OrderCardProps) {
         {/* Order Items Preview */}
         <div className="flex items-center gap-3 mb-4 pb-4 border-b">
           {firstItem?.product_image && (
-            <img
+            <CloudImage
               src={firstItem.product_image}
               alt={firstItem.product_name}
-              className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded"
+              className="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0"
+              imageClassName="object-cover rounded"
             />
           )}
           <div className="flex-1 min-w-0">

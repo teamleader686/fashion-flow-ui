@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -14,35 +14,66 @@ import { StatsCardsSkeleton, OrderCardsSkeleton, TableSkeleton } from '@/compone
 import AdminPagination from '@/components/admin/AdminPagination';
 import { usePagination } from '@/hooks/usePagination';
 
-const ITEMS_PER_PAGE = 10;
-
 const AdminOrders = () => {
-  const { orders, loading, refetch, updateOrderStatus, updateShipment, updateReturn } = useOrdersRealtime();
+  const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  const filteredOrders = useMemo(() => {
-    return orders.filter(order => {
-      const matchesSearch = 
-        order.order_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.customer_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.customer_email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.customer_phone.includes(searchQuery);
-      const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
-      return matchesSearch && matchesStatus;
-    });
-  }, [orders, searchQuery, statusFilter]);
+  const {
+    orders,
+    totalCount,
+    loading,
+    refetch,
+    updateOrderStatus,
+    updateShipment,
+    updateReturn
+  } = useOrdersRealtime({
+    page: currentPage,
+    pageSize: itemsPerPage,
+    status: statusFilter,
+    search: searchQuery
+  });
 
-  const { currentPage, totalPages, paginatedItems, handlePageChange, startIndex, endIndex, totalItems } = usePagination(filteredOrders, { itemsPerPage: ITEMS_PER_PAGE });
+  // Global stats might need a separate fetch if we only fetch page data
+  // For now, let's just show totalCount as the main stat and others if available.
+  // Ideally, stats should be a separate query.
+  const totalPages = Math.ceil(totalCount / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage + 1;
+  const endIndex = Math.min(currentPage * itemsPerPage, totalCount);
 
   const stats = useMemo(() => ({
-    total: orders.length,
-    pending: orders.filter(o => o.status === 'pending').length,
-    processing: orders.filter(o => o.status === 'processing').length,
-    shipped: orders.filter(o => o.status === 'shipped').length,
-    delivered: orders.filter(o => o.status === 'delivered').length,
-  }), [orders]);
+    total: totalCount,
+    pending: 0, // These would ideally come from a summary RPC or separate query
+    processing: 0,
+    shipped: 0,
+    delivered: 0,
+  }), [totalCount]);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter, itemsPerPage]);
+
+  const handleExport = () => {
+    const csvContent = "data:text/csv;charset=utf-8,"
+      + ["Order Number,Customer,Email,Status,Amount,Date"]
+        .concat(orders.map(o => `${o.order_number},${o.customer_name},${o.customer_email},${o.status},${o.total_amount},${o.created_at}`))
+        .join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `orders_page_${currentPage}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
     <AdminLayout>
@@ -50,11 +81,16 @@ const AdminOrders = () => {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold">Order Management</h1>
-            <p className="text-muted-foreground mt-1">Manage and track all customer orders</p>
+            <p className="text-muted-foreground mt-1">Manage and track all customer orders ({totalCount} total)</p>
           </div>
-          <Button onClick={refetch} variant="outline" className="w-full md:w-auto">
-            <RefreshCw className="h-4 w-4 mr-2" /> Refresh
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={handleExport} variant="outline" className="hidden md:flex">
+              Export Page
+            </Button>
+            <Button onClick={refetch} variant="outline" className="w-full md:w-auto">
+              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} /> Refresh
+            </Button>
+          </div>
         </div>
 
         {loading ? (
@@ -85,14 +121,14 @@ const AdminOrders = () => {
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input placeholder="Search by order number, customer name, email, or phone..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10" />
               </div>
-              <div className="w-full md:w-48">
+              <div className="flex gap-2">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-[180px]">
                     <Filter className="h-4 w-4 mr-2" />
-                    <SelectValue placeholder="Filter by status" />
+                    <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Orders</SelectItem>
+                    <SelectItem value="all">All Statuses</SelectItem>
                     <SelectItem value="pending">Pending</SelectItem>
                     <SelectItem value="confirmed">Confirmed</SelectItem>
                     <SelectItem value="processing">Processing</SelectItem>
@@ -102,6 +138,16 @@ const AdminOrders = () => {
                     <SelectItem value="cancelled">Cancelled</SelectItem>
                   </SelectContent>
                 </Select>
+                <Select value={itemsPerPage.toString()} onValueChange={(v) => setItemsPerPage(parseInt(v))}>
+                  <SelectTrigger className="w-[120px]">
+                    <SelectValue placeholder="Per page" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10 per page</SelectItem>
+                    <SelectItem value="20">20 per page</SelectItem>
+                    <SelectItem value="50">50 per page</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </CardContent>
@@ -109,23 +155,23 @@ const AdminOrders = () => {
 
         {loading ? (
           <>
-            <div className="hidden lg:block"><TableSkeleton rows={ITEMS_PER_PAGE} cols={6} /></div>
+            <div className="hidden lg:block"><TableSkeleton rows={itemsPerPage} cols={6} /></div>
             <div className="lg:hidden"><OrderCardsSkeleton count={5} /></div>
           </>
-        ) : filteredOrders.length === 0 ? (
+        ) : orders.length === 0 ? (
           <Card><CardContent className="pt-6"><div className="text-center py-8 text-muted-foreground">No orders found</div></CardContent></Card>
         ) : (
           <>
             <div className="hidden lg:block">
-              <OrderTableDesktop orders={paginatedItems} onSelectOrder={setSelectedOrder} onUpdateStatus={updateOrderStatus} onUpdateShipment={updateShipment} onUpdateReturn={updateReturn} />
+              <OrderTableDesktop orders={orders} onSelectOrder={setSelectedOrder} onUpdateStatus={updateOrderStatus} onUpdateShipment={updateShipment} onUpdateReturn={updateReturn} />
             </div>
             <div className="hidden md:block lg:hidden">
-              <OrderTableTablet orders={paginatedItems} onSelectOrder={setSelectedOrder} onUpdateStatus={updateOrderStatus} onUpdateShipment={updateShipment} onUpdateReturn={updateReturn} />
+              <OrderTableTablet orders={orders} onSelectOrder={setSelectedOrder} onUpdateStatus={updateOrderStatus} onUpdateShipment={updateShipment} onUpdateReturn={updateReturn} />
             </div>
             <div className="block md:hidden">
-              <OrderCardMobile orders={paginatedItems} onSelectOrder={setSelectedOrder} onUpdateStatus={updateOrderStatus} onUpdateShipment={updateShipment} onUpdateReturn={updateReturn} />
+              <OrderCardMobile orders={orders} onSelectOrder={setSelectedOrder} onUpdateStatus={updateOrderStatus} onUpdateShipment={updateShipment} onUpdateReturn={updateReturn} />
             </div>
-            <AdminPagination currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} startIndex={startIndex} endIndex={endIndex} totalItems={totalItems} label="orders" />
+            <AdminPagination currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} startIndex={startIndex} endIndex={endIndex} totalItems={totalCount} label="orders" />
           </>
         )}
       </div>

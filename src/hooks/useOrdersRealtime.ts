@@ -2,60 +2,79 @@ import { useState, useEffect } from 'react';
 import { supabase, Order, Shipment, Return } from '@/lib/supabase';
 import { toast } from 'sonner';
 
-export const useOrdersRealtime = () => {
+export const useOrdersRealtime = (options: {
+  page?: number,
+  pageSize?: number,
+  status?: string,
+  search?: string
+} = {}) => {
+  const { page = 1, pageSize = 10, status = 'all', search = '' } = options;
   const [orders, setOrders] = useState<Order[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchOrders = async () => {
     try {
-      // Fetch orders with related data
-      const { data: ordersData, error: ordersError } = await supabase
+      setLoading(true);
+      let query = supabase
         .from('orders')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select(`
+          *,
+          order_items(*),
+          shipments(*),
+          returns(*)
+        `, { count: 'exact' });
+
+      // Apply Filters
+      if (status !== 'all') {
+        query = query.eq('status', status);
+      }
+
+      if (search) {
+        const s = `%${search.toLowerCase()}%`;
+        query = query.or(`order_number.ilike.${s},customer_name.ilike.${s},customer_email.ilike.${s},customer_phone.ilike.${s}`);
+      }
+
+      // Pagination
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+
+      const { data, error: ordersError, count } = await query
+        .order('created_at', { ascending: false })
+        .range(from, to);
 
       if (ordersError) throw ordersError;
 
-      // Fetch related data separately to avoid relationship issues
-      const ordersWithRelations = await Promise.all(
-        (ordersData || []).map(async (order) => {
-          // Fetch order items
-          const { data: items } = await supabase
-            .from('order_items')
-            .select('*')
-            .eq('order_id', order.id);
+      if (data && data.length > 0) {
+        // Fetch profiles separately to avoid FK issues
+        const userIds = Array.from(new Set(data.map(o => o.user_id).filter(Boolean)));
 
-          // Fetch shipments
-          const { data: shipments } = await supabase
-            .from('shipments')
-            .select('*')
-            .eq('order_id', order.id);
-
-          // Fetch returns
-          const { data: returns } = await supabase
-            .from('returns')
-            .select('*')
-            .eq('order_id', order.id);
-
-          // Fetch user profile
-          const { data: profile } = await supabase
+        if (userIds.length > 0) {
+          const { data: profiles } = await supabase
             .from('user_profiles')
-            .select('full_name, email, phone')
-            .eq('user_id', order.user_id)
-            .single();
+            .select('user_id, full_name, email, phone')
+            .in('user_id', userIds);
 
-          return {
+          const profileMap = (profiles || []).reduce((acc: any, p) => {
+            acc[p.user_id] = p;
+            return acc;
+          }, {});
+
+          const ordersWithProfiles = data.map(order => ({
             ...order,
-            order_items: items || [],
-            shipments: shipments || [],
-            returns: returns || [],
-            user_profiles: profile
-          };
-        })
-      );
+            user_profiles: profileMap[order.user_id] || null
+          }));
 
-      setOrders(ordersWithRelations);
+          setOrders(ordersWithProfiles);
+        } else {
+          setOrders(data);
+        }
+      } else {
+        setOrders([]);
+      }
+
+      setTotalCount(count || 0);
       setError(null);
     } catch (err: any) {
       console.error('Error fetching orders:', err);
@@ -71,37 +90,28 @@ export const useOrdersRealtime = () => {
 
     // Setup realtime subscription
     const subscription = supabase
-      .channel('orders_changes')
+      .channel('orders_changes_admin')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'orders' },
-        (payload) => {
-          console.log('Order change detected:', payload);
-          fetchOrders();
-        }
+        () => fetchOrders()
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'shipments' },
-        (payload) => {
-          console.log('Shipment change detected:', payload);
-          fetchOrders();
-        }
+        () => fetchOrders()
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'returns' },
-        (payload) => {
-          console.log('Return change detected:', payload);
-          fetchOrders();
-        }
+        () => fetchOrders()
       )
       .subscribe();
 
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [page, pageSize, status, search]);
 
   const updateOrderStatus = async (orderId: string, status: Order['status']) => {
     try {
@@ -311,6 +321,7 @@ export const useOrdersRealtime = () => {
 
   return {
     orders,
+    totalCount,
     loading,
     error,
     refetch: fetchOrders,

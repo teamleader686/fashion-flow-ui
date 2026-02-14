@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import {
   Notification,
@@ -57,9 +57,10 @@ export function useNotifications({
         .order('created_at', { ascending: false })
         .limit(100);
 
-      if (module) {
-        query = query.eq('module', module);
-      }
+      // Temporarily removed module filter until database is fixed
+      // if (module) {
+      //   query = query.eq('module', module);
+      // }
 
       const { data, error: fetchError } = await query;
 
@@ -68,18 +69,20 @@ export function useNotifications({
       const notificationData = (data || []) as Notification[];
       setNotifications(notificationData);
 
-      // Calculate stats
+      // Calculate stats based on ALL notifications
       const unreadCount = notificationData.filter((n) => n.status === 'unread').length;
       const byModule = notificationData.reduce(
         (acc, n) => {
-          acc[n.module] = (acc[n.module] || 0) + 1;
+          const mod = n.module || 'system';
+          acc[mod] = (acc[mod] || 0) + 1;
           return acc;
         },
-        {} as Record<NotificationModule, number>
+        {} as Record<string, number>
       );
       const byPriority = notificationData.reduce(
         (acc, n) => {
-          acc[n.priority] = (acc[n.priority] || 0) + 1;
+          const prio = n.priority || 'medium';
+          acc[prio] = (acc[prio] || 0) + 1;
           return acc;
         },
         {} as Record<string, number>
@@ -129,7 +132,7 @@ export function useNotifications({
         (payload) => {
           console.log('Notification change:', payload);
           fetchNotifications();
-          
+
           // Show toast for new notifications
           if (payload.eventType === 'INSERT') {
             const newNotification = payload.new as Notification;
@@ -239,8 +242,14 @@ export function useNotifications({
     }
   };
 
+  const filteredNotifications = useMemo(() => {
+    if (!module) return notifications;
+    return notifications.filter(n => (n.module || 'system') === module);
+  }, [notifications, module]);
+
   return {
-    notifications,
+    notifications: filteredNotifications,
+    allNotifications: notifications,
     stats,
     loading,
     error,

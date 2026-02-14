@@ -1,4 +1,5 @@
 import { Order } from '@/lib/supabase';
+import CloudImage from '@/components/ui/CloudImage';
 import {
   Dialog,
   DialogContent,
@@ -86,8 +87,8 @@ export default function OrderDetailModal({
                   order.status === 'delivered'
                     ? 'bg-green-100 text-green-800'
                     : order.status === 'cancelled'
-                    ? 'bg-red-100 text-red-800'
-                    : 'bg-blue-100 text-blue-800'
+                      ? 'bg-red-100 text-red-800'
+                      : 'bg-blue-100 text-blue-800'
                 }
               >
                 {order.status.replace('_', ' ').toUpperCase()}
@@ -119,10 +120,11 @@ export default function OrderDetailModal({
                       className="flex gap-3 p-3 bg-muted/50 rounded-lg"
                     >
                       {item.product_image && (
-                        <img
+                        <CloudImage
                           src={item.product_image}
                           alt={item.product_name}
-                          className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded"
+                          className="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0"
+                          imageClassName="object-cover rounded"
                         />
                       )}
                       <div className="flex-1 min-w-0">

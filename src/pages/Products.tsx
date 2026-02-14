@@ -3,11 +3,12 @@ import { useSearchParams } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
 import ProductCard from "@/components/ProductCard";
 import { useProducts, useCategories } from "@/hooks/useProducts";
-import { SlidersHorizontal, X } from "lucide-react";
+import { SlidersHorizontal, X, FilterX, Search, ShoppingBag, RotateCcw } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ProductGridSkeleton } from "@/components/shimmer/ProductCardSkeleton";
 import { ShimmerText, ShimmerCard } from "@/components/ui/shimmer";
 import { supabase } from "@/lib/supabase";
+import { Button } from "@/components/ui/button";
 
 const sortOptions = [
   { label: "Popularity", value: "popular" },
@@ -26,10 +27,37 @@ const Products = () => {
 
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const ITEMS_PER_PAGE = 8;
 
-  // Fetch products based on filters
+  const [sortBy, setSortBy] = useState("popular");
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 10000]);
+  const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
+  const [showFilters, setShowFilters] = useState(false);
+
+  const clearAllFilters = () => {
+    setPriceRange([0, 10000]);
+    setSelectedSizes([]);
+    setSortBy("popular");
+  };
+
+  // Reset pagination and filters when category/search changes
+  useEffect(() => {
+    setPage(0);
+    setProducts([]);
+    setHasMore(true);
+    if (categoryParam) {
+      clearAllFilters();
+    }
+  }, [categoryParam, searchQuery]);
+
+  // Fetch products based on filters and page
   useEffect(() => {
     const fetchProducts = async () => {
+      // Don't fetch if we're already loading or have no more items (except for page 0)
+      if (loading && page > 0) return;
+
       setLoading(true);
 
       let query = supabase
@@ -51,12 +79,18 @@ const Products = () => {
         query = query.or(`name.ilike.${q},description.ilike.${q}`);
       }
 
-      const { data, error } = await query.order('created_at', { ascending: false });
+      const { data, error } = await query
+        .order('created_at', { ascending: false })
+        .range(page * ITEMS_PER_PAGE, (page + 1) * ITEMS_PER_PAGE - 1);
 
       if (error) {
         console.error("Error fetching products:", error);
-        setProducts([]);
+        setHasMore(false);
       } else if (data) {
+        if (data.length < ITEMS_PER_PAGE) {
+          setHasMore(false);
+        }
+
         // Transform data
         const transformed = data.map((dbProduct: any) => {
           const primaryImage = dbProduct.product_images?.find((img: any) => img.is_primary);
@@ -77,8 +111,8 @@ const Products = () => {
             rating: 4.5,
             reviewCount: 0,
             category: dbProduct.category?.slug || 'uncategorized',
-            colors: [], // Simplified
-            sizes: [], // Simplified
+            colors: [],
+            sizes: [],
             isNew: dbProduct.is_new_arrival || false,
             isFeatured: dbProduct.is_featured || false,
             description: dbProduct.description || '',
@@ -88,18 +122,42 @@ const Products = () => {
           };
         });
 
-        setProducts(transformed);
+        setProducts(prev => {
+          if (page === 0) return transformed;
+          // Filter out any items that might already exist to prevent duplicate keys
+          const existingIds = new Set(prev.map(p => p.id));
+          const uniqueNewItems = transformed.filter(p => !existingIds.has(p.id));
+          return [...prev, ...uniqueNewItems];
+        });
       }
       setLoading(false);
     };
 
     fetchProducts();
-  }, [categoryParam, searchQuery]);
+  }, [categoryParam, searchQuery, page]);
 
-  const [sortBy, setSortBy] = useState("popular");
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 10000]);
-  const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
-  const [showFilters, setShowFilters] = useState(false);
+  // Infinite Scroll Trigger
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loading) {
+          setPage(prev => prev + 1);
+        }
+      },
+      { threshold: 1.0 }
+    );
+
+    const observerTarget = document.getElementById('infinite-scroll-trigger');
+    if (observerTarget) {
+      observer.observe(observerTarget);
+    }
+
+    return () => {
+      if (observerTarget) {
+        observer.unobserve(observerTarget);
+      }
+    };
+  }, [hasMore, loading]);
 
   const allSizes = ["XS", "S", "M", "L", "XL", "XXL", "Free Size"];
 
@@ -139,7 +197,7 @@ const Products = () => {
     }
 
     return result;
-  }, [categoryParam, searchQuery, sortBy, priceRange, selectedSizes]);
+  }, [categoryParam, searchQuery, products, sortBy, priceRange, selectedSizes]);
 
   const toggleSize = (size: string) => {
     setSelectedSizes((prev) => (prev.includes(size) ? prev.filter((s) => s !== size) : [...prev, size]));
@@ -151,6 +209,8 @@ const Products = () => {
 
   const isLoading = loading || categoriesLoading;
 
+  const hasActiveFilters = priceRange[0] > 0 || priceRange[1] < 10000 || selectedSizes.length > 0 || sortBy !== "popular";
+
   return (
     <Layout>
       <div className="container py-4 lg:py-8">
@@ -158,11 +218,11 @@ const Products = () => {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-xl lg:text-2xl font-bold">{categoryTitle}</h1>
-            <p className="text-sm text-muted-foreground">{filteredProducts.length} products</p>
+            <p className="text-sm text-muted-foreground">{filteredProducts.length} products found</p>
           </div>
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="lg:hidden flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm font-medium"
+            className="lg:hidden flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-secondary transition-colors"
           >
             <SlidersHorizontal className="h-4 w-4" />
             Filters
@@ -173,8 +233,8 @@ const Products = () => {
         <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-3">
           <button
             onClick={() => setSearchParams({ category: "all" })}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap border transition-colors ${categoryParam === "all"
-              ? "bg-foreground text-card border-foreground"
+            className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap border transition-all ${categoryParam === "all"
+              ? "bg-primary text-primary-foreground border-primary shadow-sm"
               : "border-border text-foreground hover:bg-secondary"
               }`}
           >
@@ -184,8 +244,8 @@ const Products = () => {
             <button
               key={cat.id}
               onClick={() => setSearchParams({ category: cat.slug })}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap border transition-colors ${categoryParam === cat.slug
-                ? "bg-foreground text-card border-foreground"
+              className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap border transition-all ${categoryParam === cat.slug
+                ? "bg-primary text-primary-foreground border-primary shadow-sm"
                 : "border-border text-foreground hover:bg-secondary"
                 }`}
             >
@@ -193,6 +253,49 @@ const Products = () => {
             </button>
           ))}
         </div>
+
+        {/* Active Filters Chips */}
+        <AnimatePresence>
+          {hasActiveFilters && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="flex flex-wrap items-center gap-2 mb-4 pt-2 border-t border-border mt-2"
+            >
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mr-1">Active Filters:</span>
+
+              {priceRange[1] < 10000 && (
+                <div className="flex items-center gap-1 bg-secondary text-secondary-foreground px-2.5 py-1 rounded-full text-xs font-medium">
+                  Under ₹{priceRange[1]}
+                  <button onClick={() => setPriceRange([priceRange[0], 10000])}><X className="h-3 w-3" /></button>
+                </div>
+              )}
+
+              {selectedSizes.map(size => (
+                <div key={size} className="flex items-center gap-1 bg-secondary text-secondary-foreground px-2.5 py-1 rounded-full text-xs font-medium">
+                  Size: {size}
+                  <button onClick={() => toggleSize(size)}><X className="h-3 w-3" /></button>
+                </div>
+              ))}
+
+              {sortBy !== "popular" && (
+                <div className="flex items-center gap-1 bg-secondary text-secondary-foreground px-2.5 py-1 rounded-full text-xs font-medium">
+                  Sort: {sortOptions.find(o => o.value === sortBy)?.label}
+                  <button onClick={() => setSortBy("popular")}><X className="h-3 w-3" /></button>
+                </div>
+              )}
+
+              <button
+                onClick={clearAllFilters}
+                className="text-xs font-bold text-primary hover:underline flex items-center gap-1 ml-2"
+              >
+                <RotateCcw className="h-3 w-3" />
+                Clear All
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <div className="flex gap-6 mt-4">
           {/* Desktop Filters */}
@@ -268,19 +371,46 @@ const Products = () => {
               </select>
             </div>
 
-            {loading ? (
+            {page === 0 && loading ? (
               <ProductGridSkeleton count={8} />
             ) : filteredProducts.length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 lg:gap-4">
-                {filteredProducts.map((product) => (
-                  <ProductCard key={product.id} product={product} />
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 lg:gap-4">
+                  {filteredProducts.map((product) => (
+                    <ProductCard key={product.id} product={product} />
+                  ))}
+                </div>
+
+                {/* Infinite Scroll Trigger */}
+                <div id="infinite-scroll-trigger" className="h-20 flex items-center justify-center mt-8">
+                  {loading && hasMore && <ProductGridSkeleton count={4} />}
+                  {!hasMore && filteredProducts.length > 0 && (
+                    <p className="text-sm text-muted-foreground font-medium">✨ You've reached the end!</p>
+                  )}
+                </div>
+              </>
             ) : (
-              <div className="text-center py-16">
-                <p className="text-lg font-medium text-muted-foreground">No products found</p>
-                <p className="text-sm text-muted-foreground mt-1">Try adjusting your filters</p>
-              </div>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="text-center py-20 px-4 bg-secondary/20 rounded-2xl border-2 border-dashed border-border"
+              >
+                <div className="w-16 h-16 bg-secondary rounded-full flex items-center justify-center mx-auto mb-4">
+                  <FilterX className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <h3 className="text-xl font-bold text-foreground mb-2">No products found</h3>
+                <p className="text-sm text-muted-foreground mb-6 max-w-xs mx-auto">
+                  We couldn't find any products matching your current filters. Try adjusting them or clear all filters to start over.
+                </p>
+                <Button
+                  onClick={clearAllFilters}
+                  variant="default"
+                  className="rounded-full px-8"
+                >
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Clear All Filters
+                </Button>
+              </motion.div>
             )}
           </div>
         </div>
@@ -305,11 +435,33 @@ const Products = () => {
               >
                 <div className="flex items-center justify-between p-4 border-b border-border">
                   <h3 className="font-semibold">Filters</h3>
-                  <button onClick={() => setShowFilters(false)}>
-                    <X className="h-5 w-5" />
-                  </button>
+                  <div className="flex items-center gap-4">
+                    <button
+                      onClick={clearAllFilters}
+                      className="text-xs font-bold text-primary hover:underline"
+                    >
+                      Clear All
+                    </button>
+                    <button onClick={() => setShowFilters(false)}>
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
                 </div>
                 <div className="p-4 space-y-6">
+                  <div>
+                    <h4 className="font-semibold text-sm mb-3">Sort By</h4>
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value)}
+                      className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm"
+                    >
+                      {sortOptions.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                   <div>
                     <h4 className="font-semibold text-sm mb-3">Price Range</h4>
                     <div className="flex items-center gap-2 text-sm">
@@ -345,9 +497,9 @@ const Products = () => {
                   </div>
                   <button
                     onClick={() => setShowFilters(false)}
-                    className="w-full py-3 rounded-full bg-primary text-primary-foreground font-semibold text-sm"
+                    className="w-full py-3 rounded-full bg-primary text-primary-foreground font-semibold text-sm shadow-lg hover:opacity-90 transition-opacity"
                   >
-                    Apply Filters
+                    View {filteredProducts.length} Results
                   </button>
                 </div>
               </motion.div>

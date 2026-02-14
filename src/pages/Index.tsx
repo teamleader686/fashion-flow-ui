@@ -9,6 +9,7 @@ import { useProducts } from "@/hooks/useProducts";
 import { Link } from "react-router-dom";
 import { HeroSkeleton } from "@/components/shimmer/BannerSkeleton";
 import { ProductGridSkeleton } from "@/components/shimmer/ProductCardSkeleton";
+import { LazySection } from "@/components/layout/LazySection";
 
 const Index = () => {
   const { products, loading } = useProducts();
@@ -35,7 +36,9 @@ const Index = () => {
         <>
           <HeroCarousel />
           <CategoryCircles />
-          <OfferBanner />
+          <LazySection>
+            <OfferBanner />
+          </LazySection>
 
           {/* Featured Products */}
           <section className="py-6 lg:py-10">
@@ -56,34 +59,38 @@ const Index = () => {
 
           {/* New Arrivals */}
           {newArrivals.length > 0 && (
-            <section className="py-6 lg:py-10 bg-secondary/50">
-              <div className="container">
-                <div className="flex items-center justify-between mb-4 lg:mb-6">
-                  <h2 className="text-xl lg:text-2xl font-bold">New Arrivals</h2>
-                  <Link to="/products?category=all" className="text-sm font-semibold text-primary hover:underline">
-                    View All →
-                  </Link>
+            <LazySection>
+              <section className="py-6 lg:py-10 bg-secondary/50">
+                <div className="container">
+                  <div className="flex items-center justify-between mb-4 lg:mb-6">
+                    <h2 className="text-xl lg:text-2xl font-bold">New Arrivals</h2>
+                    <Link to="/products?category=all" className="text-sm font-semibold text-primary hover:underline">
+                      View All →
+                    </Link>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-5">
+                    {newArrivals.map((product) => (
+                      <ProductCard key={product.id} product={product} />
+                    ))}
+                  </div>
                 </div>
+              </section>
+            </LazySection>
+          )}
+
+          {/* All Products */}
+          <LazySection>
+            <section className="py-6 lg:py-10">
+              <div className="container">
+                <h2 className="text-xl lg:text-2xl font-bold mb-4 lg:mb-6">Pocket-Friendly Picks</h2>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-5">
-                  {newArrivals.map((product) => (
+                  {allProducts.map((product) => (
                     <ProductCard key={product.id} product={product} />
                   ))}
                 </div>
               </div>
             </section>
-          )}
-
-          {/* All Products */}
-          <section className="py-6 lg:py-10">
-            <div className="container">
-              <h2 className="text-xl lg:text-2xl font-bold mb-4 lg:mb-6">Pocket-Friendly Picks</h2>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-5">
-                {allProducts.map((product) => (
-                  <ProductCard key={product.id} product={product} />
-                ))}
-              </div>
-            </div>
-          </section>
+          </LazySection>
         </>
       )}
 
