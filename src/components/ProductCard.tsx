@@ -1,5 +1,5 @@
-import { Heart, Star, Coins, Share2 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Heart, Share2, Coins } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import type { Product } from "@/hooks/useProducts";
 import { useCart } from "@/contexts/CartContext";
 import { motion } from "framer-motion";
@@ -11,128 +11,125 @@ interface ProductCardProps {
 }
 
 const ProductCard = ({ product }: ProductCardProps) => {
+  const navigate = useNavigate();
   const { wishlist, toggleWishlist } = useCart();
   const isWishlisted = wishlist.includes(product.id);
 
+  const handleCardClick = () => {
+    navigate(`/product/${product.slug}`);
+  };
+
+  const handleWishlistClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    toggleWishlist(product.id);
+  };
+
+  const handleShareClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -5 }}
       transition={{ duration: 0.3 }}
-      className="group bg-card rounded-xl overflow-hidden border border-border hover:shadow-lg transition-shadow"
+      onClick={handleCardClick}
+      className="group cursor-pointer bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-transparent hover:border-pink-100 flex flex-col h-full"
     >
-      <Link to={`/product/${product.slug}`} className="block relative aspect-square overflow-hidden">
+      {/* Image Section - 1:1 Ratio */}
+      <div className="relative aspect-square overflow-hidden bg-gray-50">
         <CloudImage
           src={product.image}
           alt={product.name}
           className="w-full h-full"
-          imageClassName="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          imageClassName="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
         />
-        {product.isNew && (
-          <span className="absolute top-2 left-2 bg-primary text-primary-foreground text-[10px] font-bold px-2 py-0.5 rounded-md uppercase">
-            New
-          </span>
-        )}
+
+        {/* Discount Badge */}
         {product.discount > 0 && (
-          <span className="absolute top-2 right-2 bg-offer-badge text-accent-foreground text-[10px] font-bold px-2 py-0.5 rounded-md">
+          <div className="absolute top-3 left-3 bg-pink-600 text-white text-[10px] font-bold px-2 py-1 rounded-lg shadow-lg">
             {product.discount}% OFF
-          </span>
-        )}
-        <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-card/90 backdrop-blur-sm rounded-md px-1.5 py-0.5">
-          <Star className="h-3 w-3 fill-star text-star" />
-          <span className="text-xs font-semibold">{product.rating}</span>
-        </div>
-      </Link>
-
-      <div className="p-3">
-        <div className="flex items-start justify-between gap-2">
-          <Link to={`/product/${product.slug}`} className="flex-1 min-w-0">
-            <h3 className="text-sm font-medium text-foreground truncate">{product.name}</h3>
-          </Link>
-          <div className="flex items-center gap-1 flex-shrink-0">
-            <ProductShare product={product} />
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                toggleWishlist(product.id);
-              }}
-              className="p-1"
-            >
-              <Heart
-                className={`h-4 w-4 transition-colors ${isWishlisted ? "fill-accent text-accent" : "text-muted-foreground"
-                  }`}
-              />
-            </button>
           </div>
-        </div>
+        )}
+      </div>
 
-        <div className="flex items-baseline gap-2 mt-1">
-          <span className="text-base font-bold text-foreground">₹{product.price.toLocaleString()}</span>
+      {/* Info Section */}
+      <div className="p-3 flex flex-col flex-grow">
+        {/* Product Name */}
+        <h3 className="text-[14px] font-medium text-gray-800 line-clamp-1 mb-1 group-hover:text-pink-600 transition-colors">
+          {product.name}
+        </h3>
+
+        {/* Price Section */}
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-base font-bold text-gray-900">
+            ₹{product.price.toLocaleString()}
+          </span>
           {product.originalPrice > product.price && (
-            <>
-              <span className="text-original-price text-xs">₹{product.originalPrice.toLocaleString()}</span>
-              <span className="text-discount text-xs font-semibold">{product.discount}% off</span>
-            </>
+            <span className="text-[11px] text-gray-400 line-through">
+              ₹{product.originalPrice.toLocaleString()}
+            </span>
           )}
         </div>
 
-        <div className="mt-1.5">
-          <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-best-price-bg text-best-price-text px-2 py-0.5 rounded-full">
-            ✨ Best Price ₹{product.bestPrice.toLocaleString()}
-          </span>
-        </div>
-
-        {/* Loyalty Coins Badge */}
+        {/* Loyalty Coins Section */}
         {(product.loyaltyCoins > 0 || (product.loyaltyPrice && product.loyaltyPrice > 0)) && (
-          <div className="mt-1.5 flex flex-col items-start gap-1">
+          <div className="flex flex-wrap gap-2 mb-3">
             {product.loyaltyCoins > 0 && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-medium bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full border border-yellow-200">
+              <div className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-600">
                 <Coins className="h-3 w-3" />
-                Earn {product.loyaltyCoins} coins
-              </span>
+                <span>Earn {product.loyaltyCoins} Coins</span>
+              </div>
             )}
             {product.loyaltyPrice && product.loyaltyPrice > 0 && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-medium bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full border border-purple-200">
+              <div className="inline-flex items-center gap-1 text-[10px] font-semibold text-purple-600">
                 <Coins className="h-3 w-3" />
-                Buy for {product.loyaltyPrice} coins
-              </span>
+                <span>Buy for {product.loyaltyPrice} Coins</span>
+              </div>
             )}
           </div>
         )}
 
-        <div className="flex flex-wrap items-center gap-2 mt-2">
-          {product.sizes.length > 0 && (
-            <div className="flex gap-1 text-[10px] text-muted-foreground">
-              {product.sizes.slice(0, 3).map((size) => (
-                <span key={size} className="bg-secondary px-1.5 py-0.5 rounded-sm border border-border">
-                  {size}
-                </span>
-              ))}
-              {product.sizes.length > 3 && (
-                <span className="bg-secondary px-1.5 py-0.5 rounded-sm border border-border">
-                  +{product.sizes.length - 3}
-                </span>
-              )}
-            </div>
-          )}
+        {/* Action Buttons - Moved Below Content */}
+        <div className="mt-auto pt-2 border-t border-gray-50 flex items-center justify-between gap-1">
+          <div className="flex items-center gap-1">
+            <motion.button
+              whileHover={{ scale: 1.15 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={handleWishlistClick}
+              className={`p-1.5 transition-all duration-300 ${isWishlisted
+                ? "text-red-500"
+                : "text-gray-400 hover:text-red-500"
+                }`}
+              aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+            >
+              <Heart
+                className={`h-5 w-5 transition-all duration-300 ${isWishlisted ? "fill-current" : ""}`}
+                strokeWidth={isWishlisted ? 2 : 1.5}
+              />
+            </motion.button>
 
-          {product.colors.length > 0 && (
-            <div className="flex items-center gap-1.5 ml-auto">
-              {product.colors.slice(0, 4).map((color) => (
-                <div
-                  key={color.name}
-                  className="w-3.5 h-3.5 rounded-full border border-border relative group/color"
-                  style={{ backgroundColor: color.hex }}
-                  title={color.name}
-                >
-                  <span className="sr-only">{color.name}</span>
-                </div>
-              ))}
-              {product.colors.length > 4 && (
-                <span className="text-[10px] text-muted-foreground">+{product.colors.length - 4}</span>
-              )}
+            <div onClick={handleShareClick}>
+              <ProductShare
+                product={product}
+                trigger={
+                  <motion.button
+                    whileHover={{ scale: 1.15 }}
+                    whileTap={{ scale: 0.9 }}
+                    className="p-1.5 text-gray-400 hover:text-blue-600 transition-all duration-300"
+                    aria-label="Share product"
+                  >
+                    <Share2 className="h-5 w-5" strokeWidth={1.5} />
+                  </motion.button>
+                }
+              />
             </div>
-          )}
+          </div>
+
+          <button className="text-[11px] font-bold text-gray-400 hover:text-pink-600 uppercase tracking-tight transition-colors">
+            View Details
+          </button>
         </div>
       </div>
     </motion.div>

@@ -7,9 +7,10 @@ type AuthContextType = {
   profile: UserProfile | null;
   adminUser: AdminUser | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   isAdmin: boolean;
+  refreshProfile: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -99,11 +100,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+  const signInWithGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        },
+      },
     });
+
     if (error) throw error;
   };
 
@@ -114,10 +122,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setAdminUser(null);
   };
 
+  const refreshProfile = async () => {
+    if (user) {
+      await fetchUserProfile(user.id);
+    }
+  };
+
   const isAdmin = profile?.role === 'admin' && adminUser?.is_active === true;
 
   return (
-    <AuthContext.Provider value={{ user, profile, adminUser, loading, signIn, signOut, isAdmin }}>
+    <AuthContext.Provider value={{
+      user,
+      profile,
+      adminUser,
+      loading,
+      signInWithGoogle,
+      signOut,
+      isAdmin,
+      refreshProfile
+    }}>
       {children}
     </AuthContext.Provider>
   );

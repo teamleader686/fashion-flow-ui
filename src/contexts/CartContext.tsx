@@ -25,9 +25,11 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
+import { useWishlist } from "@/hooks/useWishlist";
+
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [items, setItems] = useState<CartItem[]>([]);
-  const [wishlist, setWishlist] = useState<string[]>([]);
+  const { wishlist, toggleWishlist, loading: wishlistLoading } = useWishlist();
 
   const addItem = useCallback((product: Product, selectedSize: string, selectedColor: string, isCoinItem: boolean = false) => {
     setItems((prev) => {
@@ -94,12 +96,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [removeItem]);
 
   const clearCart = useCallback(() => setItems([]), []);
-
-  const toggleWishlist = useCallback((productId: string) => {
-    setWishlist((prev) =>
-      prev.includes(productId) ? prev.filter((id) => id !== productId) : [...prev, productId]
-    );
-  }, []);
 
   const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
   const totalPrice = items.reduce((sum, i) => sum + (i.isCoinItem ? 0 : i.product.price * i.quantity), 0);

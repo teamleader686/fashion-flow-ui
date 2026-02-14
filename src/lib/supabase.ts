@@ -18,6 +18,11 @@ export type UserProfile = {
   phone: string;
   role: 'customer' | 'admin';
   is_active: boolean;
+  city?: string;
+  gender?: 'female' | 'male' | 'other';
+  date_of_birth?: string;
+  anniversary_date?: string;
+  profile_completed?: boolean;
   loyalty_coins_balance?: number;
   referred_by_affiliate?: string;
   created_at: string;

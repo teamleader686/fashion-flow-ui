@@ -37,6 +37,7 @@ import {
   XCircle,
   FolderTree,
   Database,
+  Heart,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -59,6 +60,7 @@ const menuItems = [
   { icon: Gift, label: 'Offers', path: '/admin/offers' },
   { icon: Star, label: 'Reviews', path: '/admin/reviews' },
   { icon: Wallet, label: 'Wallet & Loyalty', path: '/admin/wallet' },
+  { icon: Heart, label: 'Wishlist', path: '/admin/wishlist' },
   { icon: Database, label: 'Store Management', path: '/admin/store' },
   { icon: Settings, label: 'Settings', path: '/admin/settings' },
 ];
