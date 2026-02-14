@@ -19,6 +19,7 @@ export type UserProfile = {
   role: 'customer' | 'admin';
   is_active: boolean;
   loyalty_coins_balance?: number;
+  referred_by_affiliate?: string;
   created_at: string;
   updated_at: string;
 };
@@ -178,6 +179,9 @@ export type Order = {
   loyalty_coins_value?: number;
   total_coins_to_earn?: number;
   delivered_at?: string;
+  affiliate_id?: string;
+  affiliate_commission_amount?: number;
+  affiliate_commission_status?: 'pending' | 'approved' | 'paid' | 'cancelled';
   // Relations
   order_items?: OrderItem[];
   shipment?: Shipment;

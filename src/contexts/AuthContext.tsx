@@ -70,6 +70,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setAdminUser(adminData);
         }
       }
+
+      // Check for stored referral and link if needed
+      const storedReferral = localStorage.getItem('affiliate_referral');
+      if (storedReferral && !profileData?.referred_by_affiliate) {
+        // Find affiliate by code
+        const { data: affiliate } = await supabase
+          .from('affiliates')
+          .select('id')
+          .eq('referral_code', storedReferral)
+          .eq('status', 'active')
+          .single();
+
+        if (affiliate) {
+          await supabase
+            .from('user_profiles')
+            .update({ referred_by_affiliate: affiliate.id })
+            .eq('user_id', userId);
+
+          // Update local profile state as well
+          setProfile({ ...profileData, referred_by_affiliate: affiliate.id });
+        }
+      }
     } catch (error) {
       console.error('Error fetching user profile:', error);
     } finally {

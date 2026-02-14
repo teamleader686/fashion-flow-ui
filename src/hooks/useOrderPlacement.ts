@@ -39,22 +39,23 @@ interface OrderData {
 
 export const useOrderPlacement = () => {
   const [loading, setLoading] = useState(false);
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
   const placeOrder = async (orderData: OrderData): Promise<string | null> => {
     setLoading(true);
     try {
-      // Get stored referral code
-      const referralCode = localStorage.getItem('affiliate_referral');
-      let affiliateId = null;
+      // 1. Determine Affiliate ID (Priority: Profile > LocalStorage)
+      const userProfileReferral = (profile as any)?.referred_by_affiliate;
+      const storedReferralCode = localStorage.getItem('affiliate_referral');
+      let affiliateId = userProfileReferral || null;
 
-      // If referral code exists, get affiliate ID
-      if (referralCode) {
+      // If we don't have an affiliate ID from profile, but have a code in storage, look it up
+      if (!affiliateId && storedReferralCode) {
         const { data: affiliate } = await supabase
-          .from('affiliate_users')
-          .select('id, commission_type, commission_value') // status might not be needed or exists? Schema has is_active
-          .eq('affiliate_code', referralCode)
-          .eq('is_active', true) // 'status' -> 'is_active'
+          .from('affiliates')
+          .select('id')
+          .eq('referral_code', storedReferralCode)
+          .eq('status', 'active')
           .single();
 
         if (affiliate) {
@@ -90,7 +91,8 @@ export const useOrderPlacement = () => {
           payment_status: orderData.payment_method === 'cod' ? 'pending' : 'paid',
           status: 'pending',
           affiliate_id: affiliateId,
-          // referral_code removed as it doesn't exist in orders table
+          affiliate_commission_amount: 0, // Will be updated below or handled by trigger if desired
+          affiliate_commission_status: 'pending',
         }])
         .select()
         .single();
@@ -136,7 +138,7 @@ export const useOrderPlacement = () => {
       // 4. Track affiliate order and calculate commission
       if (affiliateId) {
         const { data: affiliate } = await supabase
-          .from('affiliate_users')
+          .from('affiliates')
           .select('commission_type, commission_value')
           .eq('id', affiliateId)
           .single();
@@ -156,17 +158,25 @@ export const useOrderPlacement = () => {
             .insert({
               order_id: order.id,
               affiliate_id: affiliateId,
-              // user_id removed as it doesn't exist in affiliate_orders table
-              order_amount: orderData.total_amount, // Mapped to order_amount
+              user_id: user?.id || null, // Keeping user_id if it exists in schema
+              order_total: orderData.total_amount,
+              order_amount: orderData.total_amount, // For schema compatibility
               commission_amount: commissionAmount,
-              status: 'pending', // Mapped from commission_status
               commission_type: affiliate.commission_type,
               commission_rate: affiliate.commission_value,
+              commission_status: 'pending',
+              status: 'pending', // For schema compatibility
             })
             .select()
             .single();
 
           if (!affiliateOrderError && affiliateOrder) {
+            // Also update the order record with the final commission amount
+            await supabase
+              .from('orders')
+              .update({ affiliate_commission_amount: commissionAmount })
+              .eq('id', order.id);
+
             // Create commission record
             const { error: commissionError } = await supabase
               .from('affiliate_commissions')

@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import type { 
-  Affiliate, 
-  AffiliateOrder, 
-  AffiliateCommission, 
+import type {
+  Affiliate,
+  AffiliateOrder,
+  AffiliateCommission,
   AffiliateWithdrawal,
   WalletTransaction,
   AffiliateStats,
-  AffiliateFormData 
+  AffiliateFormData
 } from '@/types/affiliate';
 
 export function useAffiliateMarketing() {
@@ -76,15 +76,15 @@ export function useAffiliateMarketing() {
     setError(null);
     try {
       // Remove fields that shouldn't be updated directly
-      const { 
-        total_clicks, 
-        total_orders, 
-        total_sales, 
+      const {
+        total_clicks,
+        total_orders,
+        total_sales,
         total_commission,
         created_at,
         updated_at,
         referral_code, // Don't allow changing referral code
-        ...safeUpdates 
+        ...safeUpdates
       } = updates;
 
       const { data, error } = await supabase
@@ -379,6 +379,24 @@ export function useAffiliateMarketing() {
 
       // Store in session/localStorage
       localStorage.setItem('affiliate_referral', referralCode);
+
+      // If user is logged in, link to their profile persistently
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Only update if they don't already have an affiliate assigned
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('referred_by_affiliate')
+          .eq('user_id', user.id)
+          .single();
+
+        if (profile && !profile.referred_by_affiliate) {
+          await supabase
+            .from('user_profiles')
+            .update({ referred_by_affiliate: affiliate.id })
+            .eq('user_id', user.id);
+        }
+      }
     } catch (err) {
       console.error('Error tracking click:', err);
     }
