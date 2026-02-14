@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
 import ProductCard from "@/components/ProductCard";
@@ -7,6 +7,7 @@ import { SlidersHorizontal, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ProductGridSkeleton } from "@/components/shimmer/ProductCardSkeleton";
 import { ShimmerText, ShimmerCard } from "@/components/ui/shimmer";
+import { supabase } from "@/lib/supabase";
 
 const sortOptions = [
   { label: "Popularity", value: "popular" },
@@ -21,8 +22,79 @@ const Products = () => {
   const categoryParam = searchParams.get("category") || "all";
   const searchQuery = searchParams.get("search") || "";
 
-  const { products, loading: productsLoading } = useProducts();
   const { categories, loading: categoriesLoading } = useCategories();
+
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch products based on filters
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setLoading(true);
+
+      let query = supabase
+        .from('products')
+        .select(`
+          *,
+          category:categories(name, slug),
+          product_images(image_url, is_primary, display_order),
+          product_variants(size, color, color_code, stock_quantity)
+        `)
+        .eq('is_active', true);
+
+      if (categoryParam !== "all") {
+        query = query.not('category', 'is', null).filter('category.slug', 'eq', categoryParam);
+      }
+
+      if (searchQuery) {
+        const q = `%${searchQuery.toLowerCase()}%`;
+        query = query.or(`name.ilike.${q},description.ilike.${q}`);
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: false });
+
+      if (error) {
+        console.error("Error fetching products:", error);
+        setProducts([]);
+      } else if (data) {
+        // Transform data
+        const transformed = data.map((dbProduct: any) => {
+          const primaryImage = dbProduct.product_images?.find((img: any) => img.is_primary);
+          const allImages = dbProduct.product_images
+            ?.sort((a: any, b: any) => a.display_order - b.display_order)
+            .map((img: any) => img.image_url) || [];
+
+          return {
+            id: dbProduct.id,
+            name: dbProduct.name,
+            slug: dbProduct.slug,
+            price: dbProduct.price,
+            originalPrice: dbProduct.compare_at_price || dbProduct.price,
+            discount: dbProduct.compare_at_price ? Math.round(((dbProduct.compare_at_price - dbProduct.price) / dbProduct.compare_at_price) * 100) : 0,
+            bestPrice: Math.round(dbProduct.price * 0.9),
+            image: primaryImage?.image_url || allImages[0] || '/placeholder.svg',
+            images: allImages.length > 0 ? allImages : ['/placeholder.svg'],
+            rating: 4.5,
+            reviewCount: 0,
+            category: dbProduct.category?.slug || 'uncategorized',
+            colors: [], // Simplified
+            sizes: [], // Simplified
+            isNew: dbProduct.is_new_arrival || false,
+            isFeatured: dbProduct.is_featured || false,
+            description: dbProduct.description || '',
+            stock: dbProduct.stock_quantity || 0,
+            loyaltyCoins: dbProduct.loyalty_coins_reward || 0,
+            loyaltyPrice: dbProduct.loyalty_coins_price || null,
+          };
+        });
+
+        setProducts(transformed);
+      }
+      setLoading(false);
+    };
+
+    fetchProducts();
+  }, [categoryParam, searchQuery]);
 
   const [sortBy, setSortBy] = useState("popular");
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 10000]);
@@ -77,7 +149,7 @@ const Products = () => {
     ? searchQuery ? `Search: "${searchQuery}"` : "All Products"
     : categories.find((c) => c.slug === categoryParam)?.name || "Products";
 
-  const loading = productsLoading || categoriesLoading;
+  const isLoading = loading || categoriesLoading;
 
   return (
     <Layout>
@@ -101,11 +173,10 @@ const Products = () => {
         <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-3">
           <button
             onClick={() => setSearchParams({ category: "all" })}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap border transition-colors ${
-              categoryParam === "all"
-                ? "bg-foreground text-card border-foreground"
-                : "border-border text-foreground hover:bg-secondary"
-            }`}
+            className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap border transition-colors ${categoryParam === "all"
+              ? "bg-foreground text-card border-foreground"
+              : "border-border text-foreground hover:bg-secondary"
+              }`}
           >
             All
           </button>
@@ -113,11 +184,10 @@ const Products = () => {
             <button
               key={cat.id}
               onClick={() => setSearchParams({ category: cat.slug })}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap border transition-colors ${
-                categoryParam === cat.slug
-                  ? "bg-foreground text-card border-foreground"
-                  : "border-border text-foreground hover:bg-secondary"
-              }`}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap border transition-colors ${categoryParam === cat.slug
+                ? "bg-foreground text-card border-foreground"
+                : "border-border text-foreground hover:bg-secondary"
+                }`}
             >
               {cat.name}
             </button>
@@ -169,11 +239,10 @@ const Products = () => {
                   <button
                     key={size}
                     onClick={() => toggleSize(size)}
-                    className={`px-3 py-1 rounded-md text-xs font-medium border transition-colors ${
-                      selectedSizes.includes(size)
-                        ? "bg-foreground text-card border-foreground"
-                        : "border-border hover:bg-secondary"
-                    }`}
+                    className={`px-3 py-1 rounded-md text-xs font-medium border transition-colors ${selectedSizes.includes(size)
+                      ? "bg-foreground text-card border-foreground"
+                      : "border-border hover:bg-secondary"
+                      }`}
                   >
                     {size}
                   </button>
@@ -264,11 +333,10 @@ const Products = () => {
                         <button
                           key={size}
                           onClick={() => toggleSize(size)}
-                          className={`px-3 py-1.5 rounded-md text-sm font-medium border transition-colors ${
-                            selectedSizes.includes(size)
-                              ? "bg-foreground text-card border-foreground"
-                              : "border-border hover:bg-secondary"
-                          }`}
+                          className={`px-3 py-1.5 rounded-md text-sm font-medium border transition-colors ${selectedSizes.includes(size)
+                            ? "bg-foreground text-card border-foreground"
+                            : "border-border hover:bg-secondary"
+                            }`}
                         >
                           {size}
                         </button>

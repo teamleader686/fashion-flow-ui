@@ -5,34 +5,51 @@ import StorageBreakdown from '@/components/admin/storage/StorageBreakdown';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, ArrowLeft, Download } from 'lucide-react';
 import { toast } from 'sonner';
+import * as XLSX from 'xlsx';
 
 import AdminLayout from '@/components/admin/AdminLayout';
 
 export default function StorageMonitoring() {
   const navigate = useNavigate();
-  const { stats, loading, refetch } = useStorageStats();
+  const { stats, loading, error, refetch } = useStorageStats();
 
   const handleExport = () => {
-    const data = {
-      timestamp: new Date().toISOString(),
-      totalStorage: stats.totalStorage,
-      usedStorage: stats.usedStorage,
-      remainingStorage: stats.remainingStorage,
-      usagePercentage: stats.usagePercentage,
-      breakdown: stats.breakdown,
-    };
+    try {
+      const timestamp = new Date().toISOString().replace(/T/, ' ').replace(/\..+/, '');
 
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `storage-report-${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+      // Prepare data for Excel
+      const overviewData = [
+        ['Storage Monitoring Report'],
+        ['Generated On', timestamp],
+        [],
+        ['Overview'],
+        ['Total Storage', `${stats.totalStorage} MB`],
+        ['Used Storage', `${stats.usedStorage.toFixed(2)} MB`],
+        ['Remaining Storage', `${stats.remainingStorage.toFixed(2)} MB`],
+        ['Usage Percentage', `${stats.usagePercentage.toFixed(2)}%`],
+        [],
+        ['Breakdown'],
+        ['Product Images', `${stats.breakdown.productImages.toFixed(2)} MB`],
+        ['Category Images', `${stats.breakdown.categoryImages.toFixed(2)} MB`],
+        ['User Avatars', `${stats.breakdown.avatars.toFixed(2)} MB`],
+        ['Database (Estimated)', `${stats.breakdown.database.toFixed(2)} MB`],
+      ];
 
-    toast.success('Storage report exported successfully');
+      // Create workbook and worksheet
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(overviewData);
+
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(wb, ws, 'Storage Report');
+
+      // Save file
+      XLSX.writeFile(wb, `storage-report-${new Date().toISOString().split('T')[0]}.xlsx`);
+
+      toast.success('Storage report exported successfully');
+    } catch (err) {
+      console.error('Export failed:', err);
+      toast.error('Failed to export storage report');
+    }
   };
 
   return (
@@ -57,16 +74,23 @@ export default function StorageMonitoring() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button onClick={handleExport} variant="outline">
+            <Button onClick={handleExport} variant="outline" disabled={loading}>
               <Download className="h-4 w-4 mr-2" />
-              Export Report
+              Export Excel
             </Button>
-            <Button onClick={refetch} variant="outline">
+            <Button onClick={refetch} variant="outline" disabled={loading}>
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
             </Button>
           </div>
         </div>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative" role="alert">
+            <strong className="font-bold">Error: </strong>
+            <span className="block sm:inline">{error}</span>
+          </div>
+        )}
 
         {/* Storage Overview */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

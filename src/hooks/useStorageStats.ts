@@ -36,47 +36,60 @@ export const useStorageStats = () => {
       setLoading(true);
 
       // Fetch storage bucket sizes
+      // Note: This only lists files at the root level. For recursive listing, a more complex solution is needed.
       const [productImagesResult, categoryImagesResult, avatarsResult] = await Promise.allSettled([
-        supabase.storage.from('product-images').list(),
-        supabase.storage.from('category-images').list(),
-        supabase.storage.from('avatars').list(),
+        supabase.storage.from('product-images').list('', { limit: 1000 }), // Increased limit
+        supabase.storage.from('category-images').list('', { limit: 1000 }),
+        supabase.storage.from('avatars').list('', { limit: 1000 }),
       ]);
 
       // Calculate storage for each bucket
-      const calculateBucketSize = (result: any): number => {
-        if (result.status === 'fulfilled' && result.value.data) {
-          return result.value.data.reduce((total: number, file: any) => {
-            return total + (file.metadata?.size || 0);
-          }, 0);
+      const calculateBucketSize = (result: PromiseSettledResult<{ data: any[] | null; error: any | null }>, bucketName: string): number => {
+        if (result.status === 'fulfilled') {
+          if (result.value.error) {
+            console.warn(`Error listing bucket ${bucketName}:`, result.value.error);
+            return 0;
+          }
+          if (result.value.data) {
+            return result.value.data.reduce((total: number, file: any) => {
+              return total + (file.metadata?.size || 0);
+            }, 0);
+          }
+        } else {
+          console.error(`Failed to list bucket ${bucketName}:`, result.reason);
         }
         return 0;
       };
 
-      const productImagesSize = calculateBucketSize(productImagesResult) / (1024 * 1024); // Convert to MB
-      const categoryImagesSize = calculateBucketSize(categoryImagesResult) / (1024 * 1024);
-      const avatarsSize = calculateBucketSize(avatarsResult) / (1024 * 1024);
+      const productImagesSize = calculateBucketSize(productImagesResult as any, 'product-images') / (1024 * 1024); // Convert to MB
+      const categoryImagesSize = calculateBucketSize(categoryImagesResult as any, 'category-images') / (1024 * 1024);
+      const avatarsSize = calculateBucketSize(avatarsResult as any, 'avatars') / (1024 * 1024);
 
       // Estimate database size (approximate based on row counts)
-      const { count: productsCount } = await supabase
-        .from('products')
-        .select('*', { count: 'exact', head: true });
+      // Using Promise.all for parallel fetching
+      const [products, orders, users] = await Promise.all([
+        supabase.from('products').select('*', { count: 'exact', head: true }),
+        supabase.from('orders').select('*', { count: 'exact', head: true }),
+        supabase.from('user_profiles').select('*', { count: 'exact', head: true }) // Using user_profiles as per schema
+      ]);
 
-      const { count: ordersCount } = await supabase
-        .from('orders')
-        .select('*', { count: 'exact', head: true });
+      const productsCount = products.count || 0;
+      const ordersCount = orders.count || 0;
+      const usersCount = users.count || 0;
 
-      const { count: usersCount } = await supabase
-        .from('user_profiles')
-        .select('*', { count: 'exact', head: true });
+      // Log errors if any
+      if (products.error) console.error('Error counting products:', products.error);
+      if (orders.error) console.error('Error counting orders:', orders.error);
+      if (users.error) console.error('Error counting profiles:', users.error);
 
       // Rough estimate: 1KB per product, 2KB per order, 1KB per user
       const estimatedDatabaseSize =
-        ((productsCount || 0) * 1 + (ordersCount || 0) * 2 + (usersCount || 0) * 1) / 1024; // in MB
+        (productsCount * 1 + ordersCount * 2 + usersCount * 1) / 1024; // in MB
 
       const totalUsed = productImagesSize + categoryImagesSize + avatarsSize + estimatedDatabaseSize;
       const totalStorage = 500; // Supabase free tier default
       const remaining = Math.max(0, totalStorage - totalUsed);
-      const percentage = Math.min(100, (totalUsed / totalStorage) * 100);
+      const percentage = totalStorage > 0 ? Math.min(100, (totalUsed / totalStorage) * 100) : 0;
 
       setStats({
         totalStorage,

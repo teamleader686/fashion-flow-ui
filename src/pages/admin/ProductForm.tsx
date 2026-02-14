@@ -37,15 +37,11 @@ const ProductForm = () => {
     is_featured: false,
     available_sizes: [] as string[],
     available_colors: [] as { name: string; hex: string }[],
+    loyalty_coins_reward: 0,
+    loyalty_coins_price: null as number | null,
   });
 
   const [images, setImages] = useState<any[]>([]);
-  const [loyaltyConfig, setLoyaltyConfig] = useState({
-    is_enabled: true,
-    coins_earned_per_purchase: 10,
-    coins_required_for_redemption: 100,
-    max_coins_usable_per_order: 500,
-  });
   const [affiliateConfig, setAffiliateConfig] = useState({
     is_enabled: false,
     commission_type: 'percentage' as 'percentage' | 'fixed',
@@ -74,7 +70,6 @@ const ProductForm = () => {
         .select(`
           *,
           product_images(*),
-          loyalty_config:product_loyalty_config(*),
           affiliate_config:product_affiliate_config(*),
           offers:product_offers(*)
         `)
@@ -82,10 +77,15 @@ const ProductForm = () => {
         .single();
 
       if (error) throw error;
-      
-      setFormData(data);
+
+      setFormData({
+        ...data,
+        available_sizes: data.available_sizes || [],
+        available_colors: data.available_colors || [],
+        loyalty_coins_reward: data.loyalty_coins_reward || 0,
+        loyalty_coins_price: data.loyalty_coins_price || null,
+      });
       setImages(data.product_images || []);
-      if (data.loyalty_config?.[0]) setLoyaltyConfig(data.loyalty_config[0]);
       if (data.affiliate_config?.[0]) setAffiliateConfig(data.affiliate_config[0]);
       if (data.offers?.[0]) {
         setOffer({
@@ -110,9 +110,19 @@ const ProductForm = () => {
         return;
       }
 
+      // Create submission object to avoid mutating state
+      const submissionData = { ...formData };
+
       // Generate slug if not provided
-      if (!formData.slug) {
-        formData.slug = formData.name.toLowerCase().replace(/\s+/g, '-');
+      if (!submissionData.slug) {
+        submissionData.slug = submissionData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      }
+
+      // Generate SKU if not provided
+      if (!submissionData.sku) {
+        const prefix = submissionData.name.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, 'PRD');
+        const random = Math.floor(1000 + Math.random() * 9000);
+        submissionData.sku = `${prefix}-${random}`;
       }
 
       let productId = id;
@@ -121,26 +131,18 @@ const ProductForm = () => {
       if (isEdit) {
         const { error } = await supabase
           .from('products')
-          .update(formData)
+          .update(submissionData)
           .eq('id', id);
         if (error) throw error;
       } else {
         const { data, error } = await supabase
           .from('products')
-          .insert([formData])
+          .insert([submissionData])
           .select()
           .single();
         if (error) throw error;
         productId = data.id;
       }
-
-      // Save loyalty config
-      await supabase
-        .from('product_loyalty_config')
-        .upsert({
-          product_id: productId,
-          ...loyaltyConfig
-        });
 
       // Save product images
       if (images.length > 0) {
@@ -197,7 +199,17 @@ const ProductForm = () => {
       navigate('/admin/products');
     } catch (error: any) {
       console.error('Error saving product:', error);
-      toast.error('Failed to save product');
+      if (error.code === '23505') {
+        if (error.message?.includes('sku') || error.details?.includes('sku')) {
+          toast.error('Product with this SKU already exists. Please use a unique SKU.');
+        } else if (error.message?.includes('slug') || error.details?.includes('slug')) {
+          toast.error('Product with this Name/Slug already exists.');
+        } else {
+          toast.error('Duplicate entry found. Please check your data.');
+        }
+      } else {
+        toast.error('Failed to save product: ' + (error.message || 'Unknown error'));
+      }
     } finally {
       setSaving(false);
     }
@@ -239,7 +251,7 @@ const ProductForm = () => {
               </p>
             </div>
           </div>
-          
+
           {/* Desktop Save Button */}
           <Button
             onClick={handleSubmit}
@@ -303,8 +315,10 @@ const ProductForm = () => {
 
               <TabsContent value="loyalty" className="mt-4 sm:mt-6">
                 <LoyaltyTab
-                  config={loyaltyConfig}
-                  setConfig={setLoyaltyConfig}
+                  reward={formData.loyalty_coins_reward}
+                  price={formData.loyalty_coins_price}
+                  onRewardChange={(reward) => setFormData({ ...formData, loyalty_coins_reward: reward })}
+                  onPriceChange={(price) => setFormData({ ...formData, loyalty_coins_price: price })}
                 />
               </TabsContent>
 

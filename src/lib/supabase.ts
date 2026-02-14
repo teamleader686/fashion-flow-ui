@@ -74,6 +74,8 @@ export type Product = {
   active_offer?: ProductOffer;
   available_sizes?: string[];
   available_colors?: { name: string; hex: string }[];
+  loyalty_coins_reward: number;
+  loyalty_coins_price?: number;
 };
 
 export type ProductImage = {
@@ -172,6 +174,9 @@ export type Order = {
   payment_method: 'cod' | 'online' | 'upi' | 'card' | 'netbanking' | 'wallet';
   created_at: string;
   updated_at: string;
+  loyalty_coins_used?: number;
+  loyalty_coins_value?: number;
+  total_coins_to_earn?: number;
   delivered_at?: string;
   // Relations
   order_items?: OrderItem[];

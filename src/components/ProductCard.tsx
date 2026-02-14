@@ -4,6 +4,7 @@ import type { Product } from "@/hooks/useProducts";
 import { useCart } from "@/contexts/CartContext";
 import { motion } from "framer-motion";
 import ProductShare from "./ProductShare";
+import CloudImage from "@/components/ui/CloudImage";
 
 interface ProductCardProps {
   product: Product;
@@ -21,11 +22,11 @@ const ProductCard = ({ product }: ProductCardProps) => {
       className="group bg-card rounded-xl overflow-hidden border border-border hover:shadow-lg transition-shadow"
     >
       <Link to={`/product/${product.slug}`} className="block relative aspect-[3/4] overflow-hidden">
-        <img
+        <CloudImage
           src={product.image}
           alt={product.name}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          loading="lazy"
+          className="w-full h-full"
+          imageClassName="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
         {product.isNew && (
           <span className="absolute top-2 left-2 bg-primary text-primary-foreground text-[10px] font-bold px-2 py-0.5 rounded-md uppercase">
@@ -82,26 +83,57 @@ const ProductCard = ({ product }: ProductCardProps) => {
         </div>
 
         {/* Loyalty Coins Badge */}
-        {product.loyaltyCoins && product.loyaltyCoins > 0 && (
-          <div className="mt-1.5">
-            <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">
-              <Coins className="h-3 w-3" />
-              Earn {product.loyaltyCoins} coins
-            </span>
+        {(product.loyaltyCoins > 0 || (product.loyaltyPrice && product.loyaltyPrice > 0)) && (
+          <div className="mt-1.5 flex flex-col items-start gap-1">
+            {product.loyaltyCoins > 0 && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-medium bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full border border-yellow-200">
+                <Coins className="h-3 w-3" />
+                Earn {product.loyaltyCoins} coins
+              </span>
+            )}
+            {product.loyaltyPrice && product.loyaltyPrice > 0 && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-medium bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full border border-purple-200">
+                <Coins className="h-3 w-3" />
+                Buy for {product.loyaltyPrice} coins
+              </span>
+            )}
           </div>
         )}
 
-        {product.colors.length > 0 && (
-          <div className="flex items-center gap-1.5 mt-2">
-            {product.colors.slice(0, 4).map((color) => (
-              <div
-                key={color}
-                className="w-4 h-4 rounded-full border border-border"
-                style={{ backgroundColor: color }}
-              />
-            ))}
-          </div>
-        )}
+        <div className="flex flex-wrap items-center gap-2 mt-2">
+          {product.sizes.length > 0 && (
+            <div className="flex gap-1 text-[10px] text-muted-foreground">
+              {product.sizes.slice(0, 3).map((size) => (
+                <span key={size} className="bg-secondary px-1.5 py-0.5 rounded-sm border border-border">
+                  {size}
+                </span>
+              ))}
+              {product.sizes.length > 3 && (
+                <span className="bg-secondary px-1.5 py-0.5 rounded-sm border border-border">
+                  +{product.sizes.length - 3}
+                </span>
+              )}
+            </div>
+          )}
+
+          {product.colors.length > 0 && (
+            <div className="flex items-center gap-1.5 ml-auto">
+              {product.colors.slice(0, 4).map((color) => (
+                <div
+                  key={color.name}
+                  className="w-3.5 h-3.5 rounded-full border border-border relative group/color"
+                  style={{ backgroundColor: color.hex }}
+                  title={color.name}
+                >
+                  <span className="sr-only">{color.name}</span>
+                </div>
+              ))}
+              {product.colors.length > 4 && (
+                <span className="text-[10px] text-muted-foreground">+{product.colors.length - 4}</span>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </motion.div>
   );

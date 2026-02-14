@@ -15,7 +15,9 @@ import {
   Palette,
   Globe,
   Shield,
+  Layout as LayoutIcon,
 } from 'lucide-react';
+import SliderManagement from '@/components/admin/SliderManagement';
 
 export default function AdminSettings() {
   return (
@@ -34,6 +36,7 @@ export default function AdminSettings() {
             <TabsTrigger value="loyalty" className="text-xs"><Award className="h-3 w-3 mr-1" />Loyalty</TabsTrigger>
             <TabsTrigger value="notifications" className="text-xs"><Bell className="h-3 w-3 mr-1" />Notify</TabsTrigger>
             <TabsTrigger value="appearance" className="text-xs"><Palette className="h-3 w-3 mr-1" />Theme</TabsTrigger>
+            <TabsTrigger value="homepage" className="text-xs"><LayoutIcon className="h-3 w-3 mr-1" />Home Sliders</TabsTrigger>
             <TabsTrigger value="seo" className="text-xs"><Globe className="h-3 w-3 mr-1" />SEO</TabsTrigger>
             <TabsTrigger value="security" className="text-xs"><Shield className="h-3 w-3 mr-1" />Security</TabsTrigger>
           </TabsList>
@@ -236,6 +239,10 @@ export default function AdminSettings() {
                 <Button>Save Changes</Button>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="homepage" className="mt-6">
+            <SliderManagement />
           </TabsContent>
 
           <TabsContent value="seo" className="mt-6">

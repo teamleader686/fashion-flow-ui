@@ -50,11 +50,12 @@ interface AddressForm {
 
 import { AddressSection } from "@/components/checkout/AddressSection";
 import { UserAddress } from "@/hooks/useAddresses";
+import CloudImage from "@/components/ui/CloudImage";
 
 const Checkout = () => {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
-  const { items, totalPrice, totalItems, clearCart } = useCart();
+  const { items, totalPrice, totalItems, totalCoinsRequired, clearCart } = useCart();
   const { placeOrder, loading: placingOrder } = useOrderPlacement();
 
   // Fetched data
@@ -127,8 +128,11 @@ const Checkout = () => {
     return value;
   }, [appliedCoupon, subtotal]);
 
+  // Max coins available for partial discount (after deducting fixed coin costs)
+  const availableForDiscount = Math.max(0, loyaltyBalance - totalCoinsRequired);
+
   const maxCoinsUsable = Math.min(
-    loyaltyBalance,
+    availableForDiscount,
     Math.floor((subtotal - couponDiscount) * MAX_COINS_PERCENT / 100)
   );
 
@@ -143,13 +147,13 @@ const Checkout = () => {
         // Fetch user's loyalty balance
         if (user) {
           const { data: wallet, error: walletError } = await supabase
-            .from('loyalty_coins')
-            .select('available_coins')
+            .from('loyalty_wallet')
+            .select('available_balance')
             .eq('user_id', user.id)
             .maybeSingle();
 
           if (!walletError && wallet) {
-            setLoyaltyBalance(wallet.available_coins);
+            setLoyaltyBalance(wallet.available_balance);
           }
         }
 
@@ -248,6 +252,16 @@ const Checkout = () => {
       return;
     }
 
+    if (totalCoinsRequired > loyaltyBalance) {
+      toast.error(`Insufficient coin balance. Required: ${totalCoinsRequired}, Available: ${loyaltyBalance}`);
+      return;
+    }
+
+    const totalCoinsToEarn = items.reduce((acc, item) => {
+      if (item.isCoinItem) return acc;
+      return acc + ((item.product.loyaltyCoins || 0) * item.quantity);
+    }, 0);
+
     // Prepare order data
     const orderData = {
       customer_name: address.fullName,
@@ -264,11 +278,12 @@ const Checkout = () => {
       discount_amount: 0,
       coupon_discount: couponDiscount,
       wallet_amount_used: 0,
-      loyalty_coins_used: useCoins ? coinsToUse : 0,
+      loyalty_coins_used: (useCoins ? coinsToUse : 0) + totalCoinsRequired,
       loyalty_coins_value: coinsValue,
+      total_coins_to_earn: totalCoinsToEarn,
       total_amount: finalTotal,
       coupon_code: appliedCoupon?.code || appliedCoupon?.coupon_code,
-      payment_method: paymentMethod,
+      payment_method: finalTotal === 0 ? 'wallet' : paymentMethod,
       items: items.map(item => ({
         product_id: item.product.id,
         product_name: item.product.name,
@@ -277,8 +292,9 @@ const Checkout = () => {
         size: item.selectedSize,
         color: item.selectedColor,
         quantity: item.quantity,
-        unit_price: item.product.price,
-        total_price: item.product.price * item.quantity,
+        unit_price: item.isCoinItem ? 0 : item.product.price,
+        total_price: item.isCoinItem ? 0 : (item.product.price * item.quantity),
+        metadata: item.isCoinItem ? { paid_with_coins: true, coins_price: item.coinPrice } : undefined,
       })),
     };
 
@@ -705,20 +721,21 @@ const Checkout = () => {
                       {/* Wallet */}
                       <label
                         className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${paymentMethod === "wallet" ? "border-primary bg-primary/5" : "border-border hover:bg-secondary/50"
-                          }`}
+                          } ${finalTotal > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                       >
                         <input
                           type="radio"
                           name="payment"
                           value="wallet"
                           checked={paymentMethod === "wallet"}
-                          onChange={() => setPaymentMethod("wallet")}
+                          onChange={() => finalTotal === 0 && setPaymentMethod("wallet")}
                           className="accent-primary"
+                          disabled={finalTotal > 0}
                         />
                         <Wallet className="h-5 w-5 text-primary" />
                         <div className="flex-1">
                           <p className="text-sm font-medium">StyleBazaar Wallet</p>
-                          <p className="text-[11px] text-muted-foreground">Balance: ₹0.00</p>
+                          <p className="text-[11px] text-muted-foreground">Balance: {loyaltyBalance} coins</p>
                         </div>
                       </label>
 
@@ -756,16 +773,35 @@ const Checkout = () => {
               {/* Items preview */}
               <div className="space-y-2 max-h-40 overflow-y-auto scrollbar-hide">
                 {items.map((item) => (
-                  <div key={item.product.id} className="flex gap-2 text-sm">
-                    <img src={item.product.image} alt={item.product.name} className="w-10 h-12 rounded object-cover flex-shrink-0" />
+                  <div key={`${item.product.id}-${item.selectedSize}-${item.selectedColor}-${item.isCoinItem}`} className="flex gap-2 text-sm">
+                    <CloudImage
+                      src={item.product.image}
+                      alt={item.product.name}
+                      className="w-10 h-12 rounded shrink-0"
+                      imageClassName="w-full h-full object-cover"
+                    />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-xs">{item.product.name}</p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {item.selectedSize} × {item.quantity}
+                      <p className="text-[11px] text-muted-foreground flex gap-2">
+                        <span>Size: {item.selectedSize}</span>
+                        {item.selectedColor && (
+                          <>
+                            <span>•</span>
+                            <span>Color: {item.selectedColor}</span>
+                          </>
+                        )}
+                        <span>× {item.quantity}</span>
                       </p>
                     </div>
                     <span className="text-xs font-medium whitespace-nowrap">
-                      ₹{(item.product.price * item.quantity).toLocaleString()}
+                      {item.isCoinItem ? (
+                        <span className="text-purple-700 font-bold flex items-center gap-1">
+                          <Coins className="h-3 w-3" />
+                          {(item.coinPrice || 0) * item.quantity}
+                        </span>
+                      ) : (
+                        `₹${(item.product.price * item.quantity).toLocaleString()}`
+                      )}
                     </span>
                   </div>
                 ))}
@@ -776,6 +812,15 @@ const Checkout = () => {
                   <span className="text-muted-foreground">Subtotal</span>
                   <span>₹{subtotal.toLocaleString()}</span>
                 </div>
+                {totalCoinsRequired > 0 && (
+                  <div className="flex justify-between text-purple-700">
+                    <span className="text-muted-foreground">Coins Redemption</span>
+                    <span className="font-medium flex items-center gap-1">
+                      <Coins className="h-3 w-3" />
+                      {totalCoinsRequired.toLocaleString()}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Shipping</span>
                   <span className={shipping === 0 ? "text-discount font-medium" : ""}>
@@ -790,7 +835,7 @@ const Checkout = () => {
                 )}
                 {coinsValue > 0 && (
                   <div className="flex justify-between text-discount">
-                    <span>Loyalty Coins ({coinsToUse})</span>
+                    <span>Loyalty Coins Discount ({coinsToUse})</span>
                     <span>-₹{coinsValue}</span>
                   </div>
                 )}

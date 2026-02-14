@@ -91,7 +91,7 @@ export default function StorageBreakdown({
             <div key={item.name} className="space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg ${item.color} bg-opacity-10`}>
+                  <div className={`p-2 rounded-lg ${item.color.replace('500', '500/10')}`}>
                     <Icon className={`h-4 w-4 ${item.color.replace('bg-', 'text-')}`} />
                   </div>
                   <div>

@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import NotificationBell from '@/components/notifications/NotificationBell';
@@ -118,11 +118,11 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
 
   const initials = profile?.full_name
     ? profile.full_name
-        .split(' ')
-        .map((n: string) => n[0])
-        .join('')
-        .toUpperCase()
-        .slice(0, 2)
+      .split(' ')
+      .map((n: string) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2)
     : 'AD';
 
   // Current page title
@@ -188,9 +188,10 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
       {/* ──── MOBILE SIDEBAR (Sheet) ──── */}
       {isMobile && (
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-          <SheetContent side="left" className="w-72 p-0 flex flex-col" aria-describedby={undefined}>
+          <SheetContent side="left" className="w-72 p-0 flex flex-col">
             <VisuallyHidden>
               <SheetTitle>Navigation Menu</SheetTitle>
+              <SheetDescription>Main navigation menu for mobile devices</SheetDescription>
             </VisuallyHidden>
             <div className="flex h-16 items-center justify-between border-b px-4 shrink-0">
               <Link

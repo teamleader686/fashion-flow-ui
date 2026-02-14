@@ -15,13 +15,14 @@ export interface Product {
   rating: number;
   reviewCount: number;
   category: string;
-  colors: string[];
+  colors: { name: string; hex: string }[];
   sizes: string[];
   isNew?: boolean;
   isFeatured?: boolean;
   description: string;
   stock: number;
-  loyaltyCoins?: number; // Added loyalty coins
+  loyaltyCoins?: number; // Earned coins
+  loyaltyPrice?: number | null; // Price in coins
 }
 
 export const useProducts = () => {
@@ -39,8 +40,7 @@ export const useProducts = () => {
           *,
           category:categories(name, slug),
           product_images(image_url, is_primary, display_order),
-          product_variants(size, color, color_code, stock_quantity),
-          loyalty_config:product_loyalty_config(is_enabled, coins_earned_per_purchase)
+          product_variants(size, color, color_code, stock_quantity)
         `)
         .eq('is_active', true)
         .order('created_at', { ascending: false });
@@ -54,27 +54,42 @@ export const useProducts = () => {
           ?.sort((a: any, b: any) => a.display_order - b.display_order)
           .map((img: any) => img.image_url) || [];
 
-        // Extract unique sizes and colors
-        const sizes: string[] = [...new Set(dbProduct.product_variants?.map((v: any) => v.size).filter(Boolean) as string[] || [])];
-        const colors: string[] = [...new Set(dbProduct.product_variants?.map((v: any) => v.color_code).filter(Boolean) as string[] || [])];
+        // Extract sizes from direct column or variants fallback
+        let sizes: string[] = dbProduct.available_sizes || [];
+        if (sizes.length === 0) {
+          sizes = [...new Set(dbProduct.product_variants?.map((v: any) => v.size).filter(Boolean) as string[] || [])];
+        }
+
+        // Extract colors from direct column or variants fallback
+        let colors: { name: string; hex: string }[] = dbProduct.available_colors || [];
+        if (colors.length === 0) {
+          // Fallback logic for old variant structure if needed
+          const variantColors = dbProduct.product_variants?.filter((v: any) => v.color).map((v: any) => ({
+            name: v.color,
+            hex: v.color_code || '#000000' // Default to black if no code
+          })) || [];
+
+          // Deduplicate by name
+          const uniqueColors = new Map();
+          variantColors.forEach((c: any) => {
+            if (!uniqueColors.has(c.name)) uniqueColors.set(c.name, c);
+          });
+          colors = Array.from(uniqueColors.values());
+        }
 
         // Calculate discount percentage
-        const discount = dbProduct.compare_at_price 
+        const discount = dbProduct.compare_at_price
           ? Math.round(((dbProduct.compare_at_price - dbProduct.price) / dbProduct.compare_at_price) * 100)
           : 0;
 
         // Calculate best price (10% less than current price for display)
         const bestPrice = Math.round(dbProduct.price * 0.9);
 
-        // Calculate total stock from variants
+        // Calculate total stock from variants or main stock
         const totalStock = dbProduct.product_variants?.reduce(
-          (sum: number, v: any) => sum + (v.stock_quantity || 0), 
+          (sum: number, v: any) => sum + (v.stock_quantity || 0),
           0
         ) || dbProduct.stock_quantity || 0;
-
-        // Get loyalty coins
-        const loyaltyConfig = Array.isArray(dbProduct.loyalty_config) ? dbProduct.loyalty_config[0] : dbProduct.loyalty_config;
-        const loyaltyCoins = loyaltyConfig?.is_enabled ? loyaltyConfig.coins_earned_per_purchase : 0;
 
         return {
           id: dbProduct.id,
@@ -95,7 +110,8 @@ export const useProducts = () => {
           isFeatured: dbProduct.is_featured || false,
           description: dbProduct.description || '',
           stock: totalStock,
-          loyaltyCoins, // Added loyalty coins
+          loyaltyCoins: dbProduct.loyalty_coins_reward || 0,
+          loyaltyPrice: dbProduct.loyalty_coins_price || null,
         };
       });
 
@@ -117,7 +133,7 @@ export const useProducts = () => {
     // Setup realtime subscription
     const subscription = supabase
       .channel('products_changes')
-      .on('postgres_changes', 
+      .on('postgres_changes',
         { event: '*', schema: 'public', table: 'products' },
         () => {
           fetchProducts();
@@ -168,7 +184,7 @@ export const useCategories = () => {
     // Setup realtime subscription for categories
     const subscription = supabase
       .channel('categories_changes')
-      .on('postgres_changes', 
+      .on('postgres_changes',
         { event: '*', schema: 'public', table: 'categories' },
         () => {
           fetchCategories();

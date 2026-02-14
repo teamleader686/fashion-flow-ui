@@ -7,6 +7,7 @@ import { ChevronDown, ChevronUp, Package, Phone, MapPin, CreditCard } from 'luci
 import OrderDetailDrawer from '@/components/admin/orders/OrderDetailDrawer';
 import { format } from 'date-fns';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import CloudImage from '@/components/ui/CloudImage';
 
 type OrderCardMobileProps = {
   orders: Order[];
@@ -153,10 +154,11 @@ const OrderCardMobile = ({
                           {order.order_items.map((item) => (
                             <div key={item.id} className="flex items-center gap-2 text-sm">
                               {item.product_image && (
-                                <img
+                                <CloudImage
                                   src={item.product_image}
                                   alt={item.product_name}
-                                  className="w-10 h-10 object-cover rounded"
+                                  className="w-10 h-10 rounded shrink-0"
+                                  imageClassName="w-full h-full object-cover"
                                 />
                               )}
                               <div className="flex-1">

@@ -9,6 +9,7 @@ import { Package, Truck, RotateCcw, User, MapPin, CreditCard } from 'lucide-reac
 import StatusManager from '@/components/admin/orders/StatusManager';
 import ShippingManager from '@/components/admin/orders/ShippingManager';
 import ReturnManager from '@/components/admin/orders/ReturnManager';
+import CloudImage from '@/components/ui/CloudImage';
 
 type OrderDetailDrawerProps = {
   order: Order;
@@ -103,10 +104,11 @@ const OrderDetailDrawer = ({
               {order.order_items?.map((item) => (
                 <div key={item.id} className="flex items-center gap-3 bg-gray-50 p-3 rounded-lg">
                   {item.product_image && (
-                    <img
+                    <CloudImage
                       src={item.product_image}
                       alt={item.product_name}
-                      className="w-16 h-16 object-cover rounded"
+                      className="w-16 h-16 rounded shrink-0"
+                      imageClassName="w-full h-full object-cover"
                     />
                   )}
                   <div className="flex-1">

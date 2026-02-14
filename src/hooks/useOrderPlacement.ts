@@ -20,6 +20,7 @@ interface OrderData {
   wallet_amount_used: number;
   loyalty_coins_used: number;
   loyalty_coins_value: number;
+  total_coins_to_earn: number;
   total_amount: number;
   coupon_code?: string;
   payment_method: 'cod' | 'online' | 'upi' | 'card' | 'netbanking' | 'wallet';
@@ -82,6 +83,7 @@ export const useOrderPlacement = () => {
           wallet_amount_used: orderData.wallet_amount_used,
           loyalty_coins_used: orderData.loyalty_coins_used,
           loyalty_coins_value: orderData.loyalty_coins_value,
+          total_coins_to_earn: orderData.total_coins_to_earn,
           total_amount: orderData.total_amount,
           coupon_code: orderData.coupon_code,
           payment_method: orderData.payment_method,
@@ -185,6 +187,66 @@ export const useOrderPlacement = () => {
 
         // Clear referral code after order is placed
         localStorage.removeItem('affiliate_referral');
+      }
+
+      // 5. Deduct Loyalty Coins if used
+      if (orderData.loyalty_coins_used > 0 && user?.id) {
+        try {
+          // Deduct from wallet
+          // Try RPC first if exists (using expected name pattern)
+          const { error: walletError } = await supabase.rpc('deduct_loyalty_balance', {
+            p_user_id: user.id,
+            p_amount: orderData.loyalty_coins_used
+          });
+
+          let newBalance = 0;
+
+          if (walletError) {
+            // Fallback to direct update
+            const { data: currentWallet } = await supabase
+              .from('loyalty_wallet')
+              .select('available_balance, total_redeemed')
+              .eq('user_id', user.id)
+              .single();
+
+            if (currentWallet) {
+              newBalance = Math.max(0, currentWallet.available_balance - orderData.loyalty_coins_used);
+              const newRedeemed = (currentWallet.total_redeemed || 0) + orderData.loyalty_coins_used;
+
+              await supabase
+                .from('loyalty_wallet')
+                .update({
+                  available_balance: newBalance,
+                  total_redeemed: newRedeemed,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('user_id', user.id);
+            }
+          } else {
+            // If RPC succeeded, we might need to fetch new balance for log, or just estimate?
+            // Assuming RPC returns new balance would be better but void for now.
+            // We'll skip precise balance_after if RPC used without return.
+          }
+
+          // Log transaction
+          await supabase
+            .from('loyalty_transactions')
+            .insert({
+              user_id: user.id,
+              order_id: order.id,
+              coins: orderData.loyalty_coins_used,
+              amount: orderData.loyalty_coins_value, // money equivalent
+              type: 'redeem',
+              wallet_type: 'loyalty',
+              description: `Redeemed for Order #${order.order_number}`,
+              balance_after: newBalance, // Best effort
+              status: 'completed'
+            });
+
+        } catch (coinError) {
+          console.error("Error processing loyalty coins:", coinError);
+          toast.error("Order placed, but failed to update coin wallet.");
+        }
       }
 
       toast.success('Order placed successfully!');

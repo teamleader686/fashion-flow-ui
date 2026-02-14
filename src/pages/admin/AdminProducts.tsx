@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import CloudImage from '@/components/ui/CloudImage';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,11 +45,11 @@ const AdminProducts = () => {
 
   useEffect(() => {
     fetchProducts();
-    
+
     // Setup realtime subscription
     const subscription = supabase
       .channel('products_changes')
-      .on('postgres_changes', 
+      .on('postgres_changes',
         { event: '*', schema: 'public', table: 'products' },
         () => {
           fetchProducts();
@@ -64,7 +65,7 @@ const AdminProducts = () => {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      
+
       // Calculate range for pagination
       const from = (currentPage - 1) * ITEMS_PER_PAGE;
       const to = from + ITEMS_PER_PAGE - 1;
@@ -91,7 +92,7 @@ const AdminProducts = () => {
       const { data, error, count } = await query;
 
       if (error) throw error;
-      
+
       setProducts(data || []);
       setTotalCount(count || 0);
     } catch (error: any) {
@@ -110,7 +111,7 @@ const AdminProducts = () => {
         .eq('id', productId);
 
       if (error) throw error;
-      
+
       toast.success(`Product ${!currentStatus ? 'activated' : 'deactivated'}`);
       fetchProducts();
     } catch (error: any) {
@@ -128,7 +129,7 @@ const AdminProducts = () => {
         .eq('id', productToDelete);
 
       if (error) throw error;
-      
+
       toast.success('Product deleted successfully');
       setDeleteDialogOpen(false);
       setProductToDelete(null);
@@ -157,7 +158,7 @@ const AdminProducts = () => {
 
   const getActiveOffer = (product: Product) => {
     if (!product.active_offer || !Array.isArray(product.active_offer)) return null;
-    
+
     const now = new Date();
     return product.active_offer.find(offer => {
       const start = new Date(offer.start_date);
@@ -305,10 +306,11 @@ const AdminProducts = () => {
                           <TableRow key={product.id}>
                             <TableCell>
                               <div className="flex items-center gap-3">
-                                <img
+                                <CloudImage
                                   src={getPrimaryImage(product)}
                                   alt={product.name}
-                                  className="w-12 h-12 object-cover rounded"
+                                  className="w-12 h-12 rounded shrink-0"
+                                  imageClassName="w-full h-full object-cover"
                                 />
                                 <div>
                                   <div className="font-medium">{product.name}</div>
@@ -378,9 +380,9 @@ const AdminProducts = () => {
                                   </div>
                                 )}
                                 {(!product.available_sizes || product.available_sizes.length === 0) &&
-                                 (!product.available_colors || product.available_colors.length === 0) && (
-                                  <span className="text-xs text-gray-400">No variants</span>
-                                )}
+                                  (!product.available_colors || product.available_colors.length === 0) && (
+                                    <span className="text-xs text-gray-400">No variants</span>
+                                  )}
                               </div>
                             </TableCell>
                             <TableCell>
@@ -458,10 +460,11 @@ const AdminProducts = () => {
                     const hasAffiliate = product.affiliate_config?.[0]?.is_enabled;
                     return (
                       <div key={product.id} className="flex gap-3 p-3 border rounded-lg">
-                        <img
+                        <CloudImage
                           src={getPrimaryImage(product)}
                           alt={product.name}
-                          className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded shrink-0"
+                          className="w-16 h-16 sm:w-20 sm:h-20 rounded shrink-0"
+                          imageClassName="w-full h-full object-cover"
                         />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2">
@@ -496,40 +499,40 @@ const AdminProducts = () => {
                           {/* Variants Display */}
                           {((product.available_sizes && product.available_sizes.length > 0) ||
                             (product.available_colors && product.available_colors.length > 0)) && (
-                            <div className="mt-2 space-y-1">
-                              {product.available_sizes && product.available_sizes.length > 0 && (
-                                <div className="flex flex-wrap gap-1">
-                                  {product.available_sizes.slice(0, 4).map((size: string) => (
-                                    <Badge key={size} variant="outline" className="text-xs">
-                                      {size}
-                                    </Badge>
-                                  ))}
-                                  {product.available_sizes.length > 4 && (
-                                    <Badge variant="outline" className="text-xs">
-                                      +{product.available_sizes.length - 4}
-                                    </Badge>
-                                  )}
-                                </div>
-                              )}
-                              {product.available_colors && product.available_colors.length > 0 && (
-                                <div className="flex gap-1">
-                                  {product.available_colors.slice(0, 5).map((color: any) => (
-                                    <div
-                                      key={color.name}
-                                      className="w-5 h-5 rounded-full border border-gray-300"
-                                      style={{ backgroundColor: color.hex }}
-                                      title={color.name}
-                                    />
-                                  ))}
-                                  {product.available_colors.length > 5 && (
-                                    <Badge variant="outline" className="text-xs">
-                                      +{product.available_colors.length - 5}
-                                    </Badge>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          )}
+                              <div className="mt-2 space-y-1">
+                                {product.available_sizes && product.available_sizes.length > 0 && (
+                                  <div className="flex flex-wrap gap-1">
+                                    {product.available_sizes.slice(0, 4).map((size: string) => (
+                                      <Badge key={size} variant="outline" className="text-xs">
+                                        {size}
+                                      </Badge>
+                                    ))}
+                                    {product.available_sizes.length > 4 && (
+                                      <Badge variant="outline" className="text-xs">
+                                        +{product.available_sizes.length - 4}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                )}
+                                {product.available_colors && product.available_colors.length > 0 && (
+                                  <div className="flex gap-1">
+                                    {product.available_colors.slice(0, 5).map((color: any) => (
+                                      <div
+                                        key={color.name}
+                                        className="w-5 h-5 rounded-full border border-gray-300"
+                                        style={{ backgroundColor: color.hex }}
+                                        title={color.name}
+                                      />
+                                    ))}
+                                    {product.available_colors.length > 5 && (
+                                      <Badge variant="outline" className="text-xs">
+                                        +{product.available_colors.length - 5}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           {(hasLoyalty || hasAffiliate || activeOffer) && (
                             <div className="flex gap-1 mt-2 flex-wrap">
                               {hasLoyalty && (

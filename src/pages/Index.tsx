@@ -1,5 +1,6 @@
 import Layout from "@/components/layout/Layout";
 import HeroBanner from "@/components/home/HeroBanner";
+import HeroCarousel from "@/components/home/HeroCarousel";
 import CategoryCircles from "@/components/home/CategoryCircles";
 import OfferBanner from "@/components/home/OfferBanner";
 import ProductCard from "@/components/ProductCard";
@@ -11,7 +12,7 @@ import { ProductGridSkeleton } from "@/components/shimmer/ProductCardSkeleton";
 
 const Index = () => {
   const { products, loading } = useProducts();
-  
+
   const featuredProducts = products.filter((p) => p.isFeatured).slice(0, 4);
   const newArrivals = products.filter((p) => p.isNew).slice(0, 4);
   const allProducts = products.slice(0, 8);
@@ -19,7 +20,7 @@ const Index = () => {
   return (
     <Layout>
       <ReferralTracker />
-      
+
       {loading ? (
         <>
           <HeroSkeleton />
@@ -32,7 +33,7 @@ const Index = () => {
         </>
       ) : (
         <>
-          <HeroBanner />
+          <HeroCarousel />
           <CategoryCircles />
           <OfferBanner />
 
@@ -63,26 +64,26 @@ const Index = () => {
                     View All →
                   </Link>
                 </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-5">
-              {newArrivals.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-5">
+                  {newArrivals.map((product) => (
+                    <ProductCard key={product.id} product={product} />
+                  ))}
+                </div>
+              </div>
+            </section>
+          )}
 
-      {/* All Products */}
-      <section className="py-6 lg:py-10">
-        <div className="container">
-          <h2 className="text-xl lg:text-2xl font-bold mb-4 lg:mb-6">Pocket-Friendly Picks</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-5">
-            {allProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
-        </div>
-      </section>
+          {/* All Products */}
+          <section className="py-6 lg:py-10">
+            <div className="container">
+              <h2 className="text-xl lg:text-2xl font-bold mb-4 lg:mb-6">Pocket-Friendly Picks</h2>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-5">
+                {allProducts.map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </div>
+            </div>
+          </section>
         </>
       )}
 
