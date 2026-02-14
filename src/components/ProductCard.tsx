@@ -21,7 +21,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
       transition={{ duration: 0.3 }}
       className="group bg-card rounded-xl overflow-hidden border border-border hover:shadow-lg transition-shadow"
     >
-      <Link to={`/product/${product.slug}`} className="block relative aspect-[3/4] overflow-hidden">
+      <Link to={`/product/${product.slug}`} className="block relative aspect-square overflow-hidden">
         <CloudImage
           src={product.image}
           alt={product.name}

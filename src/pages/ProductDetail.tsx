@@ -3,7 +3,8 @@ import Layout from "@/components/layout/Layout";
 import { useProducts } from "@/hooks/useProducts";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import useEmblaCarousel from "embla-carousel-react";
 import { Heart, Star, ShoppingBag, Truck, RotateCcw, Shield, Coins, Share2, Wallet } from "lucide-react";
 import { motion } from "framer-motion";
 import ProductCard from "@/components/ProductCard";
@@ -29,9 +30,34 @@ const ProductDetail = () => {
 
   const [fetchedProduct, setFetchedProduct] = useState<any | null>(null);
   const [isFetchingProduct, setIsFetchingProduct] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string>("");
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false });
+  const [selectedIndex, setSelectedIndex] = useState(0);
 
   // Derive product from context or fetched state
   const product = products.find((p) => p.slug === slug) || fetchedProduct;
+
+  useEffect(() => {
+    if (product?.images?.length > 0) {
+      setSelectedImage(product.images[0]);
+    }
+  }, [product]);
+
+  const onSelect = useCallback(() => {
+    if (!emblaApi) return;
+    setSelectedIndex(emblaApi.selectedScrollSnap());
+  }, [emblaApi]);
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    onSelect();
+    emblaApi.on('select', onSelect);
+    emblaApi.on('reInit', onSelect);
+  }, [emblaApi, onSelect]);
+
+  const scrollTo = useCallback((index: number) => {
+    if (emblaApi) emblaApi.scrollTo(index);
+  }, [emblaApi]);
 
   useEffect(() => {
     // If not found in context list and we have a slug, fetch it individually
@@ -50,9 +76,6 @@ const ProductDetail = () => {
           .single();
 
         if (data) {
-          // Transform single product similar to hook (simplified for critical fields)
-          // Reusing transformation logic would be ideal, but for now duplicate essential parts or move transformer to util
-          // Simplified transformation:
           const primaryImage = data.product_images?.find((img: any) => img.is_primary);
           const allImages = data.product_images
             ?.sort((a: any, b: any) => a.display_order - b.display_order)
@@ -234,21 +257,72 @@ const ProductDetail = () => {
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6 lg:gap-10">
-          {/* Image */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="lg:w-1/2"
-          >
-            <div className="aspect-[3/4] rounded-xl overflow-hidden bg-secondary">
-              <CloudImage
-                src={product.image}
-                alt={product.name}
-                className="w-full h-full"
-                imageClassName="w-full h-full object-cover"
-              />
+          {/* Image Gallery */}
+          <div className="lg:w-1/2 flex flex-col gap-4">
+            {/* Desktop: Main Image + Thumbnails */}
+            <div className="hidden lg:flex gap-4">
+              {/* Thumbnails Sidebar */}
+              <div className="flex flex-col gap-3 w-20 flex-shrink-0">
+                {product.images.map((img: string, idx: number) => (
+                  <button
+                    key={idx}
+                    onClick={() => setSelectedImage(img)}
+                    className={`aspect-square rounded-lg overflow-hidden border-2 transition-all ${selectedImage === img ? 'border-primary ring-2 ring-primary/20' : 'border-transparent hover:border-gray-200'
+                      }`}
+                  >
+                    <CloudImage src={img} alt={`${product.name} ${idx + 1}`} className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+
+              {/* Main Image View */}
+              <motion.div
+                key={selectedImage}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex-1 aspect-square rounded-2xl overflow-hidden bg-secondary border shadow-sm group cursor-crosshair relative"
+              >
+                <CloudImage
+                  src={selectedImage}
+                  alt={product.name}
+                  className="w-full h-full"
+                  imageClassName="w-full h-full object-cover transition-transform duration-700 hover:scale-125"
+                />
+              </motion.div>
             </div>
-          </motion.div>
+
+            {/* Mobile: Swipeable Slider */}
+            <div className="lg:hidden relative">
+              <div className="overflow-hidden rounded-2xl border" ref={emblaRef}>
+                <div className="flex">
+                  {product.images.map((img: string, idx: number) => (
+                    <div key={idx} className="flex-[0_0_100%] min-w-0 aspect-square">
+                      <CloudImage
+                        src={img}
+                        alt={`${product.name} ${idx + 1}`}
+                        className="w-full h-full"
+                        imageClassName="w-full h-full object-cover"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Slider Dots */}
+              {product.images.length > 1 && (
+                <div className="flex justify-center gap-1.5 mt-3">
+                  {product.images.map((_: any, idx: number) => (
+                    <button
+                      key={idx}
+                      onClick={() => scrollTo(idx)}
+                      className={`h-1.5 rounded-full transition-all duration-300 ${selectedIndex === idx ? 'w-6 bg-primary' : 'w-1.5 bg-gray-300'
+                        }`}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* Details */}
           <motion.div
