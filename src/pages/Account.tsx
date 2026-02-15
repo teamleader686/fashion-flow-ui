@@ -34,7 +34,7 @@ const Account = () => {
               <User size={120} />
             </div>
             <div className="flex items-center gap-5 relative z-10">
-              <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-2xl font-bold shadow-lg shadow-primary/20">
+              <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-2xl font-bold shadow-lg shadow-primary/20 shrink-0">
                 {profile?.full_name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase()}
               </div>
               <div className="flex-1">

@@ -137,12 +137,12 @@ export default function CategoryDialog({
       const filePath = `categories/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
-        .from('products')
+        .from('category-images')
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
-      const { data } = supabase.storage.from('products').getPublicUrl(filePath);
+      const { data } = supabase.storage.from('category-images').getPublicUrl(filePath);
 
       return data.publicUrl;
     } catch (error) {
@@ -350,17 +350,17 @@ export default function CategoryDialog({
 
           {/* Footer with proper spacing */}
           <DialogFooter className="pt-4 gap-3 sm:gap-2">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={onClose} 
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
               disabled={loading}
               className="h-11 px-6 text-base w-full sm:w-auto"
             >
               Cancel
             </Button>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               disabled={loading}
               className="h-11 px-6 text-base w-full sm:w-auto"
             >

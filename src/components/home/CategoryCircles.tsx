@@ -9,6 +9,10 @@ const CategoryCircles = () => {
     return <CategorySkeleton />;
   }
 
+  if (!loading && categories.length === 0) {
+    return null;
+  }
+
   return (
     <section className="py-4 lg:py-8 overflow-hidden">
       <div className="container px-0 sm:px-6">
