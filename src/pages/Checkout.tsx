@@ -55,7 +55,7 @@ import CloudImage from "@/components/ui/CloudImage";
 const Checkout = () => {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
-  const { items, totalPrice, totalItems, totalCoinsRequired, clearCart } = useCart();
+  const { items, totalPrice, totalItems, totalCoinsRequired, totalShippingCost, clearCart } = useCart();
   const { placeOrder, loading: placingOrder } = useOrderPlacement();
 
   // Fetched data
@@ -101,14 +101,14 @@ const Checkout = () => {
   const [coinsToUse, setCoinsToUse] = useState(0);
 
   // Payment
-  const [paymentMethod, setPaymentMethod] = useState<"cod" | "online" | "wallet">("online");
+  const [paymentMethod, setPaymentMethod] = useState<"cod">("cod");
 
   // Order sections expand (mobile)
   const [expandedSection, setExpandedSection] = useState<string>("address");
 
   // Calculations
   const subtotal = totalPrice;
-  const shipping = subtotal >= 999 ? 0 : 79;
+  const shipping = subtotal >= 999 ? 0 : totalShippingCost;
 
   const couponDiscount = useMemo(() => {
     if (!appliedCoupon) return 0;
@@ -282,8 +282,9 @@ const Checkout = () => {
       loyalty_coins_value: coinsValue,
       total_coins_to_earn: totalCoinsToEarn,
       total_amount: finalTotal,
+      shipping_charge: shipping,
       coupon_code: appliedCoupon?.code || appliedCoupon?.coupon_code,
-      payment_method: finalTotal === 0 ? 'wallet' : paymentMethod,
+      payment_method: 'cod' as const,
       items: items.map(item => ({
         product_id: item.product.id,
         product_name: item.product.name,
@@ -692,72 +693,22 @@ const Checkout = () => {
                     exit={{ height: 0, opacity: 0 }}
                     className="overflow-hidden"
                   >
-                    <div className="px-4 pb-4 space-y-2">
-                      {/* Online Payment */}
-                      <label
-                        className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${paymentMethod === "online" ? "border-primary bg-primary/5" : "border-border hover:bg-secondary/50"
-                          }`}
-                      >
-                        <input
-                          type="radio"
-                          name="payment"
-                          value="online"
-                          checked={paymentMethod === "online"}
-                          onChange={() => setPaymentMethod("online")}
-                          className="accent-primary"
-                        />
-                        <CreditCard className="h-5 w-5 text-primary" />
-                        <div className="flex-1">
-                          <p className="text-sm font-medium">Online Payment</p>
-                          <p className="text-[11px] text-muted-foreground">UPI, Debit/Credit Card, Net Banking</p>
+                    <div className="px-4 pb-4">
+                      <div className="flex items-center gap-3 p-4 rounded-xl border-2 border-primary bg-primary/5">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                          <Banknote className="h-5 w-5 text-primary" />
                         </div>
-                        {paymentMethod === "online" && (
-                          <span className="text-[10px] font-semibold text-discount bg-primary/10 px-2 py-0.5 rounded-full">
-                            Recommended
-                          </span>
-                        )}
-                      </label>
-
-                      {/* Wallet */}
-                      <label
-                        className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${paymentMethod === "wallet" ? "border-primary bg-primary/5" : "border-border hover:bg-secondary/50"
-                          } ${finalTotal > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      >
-                        <input
-                          type="radio"
-                          name="payment"
-                          value="wallet"
-                          checked={paymentMethod === "wallet"}
-                          onChange={() => finalTotal === 0 && setPaymentMethod("wallet")}
-                          className="accent-primary"
-                          disabled={finalTotal > 0}
-                        />
-                        <Wallet className="h-5 w-5 text-primary" />
                         <div className="flex-1">
-                          <p className="text-sm font-medium">StyleBazaar Wallet</p>
-                          <p className="text-[11px] text-muted-foreground">Balance: {loyaltyBalance} coins</p>
+                          <p className="text-sm font-bold text-gray-900">Cash on Delivery (COD)</p>
+                          <p className="text-[11px] text-muted-foreground font-medium">Pay securely when you receive your order</p>
                         </div>
-                      </label>
-
-                      {/* COD */}
-                      <label
-                        className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${paymentMethod === "cod" ? "border-primary bg-primary/5" : "border-border hover:bg-secondary/50"
-                          }`}
-                      >
-                        <input
-                          type="radio"
-                          name="payment"
-                          value="cod"
-                          checked={paymentMethod === "cod"}
-                          onChange={() => setPaymentMethod("cod")}
-                          className="accent-primary"
-                        />
-                        <Banknote className="h-5 w-5 text-primary" />
-                        <div className="flex-1">
-                          <p className="text-sm font-medium">Cash on Delivery</p>
-                          <p className="text-[11px] text-muted-foreground">Pay when you receive your order</p>
+                        <div className="h-5 w-5 rounded-full border-2 border-primary flex items-center justify-center">
+                          <div className="h-2.5 w-2.5 rounded-full bg-primary" />
                         </div>
-                      </label>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-3 text-center italic">
+                        No other payment methods are available at this time.
+                      </p>
                     </div>
                   </motion.div>
                 )}

@@ -15,7 +15,7 @@ type OrderDetailDrawerProps = {
   order: Order;
   open: boolean;
   onClose: () => void;
-  onUpdateStatus: (orderId: string, status: Order['status']) => Promise<boolean>;
+  onUpdateStatus: (orderId: string, status: Order['status'], note?: string) => Promise<boolean>;
   onUpdateShipment: (orderId: string, data: any) => Promise<boolean>;
   onUpdateReturn: (returnId: string, status: any, notes?: string) => Promise<boolean>;
 };

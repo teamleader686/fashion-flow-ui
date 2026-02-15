@@ -1,9 +1,10 @@
-import { Order } from '@/contexts/OrderContext';
-import { Check, Package, Truck, Home, Clock } from 'lucide-react';
+import { Order, OrderStatusHistory } from '@/lib/supabase';
+import { Check, Package, Truck, Home, Clock, Info } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface OrderTimelineProps {
   order: Order;
+  history?: OrderStatusHistory[];
 }
 
 const statusSteps = [
@@ -16,9 +17,9 @@ const statusSteps = [
   { key: 'delivered', label: 'Delivered', icon: Home },
 ];
 
-export default function OrderTimeline({ order }: OrderTimelineProps) {
+export default function OrderTimeline({ order, history = [] }: OrderTimelineProps) {
   const currentStatusIndex = statusSteps.findIndex(step => step.key === order.status);
-  
+
   const getStepStatus = (index: number) => {
     if (order.status === 'cancelled' || order.status === 'returned') {
       return 'cancelled';
@@ -28,21 +29,26 @@ export default function OrderTimeline({ order }: OrderTimelineProps) {
     return 'pending';
   };
 
-  const getTimestamp = (stepKey: string) => {
-    switch (stepKey) {
-      case 'pending':
-        return order.created_at;
-      case 'confirmed':
-        return order.confirmed_at;
-      case 'packed':
-        return order.packed_at;
-      case 'shipped':
-        return order.shipped_at;
-      case 'delivered':
-        return order.delivered_at;
-      default:
-        return null;
+  const getStepInfo = (stepKey: string) => {
+    // Try to find in history first
+    const historyItem = [...history].reverse().find(h => h.status === stepKey);
+    if (historyItem) {
+      return {
+        timestamp: historyItem.created_at,
+        note: historyItem.note
+      };
     }
+
+    // Fallback to order fields
+    let timestamp = null;
+    switch (stepKey) {
+      case 'pending': timestamp = order.created_at; break;
+      case 'confirmed': timestamp = (order as any).confirmed_at; break;
+      case 'packed': timestamp = (order as any).packed_at; break;
+      case 'shipped': timestamp = order.shipped_at; break;
+      case 'delivered': timestamp = order.delivered_at; break;
+    }
+    return { timestamp, note: null };
   };
 
   if (order.status === 'cancelled') {
@@ -72,18 +78,18 @@ export default function OrderTimeline({ order }: OrderTimelineProps) {
       {statusSteps.map((step, index) => {
         const status = getStepStatus(index);
         const Icon = step.icon;
-        const timestamp = getTimestamp(step.key);
-        
+        const info = getStepInfo(step.key);
+
         return (
           <div key={step.key} className="flex gap-4">
             {/* Icon */}
             <div className="flex flex-col items-center">
               <div
                 className={`
-                  w-10 h-10 rounded-full flex items-center justify-center
-                  ${status === 'completed' ? 'bg-green-500 text-white' : ''}
-                  ${status === 'current' ? 'bg-blue-500 text-white animate-pulse' : ''}
-                  ${status === 'pending' ? 'bg-gray-200 text-gray-400' : ''}
+                  w-10 h-10 rounded-full flex items-center justify-center border-2
+                  ${status === 'completed' ? 'bg-green-500 border-green-500 text-white' : ''}
+                  ${status === 'current' ? 'bg-blue-50 border-blue-500 text-blue-600 animate-pulse' : ''}
+                  ${status === 'pending' ? 'bg-gray-50 border-gray-200 text-gray-300' : ''}
                 `}
               >
                 <Icon className="w-5 h-5" />
@@ -91,7 +97,7 @@ export default function OrderTimeline({ order }: OrderTimelineProps) {
               {index < statusSteps.length - 1 && (
                 <div
                   className={`
-                    w-0.5 h-12 mt-2
+                    w-0.5 h-full min-h-[40px] my-1
                     ${status === 'completed' ? 'bg-green-500' : 'bg-gray-200'}
                   `}
                 />
@@ -100,23 +106,39 @@ export default function OrderTimeline({ order }: OrderTimelineProps) {
 
             {/* Content */}
             <div className="flex-1 pb-8">
-              <p
-                className={`
-                  font-medium
-                  ${status === 'completed' ? 'text-green-700' : ''}
-                  ${status === 'current' ? 'text-blue-700' : ''}
-                  ${status === 'pending' ? 'text-gray-400' : ''}
-                `}
-              >
-                {step.label}
-              </p>
-              {timestamp && (
-                <p className="text-sm text-muted-foreground mt-1">
-                  {format(new Date(timestamp), 'MMM dd, yyyy - hh:mm a')}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                <p
+                  className={`
+                    font-bold text-sm sm:text-base
+                    ${status === 'completed' ? 'text-green-700' : ''}
+                    ${status === 'current' ? 'text-blue-700' : ''}
+                    ${status === 'pending' ? 'text-gray-400' : ''}
+                  `}
+                >
+                  {step.label}
                 </p>
+                {info.timestamp && (
+                  <p className="text-[10px] sm:text-xs text-muted-foreground font-medium">
+                    {format(new Date(info.timestamp), 'MMM dd, hh:mm a')}
+                  </p>
+                )}
+              </div>
+
+              {info.note && (
+                <div className="mt-2 p-2 bg-muted/50 rounded-lg border border-transparent hover:border-muted-foreground/10 transition-colors">
+                  <div className="flex gap-2">
+                    <Info className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                    <p className="text-xs text-muted-foreground leading-relaxed italic">
+                      {info.note}
+                    </p>
+                  </div>
+                </div>
               )}
-              {status === 'current' && (
-                <p className="text-sm text-blue-600 mt-1">In Progress</p>
+
+              {status === 'current' && !info.note && (
+                <p className="text-[10px] text-blue-600 mt-1 font-medium bg-blue-50 w-fit px-2 py-0.5 rounded-full">
+                  Processing...
+                </p>
               )}
             </div>
           </div>

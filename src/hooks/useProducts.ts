@@ -23,6 +23,7 @@ export interface Product {
   stock: number;
   loyaltyCoins?: number; // Earned coins
   loyaltyPrice?: number | null; // Price in coins
+  shippingCharge: number;
 }
 
 export const useProducts = () => {
@@ -112,6 +113,7 @@ export const useProducts = () => {
           stock: totalStock,
           loyaltyCoins: dbProduct.loyalty_coins_reward || 0,
           loyaltyPrice: dbProduct.loyalty_coins_price || null,
+          shippingCharge: dbProduct.shipping_charge || 0,
         };
       });
 

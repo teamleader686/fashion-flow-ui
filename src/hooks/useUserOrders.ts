@@ -170,6 +170,74 @@ export function useUserOrders() {
     }
   };
 
+  const confirmDelivery = async (orderId: string): Promise<boolean> => {
+    try {
+      const { data: orderDetails } = await supabase
+        .from('orders')
+        .select('user_id, total_coins_to_earn, order_number')
+        .eq('id', orderId)
+        .single();
+
+      if (!orderDetails) throw new Error('Order not found');
+
+      // Update order status
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          status: 'delivered',
+          order_status: 'delivered',
+          delivered_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', orderId)
+        .eq('user_id', user?.id);
+
+      if (error) throw error;
+
+      // Add status history
+      await supabase.from('order_status_history').insert({
+        order_id: orderId,
+        status: 'delivered',
+        note: 'Delivery confirmed by customer'
+      });
+
+      // Handle loyalty coins award
+      if (orderDetails.total_coins_to_earn > 0) {
+        const { data: existingTx } = await supabase
+          .from('loyalty_transactions')
+          .select('id')
+          .eq('order_id', orderId)
+          .eq('type', 'earn')
+          .maybeSingle();
+
+        if (!existingTx) {
+          // Award coins using RPC
+          await supabase.rpc('add_loyalty_balance', {
+            p_user_id: user?.id,
+            p_amount: orderDetails.total_coins_to_earn
+          });
+
+          await supabase.from('loyalty_transactions').insert({
+            user_id: user?.id,
+            order_id: orderId,
+            coins: orderDetails.total_coins_to_earn,
+            type: 'earn',
+            description: `Earned from Order #${orderDetails.order_number}`,
+            status: 'completed'
+          });
+        }
+      }
+
+      toast.success('Thank you for confirming the delivery!');
+      await fetchOrders();
+      return true;
+    } catch (err: any) {
+      console.error('Error confirming delivery:', err);
+      toast.error('Failed to confirm delivery');
+      return false;
+    }
+  };
+
   return {
     orders,
     loading,
@@ -177,5 +245,6 @@ export function useUserOrders() {
     refetch: fetchOrders,
     cancelOrder,
     requestReturn,
+    confirmDelivery,
   };
 }

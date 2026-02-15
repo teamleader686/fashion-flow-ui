@@ -19,6 +19,7 @@ interface CartContextType {
   totalItems: number;
   totalPrice: number;
   totalCoinsRequired: number;
+  totalShippingCost: number;
   wishlist: string[];
   toggleWishlist: (productId: string) => void;
 }
@@ -100,10 +101,15 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
   const totalPrice = items.reduce((sum, i) => sum + (i.isCoinItem ? 0 : i.product.price * i.quantity), 0);
   const totalCoinsRequired = items.reduce((sum, i) => sum + (i.isCoinItem && i.coinPrice ? i.coinPrice * i.quantity : 0), 0);
+  // Calculate unique products shipping charge sum - once per product type
+  const totalShippingCost = items.reduce((sum, i) => {
+    // If it's a coin item, maybe shipping is still applicable? User didn't specify. Assuming yes.
+    return sum + (i.product.shippingCharge || 0);
+  }, 0);
 
   return (
     <CartContext.Provider
-      value={{ items, addItem, removeItem, updateQuantity, clearCart, totalItems, totalPrice, totalCoinsRequired, wishlist, toggleWishlist }}
+      value={{ items, addItem, removeItem, updateQuantity, clearCart, totalItems, totalPrice, totalCoinsRequired, totalShippingCost, wishlist, toggleWishlist }}
     >
       {children}
     </CartContext.Provider>

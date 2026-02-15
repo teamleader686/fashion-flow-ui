@@ -147,6 +147,19 @@ const BasicInfoTab = ({ formData, setFormData }: BasicInfoTabProps) => {
             placeholder="5"
           />
         </div>
+
+        {/* Shipping Charge */}
+        <div className="space-y-2">
+          <Label htmlFor="shipping_charge">Shipping Charge (₹)</Label>
+          <Input
+            id="shipping_charge"
+            type="number"
+            value={formData.shipping_charge}
+            onChange={(e) => handleChange('shipping_charge', parseFloat(e.target.value) || 0)}
+            placeholder="0"
+          />
+          <p className="text-xs text-muted-foreground">Set to 0 for free delivery</p>
+        </div>
       </div>
 
       {/* Short Description */}

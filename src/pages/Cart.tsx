@@ -7,9 +7,9 @@ import { toast } from "sonner";
 import CloudImage from "@/components/ui/CloudImage";
 
 const Cart = () => {
-  const { items, updateQuantity, removeItem, totalPrice, totalCoinsRequired, totalItems } = useCart();
+  const { items, updateQuantity, removeItem, totalPrice, totalCoinsRequired, totalItems, totalShippingCost } = useCart();
 
-  const shipping = totalPrice >= 999 ? 0 : 79;
+  const shipping = totalPrice >= 999 ? 0 : totalShippingCost;
   const finalTotal = totalPrice + shipping;
 
   const handleUpdateQuantity = (item: any, newQty: number) => {
@@ -99,6 +99,11 @@ const Cart = () => {
                       <span className="font-bold">₹{item.product.price.toLocaleString()}</span>
                       <span className="text-original-price text-xs">₹{item.product.originalPrice.toLocaleString()}</span>
                       <span className="text-discount text-xs font-semibold">{item.product.discount}% off</span>
+                      {item.product.shippingCharge > 0 && (
+                        <span className="text-[10px] text-muted-foreground ml-2">
+                          + ₹{item.product.shippingCharge} shipping
+                        </span>
+                      )}
                     </div>
                   )}
 

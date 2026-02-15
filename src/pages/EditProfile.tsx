@@ -136,12 +136,41 @@ export default function EditProfile() {
                 updateData.anniversary_date = null;
             }
 
-            const { error } = await supabase
-                .from('user_profiles')
-                .update(updateData)
-                .eq('user_id', user.id);
+            // 1. Update 'users' table (Main table)
+            const { error: userError } = await supabase
+                .from('users')
+                .update({
+                    name: fullName.trim(),
+                    phone_number: phone.trim(),
+                    city: city.trim() || null,
+                    gender: gender || null,
+                    date_of_birth: updateData.date_of_birth,
+                    anniversary_date: updateData.anniversary_date,
+                    profile_completed: true,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', user.id);
 
-            if (error) throw error;
+            if (userError) throw userError;
+
+            // 2. Update 'user_profiles' table (Compatibility table)
+            // Use upsert to handle cases where record might be missing
+            const { error: profileError } = await supabase
+                .from('user_profiles')
+                .upsert({
+                    user_id: user.id,
+                    email: email.trim(),
+                    full_name: fullName.trim(),
+                    phone: phone.trim(),
+                    city: city.trim() || null,
+                    gender: gender || null,
+                    date_of_birth: updateData.date_of_birth,
+                    anniversary_date: updateData.anniversary_date,
+                    profile_completed: true,
+                    updated_at: new Date().toISOString()
+                });
+
+            if (profileError) throw profileError;
 
             toast.success('Profile updated successfully! 🎉');
 

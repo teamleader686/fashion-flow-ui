@@ -1,4 +1,4 @@
-import { Order } from '@/lib/supabase';
+import { Order, OrderStatusHistory } from '@/lib/supabase';
 import CloudImage from '@/components/ui/CloudImage';
 import {
   Dialog,
@@ -21,9 +21,11 @@ import {
   CheckCircle,
   XCircle,
   RotateCcw,
+  Info,
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
 import CancelOrderDialog from './CancelOrderDialog';
 import ReturnRequestDialog from './ReturnRequestDialog';
 import OrderTimeline from './OrderTimeline';
@@ -34,6 +36,7 @@ interface OrderDetailModalProps {
   onClose: () => void;
   onCancelOrder: (orderId: string, reason: string, comment: string) => Promise<boolean>;
   onRequestReturn: (orderId: string, reason: string) => Promise<boolean>;
+  onConfirmDelivery: (orderId: string) => Promise<boolean>;
 }
 
 export default function OrderDetailModal({
@@ -42,13 +45,46 @@ export default function OrderDetailModal({
   onClose,
   onCancelOrder,
   onRequestReturn,
+  onConfirmDelivery,
 }: OrderDetailModalProps) {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
+  const [history, setHistory] = useState<OrderStatusHistory[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      if (order && open) {
+        setLoadingHistory(true);
+        const { data, error } = await supabase
+          .from('order_status_history')
+          .select('*')
+          .eq('order_id', order.id)
+          .order('created_at', { ascending: true });
+
+        if (!error && data) {
+          setHistory(data);
+        }
+        setLoadingHistory(false);
+      }
+    };
+    fetchHistory();
+  }, [order?.id, open]);
+
+  const handleConfirmDelivery = async () => {
+    if (!order) return;
+    setLoading(true);
+    const success = await onConfirmDelivery(order.id);
+    setLoading(false);
+    if (success) {
+      onClose();
+    }
+  };
 
   if (!order) return null;
 
+  const canConfirm = ['shipped', 'out_for_delivery'].includes(order.status);
   const canCancel = ['pending', 'confirmed', 'processing'].includes(
     order.status
   );
@@ -73,6 +109,37 @@ export default function OrderDetailModal({
     }
   };
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending': return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'confirmed': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'processing': return 'bg-indigo-100 text-indigo-800 border-indigo-200';
+      case 'packed': return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'shipped': return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'out_for_delivery': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'delivered': return 'bg-green-100 text-green-800 border-green-200';
+      case 'cancelled': return 'bg-red-100 text-red-800 border-red-200';
+      case 'returned': return 'bg-slate-100 text-slate-800 border-slate-200';
+      default: return 'bg-blue-100 text-blue-800 border-blue-200';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    const labels: Record<string, string> = {
+      pending: 'Order Placed',
+      confirmed: 'Confirmed',
+      processing: 'Processing',
+      packed: 'Packed',
+      shipped: 'Shipped',
+      out_for_delivery: 'Out for Delivery',
+      delivered: 'Delivered',
+      cancelled: 'Cancelled',
+      returned: 'Returned',
+      cancellation_requested: 'Cancellation Requested',
+    };
+    return labels[status] || status;
+  };
+
   return (
     <>
       <Dialog open={open} onOpenChange={onClose}>
@@ -82,16 +149,8 @@ export default function OrderDetailModal({
               <DialogTitle className="text-lg sm:text-xl">
                 Order Details
               </DialogTitle>
-              <Badge
-                className={
-                  order.status === 'delivered'
-                    ? 'bg-green-100 text-green-800'
-                    : order.status === 'cancelled'
-                      ? 'bg-red-100 text-red-800'
-                      : 'bg-blue-100 text-blue-800'
-                }
-              >
-                {order.status.replace('_', ' ').toUpperCase()}
+              <Badge className={getStatusColor(order.status)}>
+                {getStatusLabel(order.status).toUpperCase()}
               </Badge>
             </div>
             <p className="text-sm text-muted-foreground">
@@ -103,7 +162,7 @@ export default function OrderDetailModal({
           <ScrollArea className="max-h-[calc(90vh-120px)]">
             <div className="p-4 sm:p-6 space-y-6">
               {/* Order Timeline */}
-              <OrderTimeline order={order as any} />
+              <OrderTimeline order={order as any} history={history} />
 
               <Separator />
 
@@ -188,7 +247,7 @@ export default function OrderDetailModal({
               <Separator />
 
               {/* Shipping Info */}
-              {order.shipment && (
+              {(order.shipment || order.tracking_id) && (
                 <>
                   <div>
                     <h3 className="font-semibold mb-3 flex items-center gap-2">
@@ -196,34 +255,34 @@ export default function OrderDetailModal({
                       Shipping Information
                     </h3>
                     <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-                      {order.shipment.carrier && (
+                      {(order.shipping_partner || order.shipment?.carrier) && (
                         <div className="flex justify-between">
                           <span className="text-sm text-muted-foreground">
                             Courier
                           </span>
                           <span className="text-sm font-medium">
-                            {order.shipment.carrier}
+                            {order.shipping_partner || order.shipment?.carrier}
                           </span>
                         </div>
                       )}
-                      {order.shipment.tracking_number && (
+                      {(order.tracking_id || order.shipment?.tracking_number) && (
                         <div className="flex justify-between">
                           <span className="text-sm text-muted-foreground">
                             Tracking ID
                           </span>
-                          <span className="text-sm font-mono">
-                            {order.shipment.tracking_number}
+                          <span className="text-sm font-mono font-bold text-primary">
+                            {order.tracking_id || order.shipment?.tracking_number}
                           </span>
                         </div>
                       )}
-                      {order.shipment.shipped_at && (
+                      {(order.shipped_at || order.shipment?.shipped_at) && (
                         <div className="flex justify-between">
                           <span className="text-sm text-muted-foreground">
                             Shipped On
                           </span>
                           <span className="text-sm">
                             {format(
-                              new Date(order.shipment.shipped_at),
+                              new Date(order.shipped_at || order.shipment!.shipped_at!),
                               'MMM dd, yyyy'
                             )}
                           </span>
@@ -244,14 +303,18 @@ export default function OrderDetailModal({
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Subtotal</span>
-                    <span>₹{order.subtotal?.toLocaleString('en-IN')}</span>
+                    <span>₹{(order.subtotal || (order.total_amount - (order.shipping_cost || order.shipping_charge || 0) + (order.discount_amount || 0))).toLocaleString('en-IN')}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Shipping</span>
-                    <span>
-                      ₹{order.shipping_cost?.toLocaleString('en-IN')}
-                    </span>
-                  </div>
+                  {(order.shipping_cost !== undefined || order.shipping_charge !== undefined) && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Shipping</span>
+                      <span>
+                        {(order.shipping_cost || order.shipping_charge) === 0
+                          ? 'FREE'
+                          : `₹${(order.shipping_cost || order.shipping_charge)?.toLocaleString('en-IN')}`}
+                      </span>
+                    </div>
+                  )}
                   {order.discount_amount > 0 && (
                     <div className="flex justify-between text-sm text-green-600">
                       <span>Discount</span>
@@ -277,44 +340,59 @@ export default function OrderDetailModal({
               </div>
 
               {/* Action Buttons */}
-              {(canCancel || canReturn || isCancellationRequested) && (
+              {(canCancel || canReturn || isCancellationRequested || canConfirm) && (
                 <>
                   <Separator />
                   {isCancellationRequested && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                      <p className="text-sm font-medium text-amber-800 mb-1">
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-center">
+                      <p className="text-sm font-medium text-amber-800">
                         Cancellation Requested
                       </p>
-                      <p className="text-xs text-amber-600">
+                      <p className="text-xs text-amber-600 mt-1">
                         Your cancellation request is pending admin approval.
-                        You'll be notified once it's reviewed.
                       </p>
                     </div>
                   )}
-                  {!isCancellationRequested && (
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      {canCancel && (
-                        <Button
-                          variant="destructive"
-                          className="flex-1"
-                          onClick={() => setCancelDialogOpen(true)}
-                        >
-                          <XCircle className="h-4 w-4 mr-2" />
-                          Request Cancellation
-                        </Button>
-                      )}
-                      {canReturn && (
-                        <Button
-                          variant="outline"
-                          className="flex-1"
-                          onClick={() => setReturnDialogOpen(true)}
-                        >
-                          <RotateCcw className="h-4 w-4 mr-2" />
-                          Request Return
-                        </Button>
-                      )}
-                    </div>
-                  )}
+                  <div className="flex flex-col gap-3">
+                    {canConfirm && (
+                      <Button
+                        variant="default"
+                        className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-6 rounded-xl shadow-lg hover:shadow-green-100 transition-all flex items-center justify-center gap-2"
+                        onClick={handleConfirmDelivery}
+                        disabled={loading}
+                      >
+                        <CheckCircle className="h-5 w-5" />
+                        {loading ? 'Confirming...' : 'I have received my order'}
+                      </Button>
+                    )}
+
+                    {!isCancellationRequested && (
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        {canCancel && (
+                          <Button
+                            variant="destructive"
+                            className="flex-1 rounded-xl h-12"
+                            onClick={() => setCancelDialogOpen(true)}
+                            disabled={loading}
+                          >
+                            <XCircle className="h-4 w-4 mr-2" />
+                            Request Cancellation
+                          </Button>
+                        )}
+                        {canReturn && (
+                          <Button
+                            variant="outline"
+                            className="flex-1 rounded-xl h-12"
+                            onClick={() => setReturnDialogOpen(true)}
+                            disabled={loading}
+                          >
+                            <RotateCcw className="h-4 w-4 mr-2" />
+                            Request Return
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </>
               )}
             </div>

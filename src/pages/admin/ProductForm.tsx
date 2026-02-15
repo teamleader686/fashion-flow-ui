@@ -39,6 +39,7 @@ const ProductForm = () => {
     available_colors: [] as { name: string; hex: string }[],
     loyalty_coins_reward: 0,
     loyalty_coins_price: null as number | null,
+    shipping_charge: 0,
   });
 
   const [images, setImages] = useState<any[]>([]);
@@ -84,6 +85,7 @@ const ProductForm = () => {
         available_colors: data.available_colors || [],
         loyalty_coins_reward: data.loyalty_coins_reward || 0,
         loyalty_coins_price: data.loyalty_coins_price || null,
+        shipping_charge: data.shipping_charge || 0,
       });
       setImages(data.product_images || []);
       if (data.affiliate_config?.[0]) setAffiliateConfig(data.affiliate_config[0]);

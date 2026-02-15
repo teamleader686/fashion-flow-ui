@@ -8,6 +8,7 @@ type AuthContextType = {
   adminUser: AdminUser | null;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
+  signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   isAdmin: boolean;
   refreshProfile: () => Promise<void>;
@@ -72,18 +73,47 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchUserProfile = async (userId: string) => {
     try {
-      // Fetch user profile from user_profiles table
-      const { data: profileData, error: profileError } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('user_id', userId)
-        .maybeSingle(); // Use maybeSingle to avoid errors if not found
+      // Fetch from both tables to ensure compatibility and robustness
+      const [profileRes, userRes] = await Promise.all([
+        supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('user_id', userId)
+          .maybeSingle(),
+        supabase
+          .from('users')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle()
+      ]);
 
-      if (profileData) {
-        setProfile(profileData);
+      const profileData = profileRes.data;
+      const userDBData = userRes.data;
+
+      if (profileData || userDBData) {
+        // Merge data, prioritizing users table for core fields if available
+        const mergedProfile: UserProfile = {
+          id: profileData?.id || userDBData?.id || '',
+          user_id: userId,
+          email: userDBData?.email || profileData?.email || '',
+          full_name: userDBData?.name || profileData?.full_name || '',
+          phone: userDBData?.phone_number || profileData?.phone || '',
+          role: profileData?.role || 'customer',
+          is_active: profileData?.is_active ?? true,
+          city: userDBData?.city || profileData?.city,
+          gender: (userDBData?.gender as any) || profileData?.gender,
+          date_of_birth: userDBData?.date_of_birth || profileData?.date_of_birth,
+          anniversary_date: userDBData?.anniversary_date || profileData?.anniversary_date,
+          profile_completed: userDBData?.profile_completed ?? profileData?.profile_completed ?? false,
+          loyalty_coins_balance: profileData?.loyalty_coins_balance || 0,
+          created_at: userDBData?.created_at || profileData?.created_at || '',
+          updated_at: profileData?.updated_at || '',
+        };
+
+        setProfile(mergedProfile);
 
         // If user is admin, fetch admin details
-        if (profileData.role === 'admin') {
+        if (mergedProfile.role === 'admin') {
           const { data: adminData, error: adminError } = await supabase
             .from('admin_users')
             .select('*')
@@ -97,7 +127,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         // Check for stored referral and link if needed
         const storedReferral = localStorage.getItem('affiliate_referral');
-        if (storedReferral && !profileData.referred_by_affiliate) {
+        if (storedReferral && !mergedProfile.referred_by_affiliate) {
           const { data: affiliate } = await supabase
             .from('affiliates')
             .select('id')
@@ -111,12 +141,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               .update({ referred_by_affiliate: affiliate.id })
               .eq('user_id', userId);
 
-            setProfile({ ...profileData, referred_by_affiliate: affiliate.id });
+            setProfile({ ...mergedProfile, referred_by_affiliate: affiliate.id });
           }
         }
       } else {
-        console.warn("User profile not found in user_profiles table");
-        // We'll keep profile as null, but user is still set from session
+        console.warn("User data not found in users or user_profiles table");
       }
     } catch (error) {
       console.error('Error in fetchUserProfile:', error);
@@ -129,7 +158,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `http://10.178.221.41:8080`,
         queryParams: {
           access_type: 'offline',
           prompt: 'consent',
@@ -137,6 +166,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       },
     });
 
+    if (error) throw error;
+  };
+
+  const signIn = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
     if (error) throw error;
   };
 
@@ -162,6 +199,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       adminUser,
       loading,
       signInWithGoogle,
+      signIn,
       signOut,
       isAdmin,
       refreshProfile

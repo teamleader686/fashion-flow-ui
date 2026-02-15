@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -14,8 +14,28 @@ const AdminLogin = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const { signIn, isAdmin } = useAuth();
+  const { signIn, signOut, isAdmin, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+
+  // Redirect if admin status is confirmed
+  useEffect(() => {
+    if (user && !authLoading && isAdmin) {
+      toast.success('Welcome back, Admin!');
+      navigate('/admin/dashboard');
+    }
+  }, [isAdmin, user, authLoading, navigate]);
+
+  // Handle access denied - if user is logged in but not an admin, log them out
+  useEffect(() => {
+    const handleAccessDenied = async () => {
+      if (user && !authLoading && !isAdmin && loading) {
+        await signOut();
+        setError('Access denied. This portal is for administrators only.');
+        setLoading(false);
+      }
+    };
+    handleAccessDenied();
+  }, [user, authLoading, isAdmin, loading, signOut]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,18 +44,9 @@ const AdminLogin = () => {
 
     try {
       await signIn(email, password);
-      
-      // Wait a moment for profile to load
-      setTimeout(() => {
-        if (isAdmin) {
-          toast.success('Welcome back, Admin!');
-          navigate('/admin/dashboard');
-        } else {
-          setError('Access denied. Admin privileges required.');
-          setLoading(false);
-        }
-      }, 1000);
+      // Wait for AuthContext to update and provide the profile
     } catch (err: any) {
+      console.error('Login error:', err);
       setError(err.message || 'Invalid email or password');
       setLoading(false);
     }

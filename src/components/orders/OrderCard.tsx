@@ -1,4 +1,4 @@
-import { Order } from '@/contexts/OrderContext';
+import { Order } from '@/lib/supabase';
 import CloudImage from '@/components/ui/CloudImage';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -20,15 +20,15 @@ interface OrderCardProps {
 export default function OrderCard({ order, onViewDetails }: OrderCardProps) {
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      pending: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+      pending: 'bg-gray-100 text-gray-800 border-gray-200', // placed
       confirmed: 'bg-blue-100 text-blue-800 border-blue-200',
-      processing: 'bg-purple-100 text-purple-800 border-purple-200',
-      packed: 'bg-indigo-100 text-indigo-800 border-indigo-200',
-      shipped: 'bg-cyan-100 text-cyan-800 border-cyan-200',
-      out_for_delivery: 'bg-orange-100 text-orange-800 border-orange-200',
+      processing: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+      packed: 'bg-orange-100 text-orange-800 border-orange-200',
+      shipped: 'bg-purple-100 text-purple-800 border-purple-200',
+      out_for_delivery: 'bg-yellow-100 text-yellow-800 border-yellow-200',
       delivered: 'bg-green-100 text-green-800 border-green-200',
       cancelled: 'bg-red-100 text-red-800 border-red-200',
-      returned: 'bg-gray-100 text-gray-800 border-gray-200',
+      returned: 'bg-slate-100 text-slate-800 border-slate-200',
       cancellation_requested: 'bg-amber-100 text-amber-800 border-amber-200',
     };
     return colors[status] || 'bg-gray-100 text-gray-800';
@@ -122,19 +122,19 @@ export default function OrderCard({ order, onViewDetails }: OrderCardProps) {
         </div>
 
         {/* Shipping Info */}
-        {order.shipment && (
+        {(order.shipment || order.tracking_id) && (
           <div className="bg-muted/50 rounded-lg p-3 mb-4">
             <div className="flex items-center gap-2 mb-1">
               <Truck className="h-4 w-4 text-primary" />
               <p className="text-xs font-medium">Shipping Status</p>
             </div>
             <p className="text-sm">
-              {order.shipment.carrier && (
-                <span className="font-medium">{order.shipment.carrier}</span>
+              {(order.shipping_partner || order.shipment?.carrier) && (
+                <span className="font-medium">{order.shipping_partner || order.shipment?.carrier}</span>
               )}
-              {order.shipment.tracking_number && (
+              {(order.tracking_id || order.shipment?.tracking_number) && (
                 <span className="text-muted-foreground ml-2">
-                  #{order.shipment.tracking_number}
+                  #{order.tracking_id || order.shipment?.tracking_number}
                 </span>
               )}
             </p>

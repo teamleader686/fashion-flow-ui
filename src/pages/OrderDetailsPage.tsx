@@ -25,7 +25,7 @@ export default function OrderDetailsPage() {
 
   const loadOrder = async () => {
     if (!orderId) return;
-    
+
     setLoading(true);
     const data = await fetchOrderById(orderId);
     setOrder(data);
@@ -88,8 +88,8 @@ export default function OrderDetailsPage() {
             order.status === 'delivered'
               ? 'bg-green-100 text-green-800'
               : order.status === 'cancelled'
-              ? 'bg-red-100 text-red-800'
-              : 'bg-blue-100 text-blue-800'
+                ? 'bg-red-100 text-red-800'
+                : 'bg-blue-100 text-blue-800'
           }
         >
           {order.status.replace('_', ' ').toUpperCase()}
@@ -142,13 +142,24 @@ export default function OrderDetailsPage() {
                 ))}
               </div>
               <Separator className="my-4" />
-              <div className="space-y-2">
+              <div className="space-y-2 pt-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Subtotal</span>
-                  <span>₹{order.total_amount.toLocaleString('en-IN')}</span>
+                  <span>₹{(order.subtotal || (order.total_amount - (order.shipping_cost || 0))).toLocaleString('en-IN')}</span>
                 </div>
-                <div className="flex justify-between font-bold">
-                  <span>Total</span>
+                {(order.shipping_cost || order.shipping_charge) !== undefined && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Shipping</span>
+                    <span>
+                      {(order.shipping_cost || order.shipping_charge) === 0
+                        ? 'FREE'
+                        : `₹${(order.shipping_cost || order.shipping_charge)?.toLocaleString('en-IN')}`}
+                    </span>
+                  </div>
+                )}
+                <Separator className="my-2" />
+                <div className="flex justify-between font-bold text-lg">
+                  <span>Total Paid</span>
                   <span>₹{order.total_amount.toLocaleString('en-IN')}</span>
                 </div>
               </div>

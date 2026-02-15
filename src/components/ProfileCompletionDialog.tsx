@@ -136,7 +136,9 @@ export default function ProfileCompletionDialog({
             // 2. Update 'user_profiles' table (App compatibility)
             const { error: profileError } = await supabase
                 .from('user_profiles')
-                .update({
+                .upsert({
+                    user_id: user.id,
+                    email: user.email || '',
                     full_name: fullName.trim(),
                     phone: phone.trim(),
                     city: city.trim() || null,
@@ -145,8 +147,7 @@ export default function ProfileCompletionDialog({
                     anniversary_date: annivStr,
                     profile_completed: true,
                     updated_at: new Date().toISOString(),
-                })
-                .eq('user_id', user.id);
+                });
 
             if (profileError) throw profileError;
 

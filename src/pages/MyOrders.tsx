@@ -20,7 +20,7 @@ import {
 export default function MyOrders() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { orders, loading, cancelOrder, requestReturn } = useUserOrders();
+  const { orders, loading, cancelOrder, requestReturn, confirmDelivery } = useUserOrders();
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
@@ -160,6 +160,7 @@ export default function MyOrders() {
         onClose={() => setSelectedOrder(null)}
         onCancelOrder={cancelOrder}
         onRequestReturn={requestReturn}
+        onConfirmDelivery={confirmDelivery}
       />
     </Layout>
   );

@@ -23,10 +23,8 @@ export default function ProfileCompletionGuard({ children }: ProfileCompletionGu
         }
 
         // Check if profile is incomplete
-        // We look at profile_completed flag first, then fallback to mandatory fields
-        const isIncomplete = profile?.profile_completed === false ||
-            !profile?.phone ||
-            !profile?.full_name;
+        // We rely on the profile_completed flag as the source of truth
+        const isIncomplete = !profile?.profile_completed;
 
         if (isIncomplete && !hasChecked) {
             // Show dialog immediately for incomplete profiles
@@ -35,7 +33,7 @@ export default function ProfileCompletionGuard({ children }: ProfileCompletionGu
         } else {
             setHasChecked(true);
         }
-    }, [user, profile, loading, hasChecked]);
+    }, [user, profile, loading]);
 
     const handleComplete = () => {
         // Force refresh to update all contexts with new profile data

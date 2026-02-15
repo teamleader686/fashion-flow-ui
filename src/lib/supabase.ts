@@ -101,6 +101,7 @@ export type Product = {
   available_colors?: { name: string; hex: string }[];
   loyalty_coins_reward: number;
   loyalty_coins_price?: number;
+  shipping_charge: number;
 };
 
 export type ProductImage = {
@@ -196,7 +197,7 @@ export type Order = {
   total_amount: number;
   status: 'pending' | 'confirmed' | 'processing' | 'packed' | 'shipped' | 'out_for_delivery' | 'delivered' | 'cancelled' | 'returned';
   payment_status: 'pending' | 'paid' | 'partially_paid' | 'failed' | 'refunded';
-  payment_method: 'cod' | 'online' | 'upi' | 'card' | 'netbanking' | 'wallet';
+  payment_method: 'cod';
   created_at: string;
   updated_at: string;
   loyalty_coins_used?: number;
@@ -206,11 +207,24 @@ export type Order = {
   affiliate_id?: string;
   affiliate_commission_amount?: number;
   affiliate_commission_status?: 'pending' | 'approved' | 'paid' | 'cancelled';
+  tracking_id?: string;
+  shipping_partner?: string;
+  shipped_at?: string;
+  shipping_charge?: number;
+  order_status?: string; // For compatibility with user's new column
   // Relations
   order_items?: OrderItem[];
   shipment?: Shipment;
   return?: Return;
   user_profile?: UserProfile;
+};
+
+export type OrderStatusHistory = {
+  id: string;
+  order_id: string;
+  status: string;
+  note?: string;
+  created_at: string;
 };
 
 export type OrderItem = {
@@ -252,6 +266,17 @@ export type Shipment = {
   shipped_at?: string;
   delivered_at?: string;
   shipping_notes?: string;
+  tracking_events?: TrackingEvent[];
+};
+
+export type TrackingEvent = {
+  id: string;
+  shipment_id: string;
+  status: string;
+  location?: string;
+  description?: string;
+  event_time: string;
+  created_at: string;
 };
 
 // Instagram Marketing Types

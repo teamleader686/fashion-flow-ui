@@ -290,6 +290,7 @@ const AdminProducts = () => {
                         <TableHead>Product</TableHead>
                         <TableHead>SKU</TableHead>
                         <TableHead>Price</TableHead>
+                        <TableHead>Shipping</TableHead>
                         <TableHead>Stock</TableHead>
                         <TableHead>Variants</TableHead>
                         <TableHead>Status</TableHead>
@@ -333,6 +334,13 @@ const AdminProducts = () => {
                                 <div className="text-xs text-green-600">
                                   {activeOffer.banner_tag}
                                 </div>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {product.shipping_charge > 0 ? (
+                                <span className="font-medium">₹{product.shipping_charge}</span>
+                              ) : (
+                                <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100">Free</Badge>
                               )}
                             </TableCell>
                             <TableCell>
@@ -484,6 +492,11 @@ const AdminProducts = () => {
                           <div className="flex items-center gap-3 mt-2 text-sm">
                             <span className="font-semibold">
                               ₹{product.price.toLocaleString()}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {product.shipping_charge > 0
+                                ? `+ ₹${product.shipping_charge} ship`
+                                : 'Free shipping'}
                             </span>
                             <Badge
                               variant={

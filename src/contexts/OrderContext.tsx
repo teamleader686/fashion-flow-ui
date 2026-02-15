@@ -1,67 +1,10 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase, Order, OrderItem, Shipment, TrackingEvent } from '@/lib/supabase';
 import { useAuth } from './AuthContext';
 import { toast } from 'sonner';
 
 // Types
-export interface OrderItem {
-  id: string;
-  order_id: string;
-  product_id: string;
-  product_name: string;
-  product_image?: string;
-  quantity: number;
-  price: number;
-  total: number;
-}
-
-export interface Shipment {
-  id: string;
-  order_id: string;
-  carrier?: string;
-  tracking_number?: string;
-  tracking_url?: string;
-  status: 'pending' | 'picked_up' | 'in_transit' | 'out_for_delivery' | 'delivered' | 'failed' | 'returned';
-  shipped_at?: string;
-  delivered_at?: string;
-  tracking_events?: TrackingEvent[];
-}
-
-export interface TrackingEvent {
-  id: string;
-  shipment_id: string;
-  status: string;
-  location?: string;
-  description?: string;
-  event_time: string;
-  created_at: string;
-}
-
-export interface Order {
-  id: string;
-  order_number: string;
-  user_id: string;
-  customer_name: string;
-  customer_email?: string;
-  customer_phone: string;
-  shipping_address_line1: string;
-  shipping_address_line2?: string;
-  shipping_city: string;
-  shipping_state: string;
-  shipping_zip: string;
-  total_amount: number;
-  status: 'pending' | 'confirmed' | 'processing' | 'packed' | 'shipped' | 'out_for_delivery' | 'delivered' | 'cancelled' | 'returned';
-  payment_status: string;
-  payment_method: string;
-  created_at: string;
-  updated_at: string;
-  confirmed_at?: string;
-  packed_at?: string;
-  shipped_at?: string;
-  delivered_at?: string;
-  order_items?: OrderItem[];
-  shipment?: Shipment;
-}
+export type { Order, OrderItem, Shipment, TrackingEvent };
 
 interface OrderContextType {
   orders: Order[];
@@ -91,7 +34,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
     try {
       setLoading(true);
-      
+
       let query = supabase
         .from('orders')
         .select(`

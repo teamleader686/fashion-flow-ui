@@ -113,7 +113,7 @@ export const useOrdersRealtime = (options: {
     };
   }, [page, pageSize, status, search]);
 
-  const updateOrderStatus = async (orderId: string, status: Order['status']) => {
+  const updateOrderStatus = async (orderId: string, status: Order['status'], note?: string) => {
     try {
       if (status === 'delivered' || status === 'cancelled') {
         const { data: orderDetails } = await supabase
@@ -224,16 +224,26 @@ export const useOrdersRealtime = (options: {
         }
       }
 
+      // Update Order Status
       const { error } = await supabase
         .from('orders')
         .update({
           status,
+          order_status: status, // Update both for compatibility
           updated_at: new Date().toISOString(),
           ...(status === 'delivered' && { delivered_at: new Date().toISOString() })
         })
         .eq('id', orderId);
 
       if (error) throw error;
+
+      // Insert Status History
+      await supabase.from('order_status_history').insert({
+        order_id: orderId,
+        status: status,
+        note: note || `Order status updated to ${status}`
+      });
+
       toast.success('Order status updated');
       return true;
     } catch (err: any) {
@@ -284,6 +294,16 @@ export const useOrdersRealtime = (options: {
 
         if (error) throw error;
       }
+
+      // Update orders table with tracking info too
+      await supabase
+        .from('orders')
+        .update({
+          tracking_id: shipmentData.tracking_number,
+          shipping_partner: shipmentData.carrier,
+          ...(shipmentData.status === 'picked_up' && { shipped_at: new Date().toISOString() })
+        })
+        .eq('id', orderId);
 
       toast.success('Shipment updated');
       return true;

@@ -22,8 +22,9 @@ interface OrderData {
   loyalty_coins_value: number;
   total_coins_to_earn: number;
   total_amount: number;
+  shipping_charge: number;
   coupon_code?: string;
-  payment_method: 'cod' | 'online' | 'upi' | 'card' | 'netbanking' | 'wallet';
+  payment_method: 'cod';
   items: Array<{
     product_id: string;
     product_name: string;
@@ -86,6 +87,7 @@ export const useOrderPlacement = () => {
           loyalty_coins_value: orderData.loyalty_coins_value,
           total_coins_to_earn: orderData.total_coins_to_earn,
           total_amount: orderData.total_amount,
+          shipping_charge: orderData.shipping_charge,
           coupon_code: orderData.coupon_code,
           payment_method: orderData.payment_method,
           payment_status: orderData.payment_method === 'cod' ? 'pending' : 'paid',

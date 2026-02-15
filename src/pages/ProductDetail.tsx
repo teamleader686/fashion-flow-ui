@@ -126,6 +126,7 @@ const ProductDetail = () => {
             stock: data.stock_quantity,
             loyaltyCoins: data.loyalty_coins_reward || 0,
             loyaltyPrice: data.loyalty_coins_price || null,
+            shippingCharge: data.shipping_charge || 0,
           };
           setFetchedProduct(transformed);
         }
@@ -355,6 +356,12 @@ const ProductDetail = () => {
                   <span className="inline-flex items-center gap-1 text-xs font-medium bg-best-price-bg text-best-price-text px-2.5 py-1 rounded-full">
                     ✨ Best Price ₹{product.bestPrice.toLocaleString()}
                   </span>
+                  <div className="flex items-center gap-1.5 mt-2">
+                    <Truck className="h-4 w-4 text-green-600" />
+                    <span className="text-sm font-medium text-green-700">
+                      {product.shippingCharge > 0 ? `Shipping: ₹${product.shippingCharge}` : 'Free Delivery'}
+                    </span>
+                  </div>
                 </>
               ) : (
                 <div className="flex items-baseline gap-2 text-purple-700">
@@ -517,7 +524,9 @@ const ProductDetail = () => {
             <div className="grid grid-cols-3 gap-3 pt-4 border-t border-border">
               <div className="flex flex-col items-center gap-1 text-center">
                 <Truck className="h-5 w-5 text-primary" />
-                <span className="text-[11px] text-muted-foreground">Free Delivery</span>
+                <span className="text-[11px] text-muted-foreground">
+                  {product.shippingCharge > 0 ? `₹${product.shippingCharge} Shipping` : 'Free Delivery'}
+                </span>
               </div>
               <div className="flex flex-col items-center gap-1 text-center">
                 <RotateCcw className="h-5 w-5 text-primary" />

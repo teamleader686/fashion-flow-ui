@@ -71,6 +71,9 @@ const ProductCard = ({ product }: ProductCardProps) => {
               ₹{product.originalPrice.toLocaleString()}
             </span>
           )}
+          <span className="text-[10px] ml-auto font-medium text-gray-500 bg-gray-50 px-1.5 py-0.5 rounded">
+            {product.shippingCharge > 0 ? `+₹${product.shippingCharge} ship` : 'Free Shipping'}
+          </span>
         </div>
 
         {/* Loyalty Coins Section */}
