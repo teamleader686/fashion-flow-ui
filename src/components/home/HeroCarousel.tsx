@@ -45,8 +45,8 @@ export default function HeroCarousel() {
 
     if (loading) {
         return (
-            <div className="px-4 py-4 md:px-0 md:py-0 mb-6">
-                <div className="w-full aspect-[16/9] md:aspect-[21/7] bg-muted animate-pulse rounded-2xl md:rounded-none overflow-hidden" />
+            <div className="p-4 md:p-6 lg:p-8 max-w-[1400px] mx-auto">
+                <div className="w-full aspect-[16/9] md:aspect-[21/7] bg-muted animate-pulse rounded-2xl md:rounded-3xl overflow-hidden shadow-md" />
             </div>
         );
     }
@@ -56,8 +56,8 @@ export default function HeroCarousel() {
     }
 
     return (
-        <section className="relative group px-4 py-4 md:px-0 md:py-0">
-            <div className="overflow-hidden rounded-2xl md:rounded-none shadow-lg md:shadow-none" ref={emblaRef}>
+        <section className="relative group p-4 md:p-6 lg:p-8 max-w-[1400px] mx-auto">
+            <div className="overflow-hidden rounded-2xl md:rounded-3xl shadow-xl border border-gray-100/50" ref={emblaRef}>
                 <div className="flex">
                     {activeSliders.map((slider, index) => (
                         <div key={slider.id} className="flex-[0_0_100%] min-w-0 relative aspect-[16/9] md:aspect-[21/7]">
@@ -68,32 +68,32 @@ export default function HeroCarousel() {
                                 loading={index === 0 ? "eager" : "lazy"}
                             />
 
-                            <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/20 to-transparent flex items-center">
+                            <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/20 to-transparent flex items-center">
                                 <div className="container px-6 md:px-12 lg:px-20">
                                     <AnimatePresence mode="wait">
                                         {selectedIndex === index && (
                                             <motion.div
-                                                initial={{ opacity: 0, x: -50 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                exit={{ opacity: 0, x: 50 }}
-                                                transition={{ duration: 0.5, delay: 0.2 }}
-                                                className="max-w-xl text-white space-y-2 md:space-y-4"
+                                                initial={{ opacity: 0, y: 20 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, y: -20 }}
+                                                transition={{ duration: 0.5, delay: 0.1 }}
+                                                className="max-w-xl text-white space-y-3 md:space-y-4 lg:space-y-6"
                                             >
                                                 {slider.title && (
-                                                    <h2 className="text-2xl md:text-4xl lg:text-6xl font-bold leading-tight drop-shadow-md">
+                                                    <h2 className="text-2xl md:text-4xl lg:text-6xl font-bold leading-[1.1] tracking-tight drop-shadow-lg">
                                                         {slider.title}
                                                     </h2>
                                                 )}
                                                 {slider.subtitle && (
-                                                    <p className="text-sm md:text-lg lg:text-xl text-white/90 font-medium drop-shadow-sm max-w-md">
+                                                    <p className="text-sm md:text-lg lg:text-xl text-white/90 font-medium drop-shadow-sm max-w-md line-clamp-2 md:line-clamp-none">
                                                         {slider.subtitle}
                                                     </p>
                                                 )}
                                                 {slider.redirect_url && (
                                                     <div className="pt-2 md:pt-4">
                                                         <Link to={slider.redirect_url}>
-                                                            <Button size="lg" className="rounded-full px-8 bg-white text-black hover:bg-white/90 font-bold border-none transition-transform hover:scale-105 active:scale-95 shadow-lg">
-                                                                Shop Now
+                                                            <Button size="lg" className="rounded-full px-8 bg-white text-black hover:bg-pink-600 hover:text-white font-bold border-none transition-all duration-300 hover:scale-105 active:scale-95 shadow-xl">
+                                                                Explore Now
                                                             </Button>
                                                         </Link>
                                                     </div>
@@ -113,26 +113,26 @@ export default function HeroCarousel() {
                 <>
                     <button
                         onClick={scrollPrev}
-                        className="absolute left-2 md:left-8 top-1/2 -translate-y-1/2 w-8 h-8 md:w-12 md:h-12 rounded-full bg-white/20 hover:bg-white/40 backdrop-blur-md flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-all duration-300 z-10 border border-white/30"
+                        className="absolute left-6 md:left-12 lg:left-16 top-1/2 -translate-y-1/2 w-9 h-9 md:w-12 md:h-12 rounded-full bg-white/20 hover:bg-white/40 backdrop-blur-md flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-all duration-300 z-10 border border-white/30"
                     >
                         <ChevronLeft className="h-5 w-5 md:h-6 md:w-6" />
                     </button>
                     <button
                         onClick={scrollNext}
-                        className="absolute right-2 md:right-8 top-1/2 -translate-y-1/2 w-8 h-8 md:w-12 md:h-12 rounded-full bg-white/20 hover:bg-white/40 backdrop-blur-md flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-all duration-300 z-10 border border-white/30"
+                        className="absolute right-6 md:right-12 lg:right-16 top-1/2 -translate-y-1/2 w-9 h-9 md:w-12 md:h-12 rounded-full bg-white/20 hover:bg-white/40 backdrop-blur-md flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-all duration-300 z-10 border border-white/30"
                     >
                         <ChevronRight className="h-5 w-5 md:h-6 md:w-6" />
                     </button>
 
                     {/* Indicators */}
-                    <div className="absolute bottom-4 md:bottom-8 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+                    <div className="absolute bottom-8 md:bottom-12 left-1/2 -translate-x-1/2 flex gap-2 z-10">
                         {scrollSnaps.map((_, index) => (
                             <button
                                 key={index}
                                 onClick={() => scrollTo(index)}
                                 className={cn(
                                     "h-1.5 md:h-2 rounded-full transition-all duration-300 shadow-sm",
-                                    selectedIndex === index ? "w-6 md:w-10 bg-white" : "w-1.5 md:w-2 bg-white/40 hover:bg-white/60"
+                                    selectedIndex === index ? "w-8 md:w-12 bg-white" : "w-1.5 md:w-2 bg-white/40 hover:bg-white/60"
                                 )}
                             />
                         ))}

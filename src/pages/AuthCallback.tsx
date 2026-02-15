@@ -10,75 +10,111 @@ export default function AuthCallback() {
     const [message, setMessage] = useState('Processing authentication...');
 
     useEffect(() => {
-        handleAuthCallback();
-    }, []);
+        const handleAuth = async () => {
+            try {
+                // 1. Check for errors in the URL redirect
+                const url = new URL(window.location.href);
+                const errorName = url.searchParams.get("error");
+                const errorDescription = url.searchParams.get("error_description");
 
-    const handleAuthCallback = async () => {
-        try {
-            // Get the session from the URL hash
-            const { data: { session }, error } = await supabase.auth.getSession();
-
-            if (error) throw error;
-
-            if (session) {
-                // Check if user profile exists
-                const { data: profile, error: profileError } = await supabase
-                    .from('user_profiles')
-                    .select('*')
-                    .eq('user_id', session.user.id)
-                    .single();
-
-                if (profileError && profileError.code !== 'PGRST116') {
-                    // Error other than "not found"
-                    throw profileError;
+                if (errorName) {
+                    throw new Error(errorDescription || errorName);
                 }
 
-                if (!profile) {
-                    // Create user profile
-                    const { error: insertError } = await supabase
-                        .from('user_profiles')
-                        .insert({
-                            user_id: session.user.id,
-                            email: session.user.email || '',
-                            full_name: session.user.user_metadata?.full_name ||
-                                session.user.user_metadata?.name ||
-                                session.user.email?.split('@')[0] || '',
-                            avatar_url: session.user.user_metadata?.avatar_url ||
-                                session.user.user_metadata?.picture || '',
-                            phone: session.user.user_metadata?.phone || '',
-                            role: 'customer',
-                            is_active: true,
-                            profile_completed: false,
-                        });
-
-                    if (insertError) {
-                        console.error('Error creating profile:', insertError);
-                        // Don't throw - profile will be created by trigger or next login
-                    }
+                // 2. Handle PKCE flow exchange if code exists in URL
+                const code = url.searchParams.get("code");
+                if (code) {
+                    const { error } = await supabase.auth.exchangeCodeForSession(code);
+                    if (error) throw error;
                 }
+
+                // 3. Get the current session
+                const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+                if (sessionError) throw sessionError;
+
+                if (!session) {
+                    throw new Error("No active session found. Please try logging in again.");
+                }
+
+                // 4. Save user to DB and redirect
+                await saveUserToDB(session.user);
 
                 setStatus('success');
                 setMessage('Login successful! Redirecting...');
                 toast.success('Welcome! 🎉');
 
-                // Redirect after short delay
-                setTimeout(() => {
-                    navigate('/', { replace: true });
-                }, 1500);
-            } else {
-                throw new Error('No session found');
-            }
-        } catch (error: any) {
-            console.error('Auth callback error:', error);
-            setStatus('error');
-            setMessage(error.message || 'Authentication failed');
-            toast.error('Login failed. Please try again.');
+                navigate("/", { replace: true });
 
-            // Redirect to login after delay
-            setTimeout(() => {
-                navigate('/login', { replace: true });
-            }, 3000);
+            } catch (err: any) {
+                console.error("Auth callback error:", err);
+                handleAuthError(err);
+            }
+        };
+
+        handleAuth();
+    }, [navigate]);
+
+    const saveUserToDB = async (user: any) => {
+        try {
+            // 1. Check if user already exists to avoid resetting profile_completed
+            const { data: existingUser } = await supabase
+                .from('users')
+                .select('profile_completed')
+                .eq('id', user.id)
+                .maybeSingle();
+
+            const userData: any = {
+                id: user.id,
+                email: user.email,
+                name: user.user_metadata?.full_name || user.user_metadata?.name || '',
+                profile_image: user.user_metadata?.avatar_url || user.user_metadata?.picture || '',
+                updated_at: new Date().toISOString(),
+            };
+
+            // Only set profile_completed for brand new users
+            if (!existingUser) {
+                userData.profile_completed = false;
+                userData.created_at = new Date().toISOString();
+            }
+
+            console.log("Syncing user data to DB:", userData);
+
+            const { error: upsertError } = await supabase
+                .from('users')
+                .upsert(userData, { onConflict: 'id' });
+
+            if (upsertError) {
+                console.error('Error syncing to users table:', upsertError);
+            }
+
+            // 2. Also sync to user_profiles for legacy compatibility
+            const { error: profileError } = await supabase
+                .from('user_profiles')
+                .upsert({
+                    user_id: user.id,
+                    email: user.email || '',
+                    full_name: userData.name,
+                    avatar_url: userData.profile_image,
+                    role: 'customer',
+                    is_active: true,
+                    // Note: we don't overwrite profile_completed here either
+                }, { onConflict: 'user_id', ignoreDuplicates: false });
+
+            if (profileError) console.error('Error syncing to user_profiles:', profileError);
+        } catch (err) {
+            console.error('saveUserToDB failed:', err);
         }
+    };
+
+    const handleAuthError = (error: any) => {
+        console.error('Final Auth Error:', error);
+        setStatus('error');
+        setMessage(error.message || 'Authentication failed');
+        toast.error('Login failed. Please try again.');
+
+        setTimeout(() => {
+            navigate('/login', { replace: true });
+        }, 3000);
     };
 
     return (

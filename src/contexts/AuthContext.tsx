@@ -22,79 +22,104 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check active session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchUserProfile(session.user.id);
-      } else {
-        setLoading(false);
-      }
-    });
+    let mounted = true;
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+    // Check active session on load
+    const checkInitialSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!mounted) return;
+
+        if (session?.user) {
+          console.log("User already logged in:", session.user.email);
+          setUser(session.user);
+          await fetchUserProfile(session.user.id);
+        } else {
+          console.log("No active session found");
+          setUser(null);
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error("Error checking session:", error);
+        if (mounted) setLoading(false);
+      }
+    };
+
+    checkInitialSession();
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("Auth Event:", event);
+
       if (session?.user) {
-        fetchUserProfile(session.user.id);
+        console.log("User logged in:", session.user.email);
+        setUser(session.user);
+        await fetchUserProfile(session.user.id);
       } else {
+        console.log("User logged out");
+        setUser(null);
         setProfile(null);
         setAdminUser(null);
         setLoading(false);
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const fetchUserProfile = async (userId: string) => {
     try {
-      // Fetch user profile
+      // Fetch user profile from user_profiles table
       const { data: profileData, error: profileError } = await supabase
         .from('user_profiles')
         .select('*')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle(); // Use maybeSingle to avoid errors if not found
 
-      if (profileError) throw profileError;
-      setProfile(profileData);
+      if (profileData) {
+        setProfile(profileData);
 
-      // If user is admin, fetch admin details
-      if (profileData?.role === 'admin') {
-        const { data: adminData, error: adminError } = await supabase
-          .from('admin_users')
-          .select('*')
-          .eq('user_id', userId)
-          .single();
+        // If user is admin, fetch admin details
+        if (profileData.role === 'admin') {
+          const { data: adminData, error: adminError } = await supabase
+            .from('admin_users')
+            .select('*')
+            .eq('user_id', userId)
+            .maybeSingle();
 
-        if (!adminError && adminData) {
-          setAdminUser(adminData);
+          if (!adminError && adminData) {
+            setAdminUser(adminData);
+          }
         }
-      }
 
-      // Check for stored referral and link if needed
-      const storedReferral = localStorage.getItem('affiliate_referral');
-      if (storedReferral && !profileData?.referred_by_affiliate) {
-        // Find affiliate by code
-        const { data: affiliate } = await supabase
-          .from('affiliates')
-          .select('id')
-          .eq('referral_code', storedReferral)
-          .eq('status', 'active')
-          .single();
+        // Check for stored referral and link if needed
+        const storedReferral = localStorage.getItem('affiliate_referral');
+        if (storedReferral && !profileData.referred_by_affiliate) {
+          const { data: affiliate } = await supabase
+            .from('affiliates')
+            .select('id')
+            .eq('referral_code', storedReferral)
+            .eq('status', 'active')
+            .maybeSingle();
 
-        if (affiliate) {
-          await supabase
-            .from('user_profiles')
-            .update({ referred_by_affiliate: affiliate.id })
-            .eq('user_id', userId);
+          if (affiliate) {
+            await supabase
+              .from('user_profiles')
+              .update({ referred_by_affiliate: affiliate.id })
+              .eq('user_id', userId);
 
-          // Update local profile state as well
-          setProfile({ ...profileData, referred_by_affiliate: affiliate.id });
+            setProfile({ ...profileData, referred_by_affiliate: affiliate.id });
+          }
         }
+      } else {
+        console.warn("User profile not found in user_profiles table");
+        // We'll keep profile as null, but user is still set from session
       }
     } catch (error) {
-      console.error('Error fetching user profile:', error);
+      console.error('Error in fetchUserProfile:', error);
     } finally {
       setLoading(false);
     }

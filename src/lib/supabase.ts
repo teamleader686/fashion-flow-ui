@@ -7,7 +7,12 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('Supabase credentials not found. Please add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your .env file');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+  },
+});
 
 // Database types
 export type UserProfile = {
@@ -27,6 +32,20 @@ export type UserProfile = {
   referred_by_affiliate?: string;
   created_at: string;
   updated_at: string;
+};
+
+export type UserDB = {
+  id: string;
+  email: string;
+  name: string;
+  profile_image?: string;
+  phone_number?: string;
+  city?: string;
+  date_of_birth?: string;
+  anniversary_date?: string;
+  gender?: string;
+  profile_completed: boolean;
+  created_at: string;
 };
 
 export type AdminUser = {

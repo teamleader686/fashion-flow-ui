@@ -70,52 +70,62 @@ const ProductShare = ({ product, trigger, className }: ProductShareProps) => {
                     </button>
                 )}
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                    <DialogTitle>Share Product</DialogTitle>
-                    <DialogDescription>
+            <DialogContent className="w-[92vw] sm:max-w-[420px] p-5 sm:p-6 overflow-hidden">
+                <DialogHeader className="space-y-1">
+                    <DialogTitle className="text-xl">Share Product</DialogTitle>
+                    <DialogDescription className="text-sm">
                         Share this product with your friends and family
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="flex flex-col gap-6 py-4">
-                    <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-secondary/30">
+                <div className="flex flex-col gap-6 py-2 overflow-x-hidden">
+                    {/* Product Preview */}
+                    <div className="flex items-center gap-3 p-3 rounded-xl border border-border bg-secondary/20 overflow-hidden">
                         <img
                             src={product.image}
                             alt={product.name}
-                            className="w-12 h-12 rounded object-cover"
+                            className="w-14 h-14 rounded-lg object-cover flex-shrink-0"
                         />
                         <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold truncate">{product.name}</p>
-                            <p className="text-xs text-muted-foreground">₹{product.price.toLocaleString()}</p>
+                            <p className="text-sm font-bold text-gray-900 truncate leading-tight">{product.name}</p>
+                            <p className="text-xs font-semibold text-pink-600 mt-0.5">₹{product.price.toLocaleString()}</p>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-4 gap-4">
+                    {/* Share Options Grid */}
+                    <div className="grid grid-cols-4 xs:grid-cols-4 gap-2 sm:gap-4">
                         {shareOptions.map((option) => (
                             <a
                                 key={option.name}
                                 href={option.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex flex-col items-center gap-2 group"
+                                className="flex flex-col items-center gap-2 group min-w-0"
                                 onClick={() => setIsOpen(false)}
                             >
-                                <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white shadow-md transition-transform group-hover:scale-110 ${option.color}`}>
+                                <div className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-white shadow-md transition-all duration-300 group-hover:scale-110 group-active:scale-95 ${option.color}`}>
                                     <option.icon className="h-5 w-5" />
                                 </div>
-                                <span className="text-[10px] font-medium text-muted-foreground">{option.name}</span>
+                                <span className="text-[10px] sm:text-[11px] font-medium text-muted-foreground truncate w-full text-center">
+                                    {option.name}
+                                </span>
                             </a>
                         ))}
                     </div>
 
-                    <div className="space-y-2 pt-2">
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Or copy link</p>
+                    {/* Copy Link Section */}
+                    <div className="space-y-2.5 pt-2">
+                        <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Or copy link</p>
                         <div className="flex items-center gap-2">
-                            <div className="flex-1 bg-secondary border border-border rounded-lg px-3 py-2 text-xs truncate select-all">
+                            <div className="flex-1 bg-secondary/50 border border-border rounded-xl px-3 py-2.5 text-xs truncate select-all min-w-0">
                                 {productUrl}
                             </div>
-                            <Button size="icon" variant="outline" className="h-9 w-9 rounded-lg" onClick={handleCopy}>
+                            <Button
+                                size="icon"
+                                variant="outline"
+                                className="h-10 w-10 shrink-0 rounded-xl hover:bg-pink-50 hover:text-pink-600 hover:border-pink-200 transition-colors"
+                                onClick={handleCopy}
+                            >
                                 <Copy className="h-4 w-4" />
                             </Button>
                         </div>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import ProfileCompletionDialog from './ProfileCompletionDialog';
+import { toast } from 'sonner';
 
 interface ProfileCompletionGuardProps {
     children: React.ReactNode;
@@ -15,49 +16,39 @@ export default function ProfileCompletionGuard({ children }: ProfileCompletionGu
         // Don't check until auth is loaded
         if (loading) return;
 
-        // Only check once per session
-        if (hasChecked) return;
-
-        // Only check for logged-in users
-        if (!user || !profile) {
-            setHasChecked(true);
-            return;
-        }
-
-        // Don't show for admin users
-        if (profile.role === 'admin') {
+        // Skip check if no user is logged in
+        if (!user) {
             setHasChecked(true);
             return;
         }
 
         // Check if profile is incomplete
-        const isIncomplete = !profile.profile_completed ||
-            !profile.phone ||
-            !profile.full_name;
+        // We look at profile_completed flag first, then fallback to mandatory fields
+        const isIncomplete = profile?.profile_completed === false ||
+            !profile?.phone ||
+            !profile?.full_name;
 
-        if (isIncomplete) {
-            // Small delay to let the page load first
-            const timer = setTimeout(() => {
-                setShowDialog(true);
-                setHasChecked(true);
-            }, 1000);
-
-            return () => clearTimeout(timer);
+        if (isIncomplete && !hasChecked) {
+            // Show dialog immediately for incomplete profiles
+            setShowDialog(true);
+            setHasChecked(true);
         } else {
             setHasChecked(true);
         }
     }, [user, profile, loading, hasChecked]);
 
     const handleComplete = () => {
-        // Refresh the page to update the profile data
+        // Force refresh to update all contexts with new profile data
         window.location.reload();
     };
 
     const handleDialogChange = (open: boolean) => {
-        setShowDialog(open);
-        if (!open) {
-            setHasChecked(true);
+        // Prevent closing the dialog if the profile is not completed
+        if (!open && (!profile || !profile.profile_completed)) {
+            toast.error("Please complete your profile to continue");
+            return;
         }
+        setShowDialog(open);
     };
 
     return (

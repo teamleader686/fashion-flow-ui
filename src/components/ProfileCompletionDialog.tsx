@@ -114,25 +114,41 @@ export default function ProfileCompletionDialog({
 
         setLoading(true);
         try {
-            const updateData: any = {
-                full_name: fullName.trim(),
-                phone: phone.trim(),
-                profile_completed: true,
-                updated_at: new Date().toISOString(),
-            };
+            const dateStr = dateOfBirth ? format(dateOfBirth, 'yyyy-MM-dd') : null;
+            const annivStr = anniversaryDate ? format(anniversaryDate, 'yyyy-MM-dd') : null;
 
-            // Add optional fields if provided
-            if (city.trim()) updateData.city = city.trim();
-            if (gender) updateData.gender = gender;
-            if (dateOfBirth) updateData.date_of_birth = format(dateOfBirth, 'yyyy-MM-dd');
-            if (anniversaryDate) updateData.anniversary_date = format(anniversaryDate, 'yyyy-MM-dd');
+            // 1. Update 'users' table (Main requested table)
+            const { error: userError } = await supabase
+                .from('users')
+                .update({
+                    name: fullName.trim(),
+                    phone_number: phone.trim(),
+                    city: city.trim() || null,
+                    date_of_birth: dateStr,
+                    anniversary_date: annivStr,
+                    gender: gender || null,
+                    profile_completed: true
+                })
+                .eq('id', user.id);
 
-            const { error } = await supabase
+            if (userError) throw userError;
+
+            // 2. Update 'user_profiles' table (App compatibility)
+            const { error: profileError } = await supabase
                 .from('user_profiles')
-                .update(updateData)
+                .update({
+                    full_name: fullName.trim(),
+                    phone: phone.trim(),
+                    city: city.trim() || null,
+                    gender: gender || null,
+                    date_of_birth: dateStr,
+                    anniversary_date: annivStr,
+                    profile_completed: true,
+                    updated_at: new Date().toISOString(),
+                })
                 .eq('user_id', user.id);
 
-            if (error) throw error;
+            if (profileError) throw profileError;
 
             toast.success('Profile completed successfully! 🎉');
             onComplete();
@@ -145,33 +161,7 @@ export default function ProfileCompletionDialog({
         }
     };
 
-    const handleSkipOptional = async () => {
-        if (!user) return;
-
-        setLoading(true);
-        try {
-            const { error } = await supabase
-                .from('user_profiles')
-                .update({
-                    full_name: fullName.trim(),
-                    phone: phone.trim(),
-                    profile_completed: true,
-                    updated_at: new Date().toISOString(),
-                })
-                .eq('user_id', user.id);
-
-            if (error) throw error;
-
-            toast.success('Profile completed! 🎉');
-            onComplete();
-            onOpenChange(false);
-        } catch (error: any) {
-            console.error('Error updating profile:', error);
-            toast.error('Failed to update profile. Please try again.');
-        } finally {
-            setLoading(false);
-        }
-    };
+    // No skip allowed as per requirement
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -239,19 +229,11 @@ export default function ProfileCompletionDialog({
 
                         <div className="flex gap-2 pt-4">
                             <Button
-                                variant="outline"
-                                onClick={() => onOpenChange(false)}
-                                className="flex-1"
-                                disabled={loading}
-                            >
-                                I'll do this later
-                            </Button>
-                            <Button
                                 onClick={handleStep1Submit}
-                                className="flex-1"
+                                className="w-full"
                                 disabled={!canProceedToStep2() || loading}
                             >
-                                Next →
+                                Continue to Next Step →
                             </Button>
                         </div>
                     </div>
@@ -360,18 +342,11 @@ export default function ProfileCompletionDialog({
                                 ← Back
                             </Button>
                             <Button
-                                variant="ghost"
-                                onClick={handleSkipOptional}
-                                disabled={loading}
-                            >
-                                Skip
-                            </Button>
-                            <Button
                                 onClick={handleSubmit}
                                 disabled={loading}
-                                className="flex-1"
+                                className="flex-1 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700"
                             >
-                                {loading ? 'Saving...' : 'Complete Profile 🎉'}
+                                {loading ? 'Saving Profile...' : 'Complete Profile 🎉'}
                             </Button>
                         </div>
                     </div>
