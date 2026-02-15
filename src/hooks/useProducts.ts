@@ -124,7 +124,10 @@ export const useProducts = () => {
       setError(err.message);
       setProducts([]); // Set empty array on error
     } finally {
-      setLoading(false);
+      // Small timeout to prevent flicker and handle rapid re-renders
+      setTimeout(() => {
+        setLoading(false);
+      }, 300);
     }
   };
 
@@ -175,7 +178,9 @@ export const useCategories = () => {
       setError(err.message);
       setCategories([]); // Set empty array on error
     } finally {
-      setLoading(false);
+      setTimeout(() => {
+        setLoading(false);
+      }, 300);
     }
   };
 

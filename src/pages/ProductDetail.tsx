@@ -64,73 +64,82 @@ const ProductDetail = () => {
     // If not found in context list and we have a slug, fetch it individually
     if (!product && slug) {
       const fetchIndividualProduct = async () => {
-        setIsFetchingProduct(true);
-        const { data, error } = await supabase
-          .from('products')
-          .select(`
-            *,
-            category:categories(name, slug),
-            product_images(image_url, is_primary, display_order),
-            product_variants(size, color, color_code, stock_quantity)
-          `)
-          .eq('slug', slug)
-          .single();
+        try {
+          setIsFetchingProduct(true);
+          const { data, error } = await supabase
+            .from('products')
+            .select(`
+              *,
+              category:categories(name, slug),
+              product_images(image_url, is_primary, display_order),
+              product_variants(size, color, color_code, stock_quantity)
+            `)
+            .eq('slug', slug)
+            .single();
 
-        if (data) {
-          const primaryImage = data.product_images?.find((img: any) => img.is_primary);
-          const allImages = data.product_images
-            ?.sort((a: any, b: any) => a.display_order - b.display_order)
-            .map((img: any) => img.image_url) || [];
+          if (error) throw error;
 
-          let sizes: string[] = data.available_sizes || [];
-          if (sizes.length === 0) {
-            sizes = [...new Set(data.product_variants?.map((v: any) => v.size).filter(Boolean) as string[] || [])];
+          if (data) {
+            const primaryImage = data.product_images?.find((img: any) => img.is_primary);
+            const allImages = data.product_images
+              ?.sort((a: any, b: any) => a.display_order - b.display_order)
+              .map((img: any) => img.image_url) || [];
+
+            let sizes: string[] = data.available_sizes || [];
+            if (sizes.length === 0) {
+              sizes = [...new Set(data.product_variants?.map((v: any) => v.size).filter(Boolean) as string[] || [])];
+            }
+
+            let colors: { name: string; hex: string }[] = data.available_colors || [];
+            if (colors.length === 0) {
+              const variantColors = data.product_variants?.filter((v: any) => v.color).map((v: any) => ({
+                name: v.color,
+                hex: v.color_code || '#000000'
+              })) || [];
+
+              const uniqueColors = new Map();
+              variantColors.forEach((c: any) => {
+                if (!uniqueColors.has(c.name)) uniqueColors.set(c.name, c);
+              });
+              colors = Array.from(uniqueColors.values());
+            }
+
+            const discount = data.compare_at_price
+              ? Math.round(((data.compare_at_price - data.price) / data.compare_at_price) * 100)
+              : 0;
+
+            const transformed = {
+              id: data.id,
+              name: data.name,
+              slug: data.slug,
+              price: data.price,
+              originalPrice: data.compare_at_price || data.price,
+              discount,
+              bestPrice: Math.round(data.price * 0.9),
+              image: primaryImage?.image_url || allImages[0] || '/placeholder.svg',
+              images: allImages.length > 0 ? allImages : ['/placeholder.svg'],
+              rating: 4.5,
+              reviewCount: 0,
+              category: data.category?.slug || 'uncategorized',
+              colors,
+              sizes,
+              isNew: data.is_new_arrival || false,
+              isFeatured: data.is_featured || false,
+              description: data.description || '',
+              stock: data.stock_quantity,
+              loyaltyCoins: data.loyalty_coins_reward || 0,
+              loyaltyPrice: data.loyalty_coins_price || null,
+              shippingCharge: data.shipping_charge || 0,
+            };
+            setFetchedProduct(transformed);
           }
-
-          let colors: { name: string; hex: string }[] = data.available_colors || [];
-          if (colors.length === 0) {
-            const variantColors = data.product_variants?.filter((v: any) => v.color).map((v: any) => ({
-              name: v.color,
-              hex: v.color_code || '#000000'
-            })) || [];
-
-            const uniqueColors = new Map();
-            variantColors.forEach((c: any) => {
-              if (!uniqueColors.has(c.name)) uniqueColors.set(c.name, c);
-            });
-            colors = Array.from(uniqueColors.values());
-          }
-
-          const discount = data.compare_at_price
-            ? Math.round(((data.compare_at_price - data.price) / data.compare_at_price) * 100)
-            : 0;
-
-          const transformed = {
-            id: data.id,
-            name: data.name,
-            slug: data.slug,
-            price: data.price,
-            originalPrice: data.compare_at_price || data.price,
-            discount,
-            bestPrice: Math.round(data.price * 0.9),
-            image: primaryImage?.image_url || allImages[0] || '/placeholder.svg',
-            images: allImages.length > 0 ? allImages : ['/placeholder.svg'],
-            rating: 4.5,
-            reviewCount: 0,
-            category: data.category?.slug || 'uncategorized',
-            colors,
-            sizes,
-            isNew: data.is_new_arrival || false,
-            isFeatured: data.is_featured || false,
-            description: data.description || '',
-            stock: data.stock_quantity,
-            loyaltyCoins: data.loyalty_coins_reward || 0,
-            loyaltyPrice: data.loyalty_coins_price || null,
-            shippingCharge: data.shipping_charge || 0,
-          };
-          setFetchedProduct(transformed);
+        } catch (err) {
+          console.error("Error fetching individual product:", err);
+        } finally {
+          setTimeout(() => {
+            setIsFetchingProduct(false);
+          }, 300);
         }
-        setIsFetchingProduct(false);
       };
 
       fetchIndividualProduct();

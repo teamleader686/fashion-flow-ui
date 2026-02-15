@@ -55,10 +55,11 @@ const Products = () => {
   // Fetch products based on filters and page
   useEffect(() => {
     const fetchProducts = async () => {
-      // Don't fetch if we're already loading or have no more items (except for page 0)
+      // Safety check: if already loading, don't trigger another one unless it's page 0
       if (loading && page > 0) return;
 
       setLoading(true);
+      console.log(`Fetching products: page=${page}, category=${categoryParam}`);
 
       let query = supabase
         .from('products')
@@ -130,7 +131,11 @@ const Products = () => {
           return [...prev, ...uniqueNewItems];
         });
       }
-      setLoading(false);
+
+      // Always ensure loading is false after a short delay to allow state updates
+      setTimeout(() => {
+        setLoading(false);
+      }, 300);
     };
 
     fetchProducts();

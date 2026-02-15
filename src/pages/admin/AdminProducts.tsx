@@ -99,7 +99,9 @@ const AdminProducts = () => {
       console.error('Error fetching products:', error);
       toast.error('Failed to load products');
     } finally {
-      setLoading(false);
+      setTimeout(() => {
+        setLoading(false);
+      }, 300);
     }
   };
 

@@ -46,7 +46,9 @@ export function useUserOrders() {
       setError(err.message || 'Failed to fetch orders');
       toast.error('Failed to load orders');
     } finally {
-      setLoading(false);
+      setTimeout(() => {
+        setLoading(false);
+      }, 300);
     }
   }, [user]);
 
