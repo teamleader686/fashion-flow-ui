@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { supabase, Product } from '@/lib/supabase';
+import storageLogger from '@/lib/storageLogger';
 import { Plus, Search, Edit, Trash2, Eye, EyeOff, Package } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -133,6 +134,7 @@ const AdminProducts = () => {
       if (error) throw error;
 
       toast.success('Product deleted successfully');
+      storageLogger.logDelete('products', productToDelete, 2);
       setDeleteDialogOpen(false);
       setProductToDelete(null);
       fetchProducts();

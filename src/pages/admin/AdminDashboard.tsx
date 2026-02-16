@@ -20,6 +20,7 @@ import ProfitLossChart from '@/components/admin/analytics/ProfitLossChart';
 import AnalyticsSummaryCards from '@/components/admin/analytics/AnalyticsSummaryCards';
 import { useAnalyticsData } from '@/hooks/useAnalyticsData';
 import { DashboardSkeleton } from '@/components/shimmer/AdminShimmer';
+import StorageDashboardCard from '@/components/admin/storage/StorageDashboardCard';
 
 type DashboardStats = {
   totalOrders: number;
@@ -148,6 +149,8 @@ const AdminDashboard = () => {
                   </Card>
                 );
               })}
+              {/* Storage Usage Card */}
+              <StorageDashboardCard />
             </div>
 
             <Card>

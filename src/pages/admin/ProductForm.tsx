@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
+import storageLogger from '@/lib/storageLogger';
 import BasicInfoTab from '@/components/admin/product-form/BasicInfoTab';
 import ImagesTab from '@/components/admin/product-form/ImagesTab';
 import VariantsTab from '@/components/admin/product-form/VariantsTab';
@@ -144,6 +145,8 @@ const ProductForm = () => {
           .single();
         if (error) throw error;
         productId = data.id;
+        // Log product creation
+        storageLogger.logCreate('products', data.id, 2);
       }
 
       // Save product images
@@ -198,6 +201,10 @@ const ProductForm = () => {
       }
 
       toast.success(`Product ${isEdit ? 'updated' : 'created'} successfully`);
+      // Log update if editing
+      if (isEdit && productId) {
+        storageLogger.logUpdate('products', productId, 0.5);
+      }
       navigate('/admin/products');
     } catch (error: any) {
       console.error('Error saving product:', error);

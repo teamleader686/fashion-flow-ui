@@ -6,6 +6,8 @@ import { Upload, X, Star, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { Progress } from '@/components/ui/progress';
+import StorageAlertBanner from '@/components/admin/storage/StorageAlertBanner';
+import storageLogger from '@/lib/storageLogger';
 
 type ImagesTabProps = {
   productId?: string;
@@ -23,7 +25,7 @@ const ImagesTab = ({ productId, images, setImages }: ImagesTabProps) => {
 
     setUploading(true);
     setUploadProgress(0);
-    
+
     try {
       const uploadedImages = [];
       const totalFiles = files.length;
@@ -44,6 +46,14 @@ const ImagesTab = ({ productId, images, setImages }: ImagesTabProps) => {
 
         if (uploadError) throw uploadError;
 
+        // Log file upload to storage tracker
+        storageLogger.logFileUpload(
+          'product_images',
+          'product-images',
+          filePath,
+          storageLogger.getFileSizeKB(file)
+        );
+
         const { data: { publicUrl } } = supabase.storage
           .from('product-images')
           .getPublicUrl(filePath);
@@ -63,7 +73,7 @@ const ImagesTab = ({ productId, images, setImages }: ImagesTabProps) => {
       toast.success(`${uploadedImages.length} image${uploadedImages.length > 1 ? 's' : ''} uploaded successfully`);
     } catch (error: any) {
       console.error('Error uploading images:', error);
-      
+
       // Better error messages
       if (error.message?.includes('Bucket not found')) {
         toast.error('Storage bucket not configured. Please contact administrator.');
@@ -103,6 +113,9 @@ const ImagesTab = ({ productId, images, setImages }: ImagesTabProps) => {
           Upload product images. First image will be the primary image. Max 10MB per image.
         </p>
 
+        {/* Storage warning */}
+        <StorageAlertBanner compact className="mb-4" />
+
         <div className="border-2 border-dashed rounded-lg p-8 text-center">
           <Input
             type="file"
@@ -113,8 +126,8 @@ const ImagesTab = ({ productId, images, setImages }: ImagesTabProps) => {
             className="hidden"
             id="image-upload"
           />
-          <label 
-            htmlFor="image-upload" 
+          <label
+            htmlFor="image-upload"
             className={`cursor-pointer ${uploading ? 'pointer-events-none opacity-50' : ''}`}
           >
             {uploading ? (
@@ -160,9 +173,8 @@ const ImagesTab = ({ productId, images, setImages }: ImagesTabProps) => {
                     type="button"
                   >
                     <Star
-                      className={`h-4 w-4 ${
-                        image.is_primary ? 'fill-yellow-400 text-yellow-400' : ''
-                      }`}
+                      className={`h-4 w-4 ${image.is_primary ? 'fill-yellow-400 text-yellow-400' : ''
+                        }`}
                     />
                   </Button>
                   <Button

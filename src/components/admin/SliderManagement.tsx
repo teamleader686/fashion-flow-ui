@@ -17,6 +17,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import storageLogger from '@/lib/storageLogger';
 
 export default function SliderManagement() {
     const { sliders, loading, addSlider, updateSlider, deleteSlider } = useSliders();
@@ -80,6 +81,13 @@ export default function SliderManagement() {
                 .getPublicUrl(filePath);
 
             setFormData(prev => ({ ...prev, image_url: publicUrl }));
+            // Log slider image upload
+            storageLogger.logFileUpload(
+                'sliders',
+                'website-assets',
+                filePath,
+                storageLogger.getFileSizeKB(file)
+            );
             toast.success('Image uploaded successfully');
         } catch (error: any) {
             toast.error('Failed to upload image: ' + error.message);

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import storageLogger from '@/lib/storageLogger';
 
 interface OrderData {
   customer_name: string;
@@ -146,6 +147,9 @@ export const useOrderPlacement = () => {
 
       if (orderError) throw orderError;
 
+      // Log order creation
+      storageLogger.logCreate('orders', order.id, 3, user?.id);
+
       // ============================================
       // STEP 2.5: RECORD ORDER STATUS HISTORY (INITIAL)
       // ============================================
@@ -176,6 +180,9 @@ export const useOrderPlacement = () => {
         .insert(orderItems);
 
       if (itemsError) throw itemsError;
+
+      // Log order items creation  
+      storageLogger.logBulkCreate('order_items', orderData.items.length, 1, user?.id);
 
       // ============================================
       // STEP 4: RECORD COUPON USAGES & COMMISSIONS

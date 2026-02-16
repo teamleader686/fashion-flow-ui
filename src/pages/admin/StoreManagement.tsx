@@ -7,12 +7,14 @@ import DataTable from '@/components/admin/store/DataTable';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { RefreshCw, Plus, Database } from 'lucide-react';
+import { RefreshCw, Plus, Database, HardDrive } from 'lucide-react';
 import { format } from 'date-fns';
+import { useStorageStats } from '@/hooks/useStorageStats';
 
 export default function StoreManagement() {
   const navigate = useNavigate();
   const { stats, loading: statsLoading, refetch: refetchStats } = useStoreData();
+  const { stats: storageStats, loading: storageLoading } = useStorageStats();
   const [activeTab, setActiveTab] = useState('overview');
 
   // Data hooks for different tables
@@ -200,6 +202,53 @@ export default function StoreManagement() {
             </Button>
           </div>
         </div>
+
+        {/* Storage Summary Banner */}
+        {!storageLoading && (
+          <div
+            className="rounded-lg border bg-card p-4 cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => navigate('/admin/store/storage')}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <HardDrive className={`h-4 w-4 ${storageStats.usagePercentage >= 90
+                    ? 'text-red-500'
+                    : storageStats.usagePercentage >= 80
+                      ? 'text-orange-500'
+                      : 'text-teal-500'
+                  }`} />
+                <span className="font-medium text-sm">Storage Usage</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className={`text-sm font-bold ${storageStats.usagePercentage >= 90
+                    ? 'text-red-600'
+                    : storageStats.usagePercentage >= 80
+                      ? 'text-orange-600'
+                      : 'text-teal-600'
+                  }`}>
+                  {storageStats.usagePercentage.toFixed(1)}%
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {storageStats.usedStorage.toFixed(1)} MB / {storageStats.totalStorage} MB
+                </span>
+                <Badge variant="outline" className="text-xs">
+                  View Details →
+                </Badge>
+              </div>
+            </div>
+            <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-700 ${storageStats.usagePercentage >= 90
+                    ? 'bg-red-500'
+                    : storageStats.usagePercentage >= 80
+                      ? 'bg-orange-500'
+                      : 'bg-teal-500'
+                  }`}
+                style={{ width: `${Math.min(100, storageStats.usagePercentage)}%` }}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Stats Cards */}
         <StatsCards stats={stats} loading={statsLoading} />

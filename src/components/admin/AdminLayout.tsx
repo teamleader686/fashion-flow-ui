@@ -7,6 +7,7 @@ import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import NotificationBell from '@/components/notifications/NotificationBell';
+import StorageHeaderAlert from '@/components/admin/storage/StorageHeaderAlert';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -262,6 +263,9 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Search…" className="pl-9 h-9 bg-muted/50" />
           </div>
+
+          {/* Storage alert (shows only when storage >= 80%) */}
+          <StorageHeaderAlert />
 
           {/* Notification bell */}
           <NotificationBell role="admin" />

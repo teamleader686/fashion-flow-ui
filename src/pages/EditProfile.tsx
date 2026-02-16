@@ -14,16 +14,18 @@ import {
 } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, User, Phone, MapPin, Mail, Gift, Heart, Save, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { CalendarIcon, User, Phone, MapPin, Mail, Gift, Heart, Save, ArrowLeft, CheckCircle2, HardDrive } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import { useUserStorage } from '@/hooks/useUserStorage';
 
 export default function EditProfile() {
     const { user, profile } = useAuth();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
+    const { data: userStorage, loading: storageLoading } = useUserStorage();
 
     // Form state
     const [fullName, setFullName] = useState('');
@@ -33,6 +35,8 @@ export default function EditProfile() {
     const [dateOfBirth, setDateOfBirth] = useState<Date>();
     const [anniversaryDate, setAnniversaryDate] = useState<Date>();
     const [gender, setGender] = useState('');
+    const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+    const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
     // Validation state
     const [phoneError, setPhoneError] = useState('');
@@ -55,8 +59,54 @@ export default function EditProfile() {
             if (profile.anniversary_date) {
                 setAnniversaryDate(new Date(profile.anniversary_date));
             }
+            if ((profile as any).avatar_url) {
+                setAvatarUrl((profile as any).avatar_url);
+            }
         }
     }, [user, profile, navigate]);
+
+    const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        try {
+            setUploadingAvatar(true);
+            const file = e.target.files?.[0];
+            if (!file || !user) return;
+
+            const fileExt = file.name.split('.').pop();
+            const filePath = `${user.id}/${Math.random()}.${fileExt}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from('avatars')
+                .upload(filePath, file);
+
+            if (uploadError) throw uploadError;
+
+            // Log upload
+            const { default: storageLogger } = await import('@/lib/storageLogger');
+            storageLogger.logFileUpload(
+                'avatars',
+                'avatars',
+                filePath,
+                storageLogger.getFileSizeKB(file),
+                user.id
+            );
+
+            const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+            setAvatarUrl(data.publicUrl);
+
+            // Immediately update profile with new avatar
+            await supabase
+                .from('user_profiles')
+                .update({ avatar_url: data.publicUrl })
+                .eq('user_id', user.id);
+
+            toast.success('Avatar uploaded successfully!');
+        } catch (error: any) {
+            console.error('Error uploading avatar:', error);
+            toast.error('Failed to upload avatar');
+        } finally {
+            setUploadingAvatar(false);
+        }
+    };
 
     const validatePhone = (value: string): boolean => {
         const cleaned = value.replace(/\D/g, '');
@@ -210,12 +260,63 @@ export default function EditProfile() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
+                    <div className="flex justify-center mb-6">
+                        <div className="relative">
+                            <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-border bg-muted flex items-center justify-center">
+                                {avatarUrl ? (
+                                    <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                                ) : (
+                                    <User className="w-12 h-12 text-muted-foreground" />
+                                )}
+                            </div>
+                            <label
+                                htmlFor="avatar-upload"
+                                className="absolute bottom-0 right-0 bg-primary text-primary-foreground p-1.5 rounded-full cursor-pointer hover:bg-primary/90 transition-colors"
+                            >
+                                <div className="sr-only">Upload avatar</div>
+                                {uploadingAvatar ? (
+                                    <div className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
+                                ) : (
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" x2="12" y1="3" y2="15" /></svg>
+                                )}
+                            </label>
+                            <input
+                                id="avatar-upload"
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={handleAvatarUpload}
+                                disabled={uploadingAvatar}
+                            />
+                        </div>
+                    </div>
+
                     <form onSubmit={handleSubmit} className="space-y-6">
                         {/* Profile Completion Status */}
                         {isProfileComplete && (
                             <div className="flex items-center gap-2 p-3 bg-green-50 text-green-700 rounded-lg">
                                 <CheckCircle2 className="h-5 w-5" />
                                 <span className="text-sm font-medium">Profile Complete</span>
+                            </div>
+                        )}
+
+                        {/* User Storage Usage */}
+                        {!storageLoading && userStorage.totalKB > 0 && (
+                            <div className="flex items-center justify-between p-3 bg-blue-50 text-blue-700 rounded-lg">
+                                <div className="flex items-center gap-2">
+                                    <HardDrive className="h-5 w-5" />
+                                    <div>
+                                        <span className="text-sm font-medium">Your Storage Usage</span>
+                                        <p className="text-xs text-blue-500">
+                                            {userStorage.uploadCount} uploads total
+                                        </p>
+                                    </div>
+                                </div>
+                                <span className="text-sm font-bold">
+                                    {userStorage.totalMB >= 1
+                                        ? `${userStorage.totalMB.toFixed(1)} MB`
+                                        : `${userStorage.totalKB.toFixed(0)} KB`}
+                                </span>
                             </div>
                         )}
 

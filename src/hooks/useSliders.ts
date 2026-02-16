@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Slider } from '@/types/slider';
 import { useToast } from '@/hooks/use-toast';
+import storageLogger from '@/lib/storageLogger';
 
 export const useSliders = () => {
     const [sliders, setSliders] = useState<Slider[]>([]);
@@ -52,6 +53,10 @@ export const useSliders = () => {
             });
 
             fetchSliders();
+
+            // Log slider creation
+            storageLogger.logCreate('sliders', data[0].id, 100); // Estimating 100KB for text+metadata
+
             return data[0];
         } catch (err: any) {
             toast({
@@ -102,6 +107,9 @@ export const useSliders = () => {
                 title: "Success",
                 description: "Slider deleted successfully",
             });
+
+            // Log slider deletion
+            storageLogger.logDelete('sliders', id, 100);
 
             fetchSliders();
             return true;

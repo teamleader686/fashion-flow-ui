@@ -22,6 +22,8 @@ import {
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { Upload, X } from 'lucide-react';
+import StorageAlertBanner from '@/components/admin/storage/StorageAlertBanner';
+import storageLogger from '@/lib/storageLogger';
 
 interface Category {
   id: string;
@@ -162,6 +164,13 @@ export default function CategoryDialog({
         const uploadedUrl = await uploadImage(imageFile);
         if (uploadedUrl) {
           imageUrl = uploadedUrl;
+          // Log image upload
+          storageLogger.logFileUpload(
+            'category_images',
+            'category-images',
+            `categories/${imageFile.name}`,
+            storageLogger.getFileSizeKB(imageFile)
+          );
         }
       } else if (!imagePreview) {
         imageUrl = null;
@@ -186,6 +195,7 @@ export default function CategoryDialog({
         if (error) throw error;
 
         toast.success('Category updated successfully');
+        storageLogger.logUpdate('categories', category.id, 0.5);
       } else {
         // Create new category
         const { error } = await supabase.from('categories').insert(categoryData);
@@ -193,6 +203,7 @@ export default function CategoryDialog({
         if (error) throw error;
 
         toast.success('Category created successfully');
+        storageLogger.logCreate('categories', undefined, 1);
       }
 
       onSuccess();
@@ -278,6 +289,8 @@ export default function CategoryDialog({
           {/* Image Upload */}
           <div className="space-y-2.5">
             <Label className="text-sm font-medium">Category Image (Optional)</Label>
+            {/* Storage warning */}
+            <StorageAlertBanner compact className="mb-2" />
             {imagePreview ? (
               <div className="relative w-full sm:w-40 h-40 rounded-xl overflow-hidden border-2 border-border">
                 <img
