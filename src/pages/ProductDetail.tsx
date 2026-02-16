@@ -5,9 +5,10 @@ import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState, useEffect, useCallback } from "react";
 import useEmblaCarousel from "embla-carousel-react";
-import { Heart, Star, ShoppingBag, Truck, RotateCcw, Shield, Coins, Share2, Wallet } from "lucide-react";
+import { Heart, Star, ShoppingBag, Truck, RotateCcw, Shield, Coins, Share2, Wallet, Edit, Trash2, X, Check, Save } from "lucide-react";
 import { motion } from "framer-motion";
 import ProductCard from "@/components/ProductCard";
+import { Textarea } from "@/components/ui/textarea";
 import ProductShare from "@/components/ProductShare";
 import { toast } from "sonner";
 import { ProductDetailSkeleton } from "@/components/shimmer/ProductDetailSkeleton";
@@ -17,6 +18,7 @@ import CloudImage from "@/components/ui/CloudImage";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LazySection } from "@/components/layout/LazySection";
 import { useCalculateOfferPrice, useOffers } from "@/hooks/useOffers";
+import ReviewForm from "@/components/reviews/ReviewForm";
 
 const ProductDetail = () => {
   const { slug } = useParams();
@@ -176,15 +178,24 @@ const ProductDetail = () => {
     // Only fetch if we have a product and data hasn't been loaded yet
     if (product && activeTab === "reviews" && reviews.length === 0) {
       const fetchReviews = async () => {
-        setLoadingReviews(true);
-        // Simulate API call delay
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        try {
+          setLoadingReviews(true);
+          const { data, error } = await supabase
+            .from('product_reviews')
+            .select(`
+              *,
+              users:user_profiles(full_name)
+            `)
+            .eq('product_id', product.id)
+            .order('created_at', { ascending: false });
 
-        setReviews([
-          { id: 1, user: "John Doe", rating: 5, comment: "Great product!", date: "2024-02-10" },
-          { id: 2, user: "Jane Smith", rating: 4, comment: "Good quality, fast delivery.", date: "2024-02-08" },
-        ]);
-        setLoadingReviews(false);
+          if (error) throw error;
+          setReviews(data || []);
+        } catch (error) {
+          console.error("Error fetching reviews:", error);
+        } finally {
+          setLoadingReviews(false);
+        }
       };
 
       fetchReviews();
@@ -233,6 +244,73 @@ const ProductDetail = () => {
   const displayPrice = has_offer ? offer_price : (product?.price || 0);
   const oldPrice = has_offer ? original_price : (product?.originalPrice || 0);
   const discount = has_offer ? discount_percentage : (product?.discount || 0);
+
+  // Review management states
+  const [editingReviewId, setEditingReviewId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState("");
+  const [editRating, setEditRating] = useState(0);
+
+  const handleEditReview = (review: any) => {
+    setEditingReviewId(review.id);
+    setEditContent(review.comment);
+    setEditRating(review.rating);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingReviewId(null);
+    setEditContent("");
+    setEditRating(0);
+  };
+
+  const handleSaveReview = async () => {
+    if (!editingReviewId) return;
+
+    try {
+      const { error } = await supabase
+        .from("product_reviews")
+        .update({
+          comment: editContent,
+          rating: editRating,
+          updated_at: new Date(),
+        })
+        .eq("id", editingReviewId);
+
+      if (error) throw error;
+
+      toast.success("Review updated successfully!");
+
+      // Update local state
+      setReviews(prev => prev.map(r =>
+        r.id === editingReviewId
+          ? { ...r, comment: editContent, rating: editRating, updated_at: new Date().toISOString() }
+          : r
+      ));
+
+      handleCancelEdit();
+    } catch (error) {
+      console.error("Error updating review:", error);
+      toast.error("Failed to update review");
+    }
+  };
+
+  const handleDeleteReview = async (reviewId: string) => {
+    if (!confirm("Are you sure you want to delete this review?")) return;
+
+    try {
+      const { error } = await supabase
+        .from("product_reviews")
+        .delete()
+        .eq("id", reviewId);
+
+      if (error) throw error;
+
+      toast.success("Review deleted successfully");
+      setReviews(prev => prev.filter(r => r.id !== reviewId));
+    } catch (error) {
+      console.error("Error deleting review:", error);
+      toast.error("Failed to delete review");
+    }
+  };
 
   if (loading || isFetchingProduct) {
     return (
@@ -634,32 +712,178 @@ const ProductDetail = () => {
                   <p className="text-sm text-muted-foreground leading-relaxed">{product.description}</p>
                 </TabsContent>
 
-                <TabsContent value="reviews" className="pt-4">
+                <TabsContent value="reviews" className="pt-4 space-y-8">
+                  {/* Reviews List */}
                   {loadingReviews ? (
-                    <div className="space-y-3">
-                      <div className="h-4 bg-secondary rounded w-3/4 animate-pulse" />
-                      <div className="h-4 bg-secondary rounded w-1/2 animate-pulse" />
+                    <div className="space-y-4">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="h-24 bg-secondary/50 rounded-lg animate-pulse" />
+                      ))}
                     </div>
                   ) : reviews.length > 0 ? (
-                    <div className="space-y-4">
-                      {reviews.map((review) => (
-                        <div key={review.id} className="border-b border-border pb-4 last:border-0 last:pb-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="font-semibold text-sm">{review.user}</span>
-                            <div className="flex items-center text-star">
-                              {Array.from({ length: 5 }).map((_, i) => (
-                                <Star key={i} className={`h-3 w-3 ${i < review.rating ? "fill-current" : "text-muted-foreground"}`} />
-                              ))}
-                            </div>
-                            <span className="text-xs text-muted-foreground ml-auto">{review.date}</span>
+                    <div className="space-y-6">
+                      <div className="flex items-center justify-between pb-4 border-b">
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl font-bold">{
+                            // Calculate average from approved reviews only
+                            (reviews.filter(r => r.is_approved).reduce((acc, r) => acc + r.rating, 0) / (reviews.filter(r => r.is_approved).length || 1)).toFixed(1)
+                          }</span>
+                          <div className="flex text-yellow-500">
+                            {[...Array(5)].map((_, i) => (
+                              <Star
+                                key={i}
+                                className={`h-5 w-5 ${i < Math.round(reviews.filter(r => r.is_approved).reduce((acc, r) => acc + r.rating, 0) / (reviews.filter(r => r.is_approved).length || 1))
+                                  ? "fill-current"
+                                  : "text-muted-foreground"
+                                  }`}
+                              />
+                            ))}
                           </div>
-                          <p className="text-sm text-muted-foreground">{review.comment}</p>
+                          <span className="text-muted-foreground text-sm ml-2">
+                            ({reviews.filter(r => r.is_approved).length} reviews)
+                          </span>
+                        </div>
+                      </div>
+
+                      {reviews.map((review) => (
+                        <div key={review.id} className="border-b border-border pb-6 last:border-0">
+                          {editingReviewId === review.id ? (
+                            <div className="space-y-4 bg-muted/40 p-4 rounded-lg">
+                              <div className="flex gap-2 items-center">
+                                <span className="text-sm font-medium">Rating:</span>
+                                <div className="flex gap-1">
+                                  {[1, 2, 3, 4, 5].map((star) => (
+                                    <button
+                                      key={star}
+                                      onClick={() => setEditRating(star)}
+                                      className="focus:outline-none"
+                                    >
+                                      <Star
+                                        className={`h-5 w-5 ${star <= editRating
+                                            ? "fill-yellow-500 text-yellow-500"
+                                            : "text-muted-foreground"
+                                          }`}
+                                      />
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                              <Textarea
+                                value={editContent}
+                                onChange={(e) => setEditContent(e.target.value)}
+                                className="min-h-[100px]"
+                              />
+                              <div className="flex justify-end gap-2">
+                                <button
+                                  onClick={handleCancelEdit}
+                                  className="px-3 py-1.5 text-sm font-medium hover:bg-muted rounded text-muted-foreground"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  onClick={handleSaveReview}
+                                  className="px-3 py-1.5 text-sm font-medium bg-primary text-primary-foreground rounded hover:bg-primary/90"
+                                >
+                                  Save Changes
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="flex items-center gap-3 mb-2">
+                                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs uppercase">
+                                  {review.users?.full_name?.[0] || 'U'}
+                                </div>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <p className="font-semibold text-sm">{review.users?.full_name || 'Anonymous User'}</p>
+                                  </div>
+                                  <div className="flex text-yellow-500 text-xs gap-0.5 mt-0.5">
+                                    {[...Array(5)].map((_, i) => (
+                                      <Star
+                                        key={i}
+                                        className={`h-3 w-3 ${i < review.rating ? "fill-current" : "text-muted-foreground"}`}
+                                      />
+                                    ))}
+                                  </div>
+                                </div>
+                                <div className="flex flex-col items-end gap-1">
+                                  <span className="text-xs text-muted-foreground">
+                                    {new Date(review.created_at).toLocaleDateString()}
+                                  </span>
+                                  {/* Edit/Delete Controls for Owner */}
+                                  {user && user.id === review.user_id && (
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        onClick={() => handleEditReview(review)}
+                                        className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-primary transition-colors"
+                                        title="Edit Review"
+                                      >
+                                        <Edit className="h-3.5 w-3.5" />
+                                      </button>
+                                      <button
+                                        onClick={() => handleDeleteReview(review.id)}
+                                        className="p-1 hover:bg-red-50 rounded text-muted-foreground hover:text-red-600 transition-colors"
+                                        title="Delete Review"
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <p className="text-sm text-muted-foreground ml-11 leading-relaxed whitespace-pre-wrap">
+                                {review.comment}
+                              </p>
+                            </>
+                          )}
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <p>No reviews yet. Be the first to review!</p>
+                    <div className="text-center py-12 bg-secondary/20 rounded-xl border border-dashed border-border">
+                      <div className="flex justify-center mb-3">
+                        <div className="h-12 w-12 bg-secondary rounded-full flex items-center justify-center text-muted-foreground">
+                          <Star className="h-6 w-6" />
+                        </div>
+                      </div>
+                      <h3 className="font-semibold text-lg mb-1">No reviews yet</h3>
+                      <p className="text-muted-foreground text-sm max-w-xs mx-auto">
+                        Be the first to share your thoughts about this product!
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Write a Review Section */}
+                  {user ? (
+                    <ReviewForm
+                      productId={product.id}
+                      userId={user.id}
+                      onReviewSubmitted={() => {
+                        // Re-fetch reviews - this must fetch pending ones too now!
+                        // The fetchReviews function defined above handles this correctly
+                        // by relying on RLS and omitting is_approved filter.
+                        const fetchReviews = async () => {
+                          const { data } = await supabase
+                            .from('product_reviews')
+                            .select(`
+                              *,
+                              users:user_profiles(full_name)
+                            `)
+                            .eq('product_id', product.id)
+                            .order('created_at', { ascending: false });
+
+                          if (data) setReviews(data);
+                        };
+                        fetchReviews();
+                      }}
+                    />
+                  ) : (
+                    <div className="bg-primary/5 border border-primary/20 rounded-xl p-6 text-center">
+                      <p className="text-sm font-medium mb-3">Please sign in to write a review</p>
+                      <Link to="/login" className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50">
+                        Sign In
+                      </Link>
                     </div>
                   )}
                 </TabsContent>
