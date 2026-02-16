@@ -39,7 +39,7 @@ export function useAffiliateMarketing() {
           commission_type: data.commission_type,
           commission_value: data.commission_value,
           status: data.status,
-          password: data.password || '123456', // Default password if not provided
+          // Removed password as it is not in the schema
         })
         .select()
         .single();
@@ -578,10 +578,11 @@ export function useAffiliateMarketing() {
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('affiliate_coupons')
+        .from('coupons')
         .select('*')
-        .eq('affiliate_id', affiliate.id)
-        .eq('is_active', true);
+        .eq('affiliate_user_id', affiliate.id)
+        .eq('is_affiliate_coupon', true)
+        .eq('status', 'active');
 
       if (error) throw error;
       return { success: true, data };
@@ -611,10 +612,19 @@ export function useAffiliateMarketing() {
     setError(null);
     try {
       const { data, error } = await supabase
-        .from('affiliate_coupons')
+        .from('coupons')
         .insert({
-          ...couponData,
-          affiliate_id: affiliate.id,
+          code: couponData.code,
+          type: couponData.discount_type === 'fixed_amount' ? 'flat' : 'percentage',
+          value: couponData.discount_value,
+          min_order_amount: couponData.min_purchase_amount || 0,
+          max_discount: couponData.max_discount_amount || null,
+          start_date: couponData.valid_from || new Date().toISOString(),
+          expiry_date: couponData.valid_until || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          status: couponData.is_active === false ? 'inactive' : 'active',
+          affiliate_user_id: affiliate.id,
+          is_affiliate_coupon: true,
+          coupon_type: 'affiliate_tracking'
         })
         .select()
         .single();

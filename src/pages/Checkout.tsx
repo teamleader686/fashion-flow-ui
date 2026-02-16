@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
 import { useCart } from "@/contexts/CartContext";
 import { useOrderPlacement } from "@/hooks/useOrderPlacement";
+import { useValidateCoupon } from "@/hooks/useCoupons";
 import {
   ChevronLeft,
   MapPin,
@@ -95,6 +96,7 @@ const Checkout = () => {
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<any | null>(null);
   const [showCoupons, setShowCoupons] = useState(false);
+  const { validateCoupon, validating: validatingCoupon } = useValidateCoupon();
 
   // Loyalty coins
   const [useCoins, setUseCoins] = useState(false);
@@ -111,22 +113,8 @@ const Checkout = () => {
   const shipping = subtotal >= 999 ? 0 : totalShippingCost;
 
   const couponDiscount = useMemo(() => {
-    if (!appliedCoupon) return 0;
-    // Map DB column names (handling both potential schemas if mixed, but prioritizing actual likely schema)
-    const minOrder = appliedCoupon.min_order_amount ?? appliedCoupon.min_order_value ?? 0;
-    const type = appliedCoupon.type ?? appliedCoupon.discount_type;
-    const value = appliedCoupon.value ?? appliedCoupon.discount_value ?? 0;
-    const maxDiscount = appliedCoupon.max_discount ?? appliedCoupon.max_discount_amount;
-
-    if (subtotal < minOrder) return 0;
-    if (type === "percentage") {
-      const discount = Math.floor(subtotal * value / 100);
-      return maxDiscount
-        ? Math.min(discount, maxDiscount)
-        : discount;
-    }
-    return value;
-  }, [appliedCoupon, subtotal]);
+    return appliedCoupon?.discount || 0;
+  }, [appliedCoupon]);
 
   // Max coins available for partial discount (after deducting fixed coin costs)
   const availableForDiscount = Math.max(0, loyaltyBalance - totalCoinsRequired);
@@ -216,31 +204,42 @@ const Checkout = () => {
 
 
   // Apply coupon
-  const handleApplyCoupon = () => {
+  const handleApplyCoupon = async () => {
     const code = couponCode.trim().toUpperCase();
     if (!code) {
       toast.error("Please enter a coupon code");
       return;
     }
-    // Check both code and coupon_code field to be safe
-    const found = availableCoupons.find((c) => (c.code === code || c.coupon_code === code));
-    if (!found) {
-      toast.error("Invalid coupon code");
+
+    if (appliedCoupon && appliedCoupon.code === code) {
+      toast.error("Coupon already applied");
       return;
     }
-    const minOrder = found.min_order_amount ?? found.min_order_value ?? 0;
-    if (subtotal < minOrder) {
-      toast.error(`Minimum order of ₹${minOrder} required`);
-      return;
+
+    try {
+      const result = await validateCoupon(
+        code,
+        user?.id || "",
+        subtotal,
+        items.map(i => i.product.id),
+        [] // No other coupons since we only allow one
+      );
+
+      if (result.valid) {
+        setAppliedCoupon(result);
+        setCouponCode("");
+        setShowCoupons(false);
+        toast.success(`Coupon ${code} applied!`);
+      } else {
+        toast.error(result.error || "Invalid coupon code");
+      }
+    } catch (err) {
+      toast.error("Failed to apply coupon");
     }
-    setAppliedCoupon(found);
-    setShowCoupons(false);
-    toast.success(`Coupon ${code} applied!`);
   };
 
   const removeCoupon = () => {
     setAppliedCoupon(null);
-    setCouponCode("");
     toast.info("Coupon removed");
   };
 
@@ -283,7 +282,14 @@ const Checkout = () => {
       total_coins_to_earn: totalCoinsToEarn,
       total_amount: finalTotal,
       shipping_charge: shipping,
-      coupon_code: appliedCoupon?.code || appliedCoupon?.coupon_code,
+      applied_coupons: appliedCoupon ? [{
+        id: appliedCoupon.id,
+        code: appliedCoupon.code,
+        discount: appliedCoupon.discount,
+        is_affiliate_coupon: appliedCoupon.is_affiliate_coupon,
+        affiliate_user_id: appliedCoupon.affiliate_user_id,
+        commission_amount: appliedCoupon.commission_amount
+      }] : [],
       payment_method: 'cod' as const,
       items: items.map(item => ({
         product_id: item.product.id,
@@ -500,15 +506,21 @@ const Checkout = () => {
                   >
                     <div className="px-4 pb-4">
                       {appliedCoupon ? (
-                        <div className="flex items-center justify-between p-3 bg-primary/5 border border-primary/20 rounded-lg">
-                          <div>
-                            <p className="text-sm font-bold text-primary">{appliedCoupon.coupon_code}</p>
-                            <p className="text-xs text-muted-foreground">{appliedCoupon.description || appliedCoupon.coupon_title}</p>
-                            <p className="text-xs font-semibold text-discount mt-0.5">You save ₹{couponDiscount}</p>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                            <div>
+                              <p className="text-sm font-bold text-primary">
+                                {appliedCoupon.code}
+                                {appliedCoupon.is_affiliate_coupon && (
+                                  <span className="ml-2 text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">AFFILIATE</span>
+                                )}
+                              </p>
+                              <p className="text-xs font-semibold text-discount mt-0.5">You save ₹{appliedCoupon.discount}</p>
+                            </div>
+                            <button onClick={removeCoupon} className="p-1.5 hover:bg-secondary rounded-full">
+                              <X className="h-4 w-4 text-muted-foreground" />
+                            </button>
                           </div>
-                          <button onClick={removeCoupon} className="p-1.5 hover:bg-secondary rounded-full">
-                            <X className="h-4 w-4 text-muted-foreground" />
-                          </button>
                         </div>
                       ) : (
                         <>
@@ -523,9 +535,10 @@ const Checkout = () => {
                             />
                             <button
                               onClick={handleApplyCoupon}
-                              className="px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity"
+                              disabled={validatingCoupon}
+                              className="px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
                             >
-                              Apply
+                              {validatingCoupon ? "..." : "Apply"}
                             </button>
                           </div>
 
@@ -561,9 +574,7 @@ const Checkout = () => {
                                         onClick={() => {
                                           setCouponCode(coupon.coupon_code);
                                           if (subtotal >= coupon.min_order_value) {
-                                            setAppliedCoupon(coupon);
-                                            setShowCoupons(false);
-                                            toast.success(`Coupon ${coupon.coupon_code} applied!`);
+                                            handleApplyCoupon();
                                           } else {
                                             toast.error(`Minimum order of ₹${coupon.min_order_value} required`);
                                           }
@@ -778,10 +789,16 @@ const Checkout = () => {
                     {shipping === 0 ? "FREE" : `₹${shipping}`}
                   </span>
                 </div>
-                {couponDiscount > 0 && (
-                  <div className="flex justify-between text-discount">
-                    <span>Coupon ({appliedCoupon?.coupon_code})</span>
-                    <span>-₹{couponDiscount}</span>
+                {couponDiscount > 0 && appliedCoupon && (
+                  <div className="flex flex-col gap-1 border-b border-border/50 pb-2">
+                    <div className="flex justify-between text-discount text-xs">
+                      <span>Coupon ({appliedCoupon.code})</span>
+                      <span>-₹{appliedCoupon.discount}</span>
+                    </div>
+                    <div className="flex justify-between text-discount font-bold mt-1">
+                      <span>Total Savings</span>
+                      <span>-₹{couponDiscount}</span>
+                    </div>
                   </div>
                 )}
                 {coinsValue > 0 && (

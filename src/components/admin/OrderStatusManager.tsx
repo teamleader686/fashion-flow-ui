@@ -10,17 +10,17 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Package } from 'lucide-react';
 
 interface OrderStatusManagerProps {
   order: Order;
 }
 
 const statusOptions = [
-  { value: 'pending', label: 'Pending', color: 'bg-yellow-100 text-yellow-800' },
+  { value: 'placed', label: 'Placed', color: 'bg-orange-100 text-orange-800' },
   { value: 'confirmed', label: 'Confirmed', color: 'bg-blue-100 text-blue-800' },
   { value: 'processing', label: 'Processing', color: 'bg-purple-100 text-purple-800' },
-  { value: 'packed', label: 'Packed', color: 'bg-indigo-100 text-indigo-800' },
+  { value: 'packed', label: 'Packed', icon: Package, color: 'bg-indigo-100 text-indigo-800' },
   { value: 'shipped', label: 'Shipped', color: 'bg-cyan-100 text-cyan-800' },
   { value: 'out_for_delivery', label: 'Out for Delivery', color: 'bg-orange-100 text-orange-800' },
   { value: 'delivered', label: 'Delivered', color: 'bg-green-100 text-green-800' },
@@ -94,7 +94,7 @@ export default function OrderStatusManager({ order }: OrderStatusManagerProps) {
           <p className="font-medium">Status Timeline:</p>
           {order.created_at && (
             <p className="text-muted-foreground">
-              Created: {new Date(order.created_at).toLocaleString()}
+              Placed: {new Date(order.created_at).toLocaleString()}
             </p>
           )}
           {order.confirmed_at && (

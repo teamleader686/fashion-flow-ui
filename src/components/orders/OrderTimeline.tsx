@@ -8,7 +8,7 @@ interface OrderTimelineProps {
 }
 
 const statusSteps = [
-  { key: 'pending', label: 'Order Placed', icon: Package },
+  { key: 'placed', label: 'Order Placed', icon: Package },
   { key: 'confirmed', label: 'Confirmed', icon: Check },
   { key: 'processing', label: 'Processing', icon: Clock },
   { key: 'packed', label: 'Packed', icon: Package },
@@ -42,7 +42,7 @@ export default function OrderTimeline({ order, history = [] }: OrderTimelineProp
     // Fallback to order fields
     let timestamp = null;
     switch (stepKey) {
-      case 'pending': timestamp = order.created_at; break;
+      case 'placed': timestamp = order.created_at; break;
       case 'confirmed': timestamp = (order as any).confirmed_at; break;
       case 'packed': timestamp = (order as any).packed_at; break;
       case 'shipped': timestamp = order.shipped_at; break;

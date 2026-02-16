@@ -29,35 +29,71 @@ export function useCoupons() {
   }, []);
 
   const createCoupon = async (couponData: CouponFormData) => {
-    const { data: user } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    const dataToInsert = {
+      code: couponData.code.toUpperCase(),
+      type: couponData.type,
+      value: couponData.value,
+      min_order_amount: couponData.min_order_amount,
+      max_discount: couponData.max_discount,
+      start_date: couponData.start_date,
+      expiry_date: couponData.expiry_date,
+      usage_limit: couponData.usage_limit,
+      usage_per_user: couponData.usage_per_user,
+      applicable_type: couponData.applicable_type,
+      applicable_ids: couponData.applicable_ids.length > 0 ? couponData.applicable_ids : null,
+      user_restriction: couponData.user_restriction,
+      restricted_user_ids: couponData.restricted_user_ids.length > 0 ? couponData.restricted_user_ids : null,
+      status: couponData.status,
+      created_by: user?.id || null,
+      // Affiliate fields
+      is_affiliate_coupon: couponData.is_affiliate_coupon,
+      affiliate_user_id: couponData.affiliate_user_id || null,
+      coupon_type: couponData.coupon_type,
+      commission_type: couponData.commission_type,
+      commission_value: couponData.commission_value
+    };
 
     const { data, error } = await supabase
       .from('coupons')
-      .insert([{
-        ...couponData,
-        code: couponData.code.toUpperCase(),
-        created_by: user.user?.id
-      }])
+      .insert([dataToInsert])
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Coupon creation error:', error);
+      throw error;
+    }
     await fetchCoupons();
     return data;
   };
 
   const updateCoupon = async (id: string, couponData: Partial<CouponFormData>) => {
+    const dataToUpdate: any = { ...couponData };
+    if (dataToUpdate.code) {
+      dataToUpdate.code = dataToUpdate.code.toUpperCase();
+    }
+
+    // Ensure array fields are handled
+    if (dataToUpdate.applicable_ids) {
+      dataToUpdate.applicable_ids = dataToUpdate.applicable_ids.length > 0 ? dataToUpdate.applicable_ids : null;
+    }
+    if (dataToUpdate.restricted_user_ids) {
+      dataToUpdate.restricted_user_ids = dataToUpdate.restricted_user_ids.length > 0 ? dataToUpdate.restricted_user_ids : null;
+    }
+
     const { data, error } = await supabase
       .from('coupons')
-      .update({
-        ...couponData,
-        code: couponData.code?.toUpperCase()
-      })
+      .update(dataToUpdate)
       .eq('id', id)
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Coupon update error:', error);
+      throw error;
+    }
     await fetchCoupons();
     return data;
   };
@@ -90,16 +126,18 @@ export function useValidateCoupon() {
     code: string,
     userId: string,
     cartTotal: number,
-    productIds: string[]
+    productIds: string[],
+    appliedCouponCodes: string[] = []
   ): Promise<CouponValidationResult> => {
     try {
       setValidating(true);
 
-      const { data, error } = await supabase.rpc('validate_coupon', {
+      const { data, error } = await supabase.rpc('validate_coupon_v2', {
         p_code: code,
-        p_user_id: userId,
+        p_user_id: userId === "" ? null : userId,
         p_cart_total: cartTotal,
-        p_product_ids: productIds
+        p_product_ids: productIds,
+        p_applied_coupon_codes: appliedCouponCodes
       });
 
       if (error) throw error;
@@ -122,13 +160,17 @@ export function useApplyCoupon() {
     couponId: string,
     userId: string,
     orderId: string,
-    discountAmount: number
+    discountAmount: number,
+    commissionAmount: number = 0,
+    affiliateId: string | null = null
   ) => {
-    const { data, error } = await supabase.rpc('apply_coupon', {
+    const { data, error } = await supabase.rpc('apply_coupon_v2', {
       p_coupon_id: couponId,
       p_user_id: userId,
       p_order_id: orderId,
-      p_discount_amount: discountAmount
+      p_discount_amount: discountAmount,
+      p_commission_amount: commissionAmount,
+      p_affiliate_id: affiliateId
     });
 
     if (error) throw error;

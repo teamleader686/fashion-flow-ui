@@ -103,23 +103,47 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Update order status (Admin only)
-  const updateOrderStatus = useCallback(async (orderId: string, status: Order['status']) => {
+  const updateOrderStatus = useCallback(async (orderId: string, status: Order['status'], note?: string) => {
     try {
+      const now = new Date().toISOString();
+      const updates: any = {
+        status,
+        updated_at: now
+      };
+
+      // Set timestamps based on status
+      if (status === 'confirmed') updates.confirmed_at = now;
+      if (status === 'packed') updates.packed_at = now;
+      if (status === 'shipped') updates.shipped_at = now;
+      if (status === 'delivered') {
+        updates.delivered_at = now;
+        updates.payment_status = 'paid'; // Auto mark as paid on delivery (COD)
+      }
+      if (status === 'cancelled') updates.cancelled_at = now;
+
       const { error } = await supabase
         .from('orders')
-        .update({ status, updated_at: new Date().toISOString() })
+        .update(updates)
         .eq('id', orderId);
 
       if (error) throw error;
 
-      toast.success('Order status updated successfully');
+      // Record in history
+      await supabase.from('order_status_history').insert([{
+        order_id: orderId,
+        status,
+        notes: note || `Order status updated to ${status}`,
+        changed_by: user?.id
+      }]);
+
+      toast.success(`Order ${status} successfully`);
       await fetchOrders();
     } catch (error: any) {
       console.error('Error updating order status:', error);
       toast.error('Failed to update order status');
       throw error;
     }
-  }, [fetchOrders]);
+  }, [user, fetchOrders]);
 
   // Create shipment (Admin only)
   const createShipment = useCallback(async (orderId: string, shipmentData: Partial<Shipment>) => {
@@ -133,6 +157,14 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
       if (error) throw error;
 
+      // Also update orders table for sync
+      await supabase.from('orders').update({
+        tracking_id: shipmentData.tracking_number,
+        shipping_partner: shipmentData.carrier,
+        status: 'shipped',
+        shipped_at: new Date().toISOString()
+      }).eq('id', orderId);
+
       toast.success('Shipment created successfully');
       await fetchOrders();
     } catch (error: any) {
@@ -143,14 +175,44 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   }, [fetchOrders]);
 
   // Update shipment (Admin only)
-  const updateShipment = useCallback(async (shipmentId: string, shipmentData: Partial<Shipment>) => {
+  const updateShipment = useCallback(async (orderId: string, shipmentData: Partial<Shipment>) => {
     try {
-      const { error } = await supabase
+      // Find current shipment first to get ID if not provided
+      const { data: currentShipment } = await supabase
         .from('shipments')
-        .update(shipmentData)
-        .eq('id', shipmentId);
+        .select('id')
+        .eq('order_id', orderId)
+        .maybeSingle();
 
-      if (error) throw error;
+      if (currentShipment) {
+        const { error } = await supabase
+          .from('shipments')
+          .update(shipmentData)
+          .eq('id', currentShipment.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('shipments')
+          .insert({ order_id: orderId, ...shipmentData });
+        if (error) throw error;
+      }
+
+      // Sync to orders table
+      const orderUpdates: any = {
+        tracking_id: shipmentData.tracking_number,
+        shipping_partner: shipmentData.carrier,
+        updated_at: new Date().toISOString()
+      };
+
+      if (shipmentData.status === 'delivered') {
+        orderUpdates.status = 'delivered';
+        orderUpdates.delivered_at = new Date().toISOString();
+        orderUpdates.payment_status = 'paid';
+      }
+
+      await supabase.from('orders')
+        .update(orderUpdates)
+        .eq('id', orderId);
 
       toast.success('Shipment updated successfully');
       await fetchOrders();

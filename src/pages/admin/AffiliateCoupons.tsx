@@ -18,13 +18,13 @@ const AffiliateCoupons = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCoupon, setEditingCoupon] = useState<AffiliateCoupon | null>(null);
   const [formData, setFormData] = useState({
-    coupon_code: '',
-    discount_type: 'percentage' as 'percentage' | 'fixed',
-    discount_value: 0,
-    affiliate_id: '',
+    code: '',
+    type: 'percentage' as 'percentage' | 'flat',
+    value: 0,
+    affiliate_user_id: '',
     expiry_date: '',
     usage_limit: 0,
-    is_active: true,
+    status: 'active' as 'active' | 'inactive',
   });
 
   useEffect(() => {
@@ -38,16 +38,16 @@ const AffiliateCoupons = () => {
       .select('*')
       .eq('is_affiliate_coupon', true)
       .order('created_at', { ascending: false });
-    
+
     if (data) {
       // Fetch affiliate details for each coupon
       const couponsWithAffiliates = await Promise.all(
         data.map(async (coupon) => {
-          if (coupon.affiliate_id) {
+          if (coupon.affiliate_user_id) {
             const { data: affiliate } = await supabase
-              .from('affiliate_users')
-              .select('id, name, affiliate_code')
-              .eq('id', coupon.affiliate_id)
+              .from('affiliates')
+              .select('id, name, referral_code')
+              .eq('id', coupon.affiliate_user_id)
               .single();
             return { ...coupon, affiliate };
           }
@@ -60,33 +60,36 @@ const AffiliateCoupons = () => {
 
   const fetchAffiliates = async () => {
     const { data } = await supabase
-      .from('affiliate_users')
+      .from('affiliates')
       .select('*')
-      .eq('is_active', true);
-    
+      .eq('status', 'active');
+
     if (data) setAffiliates(data);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
       const couponData = {
         ...formData,
         is_affiliate_coupon: true,
-        coupon_title: `Affiliate Coupon - ${formData.coupon_code}`,
+        // Remove any phantom fields that might cause 400
+        coupon_title: undefined,
       };
 
       if (editingCoupon) {
-        await supabase
+        const { error } = await supabase
           .from('coupons')
           .update(couponData)
           .eq('id', editingCoupon.id);
+        if (error) throw error;
         toast.success('Coupon updated successfully');
       } else {
-        await supabase
+        const { error } = await supabase
           .from('coupons')
           .insert([couponData]);
+        if (error) throw error;
         toast.success('Coupon created successfully');
       }
 
@@ -94,19 +97,20 @@ const AffiliateCoupons = () => {
       resetForm();
       fetchCoupons();
     } catch (error: any) {
-      toast.error('Failed to save coupon');
+      console.error('Save error:', error);
+      toast.error(error.message || 'Failed to save coupon');
     }
   };
 
   const resetForm = () => {
     setFormData({
-      coupon_code: '',
-      discount_type: 'percentage',
-      discount_value: 0,
-      affiliate_id: '',
+      code: '',
+      type: 'percentage',
+      value: 0,
+      affiliate_user_id: '',
       expiry_date: '',
       usage_limit: 0,
-      is_active: true,
+      status: 'active',
     });
     setEditingCoupon(null);
   };
@@ -114,22 +118,23 @@ const AffiliateCoupons = () => {
   const handleEdit = (coupon: AffiliateCoupon) => {
     setEditingCoupon(coupon);
     setFormData({
-      coupon_code: coupon.coupon_code,
-      discount_type: coupon.discount_type,
-      discount_value: coupon.discount_value,
-      affiliate_id: coupon.affiliate_id || '',
+      code: coupon.code,
+      type: coupon.type,
+      value: coupon.value,
+      affiliate_user_id: coupon.affiliate_user_id || '',
       expiry_date: coupon.expiry_date || '',
       usage_limit: coupon.usage_limit || 0,
-      is_active: coupon.is_active,
+      status: coupon.status,
     });
     setDialogOpen(true);
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this coupon?')) return;
-    
+
     try {
-      await supabase.from('coupons').delete().eq('id', id);
+      const { error } = await supabase.from('coupons').delete().eq('id', id);
+      if (error) throw error;
       toast.success('Coupon deleted');
       fetchCoupons();
     } catch (error) {
@@ -165,8 +170,8 @@ const AffiliateCoupons = () => {
                 <div className="space-y-2">
                   <Label>Coupon Code</Label>
                   <Input
-                    value={formData.coupon_code}
-                    onChange={(e) => setFormData({ ...formData, coupon_code: e.target.value.toUpperCase() })}
+                    value={formData.code}
+                    onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
                     placeholder="SAVE20"
                     required
                   />
@@ -174,8 +179,8 @@ const AffiliateCoupons = () => {
                 <div className="space-y-2">
                   <Label>Affiliate</Label>
                   <Select
-                    value={formData.affiliate_id}
-                    onValueChange={(value) => setFormData({ ...formData, affiliate_id: value })}
+                    value={formData.affiliate_user_id}
+                    onValueChange={(value) => setFormData({ ...formData, affiliate_user_id: value })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select affiliate" />
@@ -183,7 +188,7 @@ const AffiliateCoupons = () => {
                     <SelectContent>
                       {affiliates.map((aff) => (
                         <SelectItem key={aff.id} value={aff.id}>
-                          {aff.name} ({aff.affiliate_code})
+                          {aff.name} ({aff.referral_code})
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -193,15 +198,15 @@ const AffiliateCoupons = () => {
                   <div className="space-y-2">
                     <Label>Discount Type</Label>
                     <Select
-                      value={formData.discount_type}
-                      onValueChange={(value: any) => setFormData({ ...formData, discount_type: value })}
+                      value={formData.type}
+                      onValueChange={(value: any) => setFormData({ ...formData, type: value })}
                     >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="percentage">Percentage</SelectItem>
-                        <SelectItem value="fixed">Fixed</SelectItem>
+                        <SelectItem value="flat">Fixed (Flat)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -209,8 +214,8 @@ const AffiliateCoupons = () => {
                     <Label>Value</Label>
                     <Input
                       type="number"
-                      value={formData.discount_value}
-                      onChange={(e) => setFormData({ ...formData, discount_value: parseFloat(e.target.value) })}
+                      value={formData.value}
+                      onChange={(e) => setFormData({ ...formData, value: parseFloat(e.target.value) })}
                       required
                     />
                   </div>
@@ -231,6 +236,21 @@ const AffiliateCoupons = () => {
                     onChange={(e) => setFormData({ ...formData, usage_limit: parseInt(e.target.value) })}
                     placeholder="0 = unlimited"
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <Select
+                    value={formData.status}
+                    onValueChange={(value: any) => setFormData({ ...formData, status: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <Button type="submit" className="w-full">
                   {editingCoupon ? 'Update' : 'Create'} Coupon
@@ -259,17 +279,17 @@ const AffiliateCoupons = () => {
                   <TableRow key={coupon.id}>
                     <TableCell>
                       <code className="bg-gray-100 px-2 py-1 rounded">
-                        {coupon.coupon_code}
+                        {coupon.code}
                       </code>
                     </TableCell>
                     <TableCell>{coupon.affiliate?.name || 'N/A'}</TableCell>
                     <TableCell>
-                      {coupon.discount_type === 'percentage'
-                        ? `${coupon.discount_value}%`
-                        : `₹${coupon.discount_value}`}
+                      {coupon.type === 'percentage'
+                        ? `${coupon.value}%`
+                        : `₹${coupon.value}`}
                     </TableCell>
                     <TableCell>
-                      {coupon.times_used} / {coupon.usage_limit || '∞'}
+                      {coupon.total_usage_count} / {coupon.usage_limit || '∞'}
                     </TableCell>
                     <TableCell>
                       {coupon.expiry_date
@@ -277,8 +297,8 @@ const AffiliateCoupons = () => {
                         : 'No expiry'}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={coupon.is_active ? 'default' : 'secondary'}>
-                        {coupon.is_active ? 'Active' : 'Inactive'}
+                      <Badge variant={coupon.status === 'active' ? 'default' : 'secondary'}>
+                        {coupon.status === 'active' ? 'Active' : 'Inactive'}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">

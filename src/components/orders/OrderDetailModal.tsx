@@ -149,14 +149,20 @@ export default function OrderDetailModal({
               <DialogTitle className="text-lg sm:text-xl">
                 Order Details
               </DialogTitle>
+              <div className="sr-only">
+                <DialogHeader>
+                  <DialogTitle>Order Summary</DialogTitle>
+                  <p>Details for order #{order.order_number}</p>
+                </DialogHeader>
+              </div>
               <Badge className={getStatusColor(order.status)}>
                 {getStatusLabel(order.status).toUpperCase()}
               </Badge>
             </div>
-            <p className="text-sm text-muted-foreground">
+            <div className="text-sm text-muted-foreground">
               Order #{order.order_number} • Placed on{' '}
               {format(new Date(order.created_at), 'MMM dd, yyyy')}
-            </p>
+            </div>
           </DialogHeader>
 
           <ScrollArea className="max-h-[calc(90vh-120px)]">

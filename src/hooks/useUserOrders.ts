@@ -196,41 +196,8 @@ export function useUserOrders() {
 
       if (error) throw error;
 
-      // Add status history
-      await supabase.from('order_status_history').insert({
-        order_id: orderId,
-        status: 'delivered',
-        note: 'Delivery confirmed by customer'
-      });
-
-      // Handle loyalty coins award
-      if (orderDetails.total_coins_to_earn > 0) {
-        const { data: existingTx } = await supabase
-          .from('loyalty_transactions')
-          .select('id')
-          .eq('order_id', orderId)
-          .eq('type', 'earn')
-          .maybeSingle();
-
-        if (!existingTx) {
-          // Award coins using RPC
-          await supabase.rpc('add_loyalty_balance', {
-            p_user_id: user?.id,
-            p_amount: orderDetails.total_coins_to_earn
-          });
-
-          await supabase.from('loyalty_transactions').insert({
-            user_id: user?.id,
-            order_id: orderId,
-            coins: orderDetails.total_coins_to_earn,
-            type: 'earn',
-            description: `Earned from Order #${orderDetails.order_number}`,
-            status: 'completed'
-          });
-        }
-      }
-
       toast.success('Thank you for confirming the delivery!');
+
       await fetchOrders();
       return true;
     } catch (err: any) {

@@ -163,14 +163,14 @@ export type ProductOffer = {
 
 export type AffiliateCoupon = {
   id: string;
-  coupon_code: string;
-  discount_type: 'percentage' | 'fixed';
-  discount_value: number;
-  affiliate_id?: string;
+  code: string;
+  type: 'percentage' | 'flat';
+  value: number;
+  affiliate_user_id?: string;
   expiry_date?: string;
   usage_limit?: number;
-  times_used: number;
-  is_active: boolean;
+  total_usage_count: number;
+  status: 'active' | 'inactive';
   created_at: string;
   // Relations
   affiliate?: {
@@ -195,7 +195,7 @@ export type Order = {
   shipping_cost: number;
   discount_amount: number;
   total_amount: number;
-  status: 'pending' | 'confirmed' | 'processing' | 'packed' | 'shipped' | 'out_for_delivery' | 'delivered' | 'cancelled' | 'returned';
+  status: 'placed' | 'confirmed' | 'processing' | 'packed' | 'shipped' | 'out_for_delivery' | 'delivered' | 'cancelled' | 'returned';
   payment_status: 'pending' | 'paid' | 'partially_paid' | 'failed' | 'refunded';
   payment_method: 'cod';
   created_at: string;
@@ -211,6 +211,8 @@ export type Order = {
   shipping_partner?: string;
   shipped_at?: string;
   shipping_charge?: number;
+  confirmed_at?: string;
+  packed_at?: string;
   order_status?: string; // For compatibility with user's new column
   // Relations
   order_items?: OrderItem[];
