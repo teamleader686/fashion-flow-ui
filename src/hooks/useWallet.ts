@@ -8,7 +8,7 @@ export interface WalletTransaction {
   id: string;
   user_id: string;
   order_id: string | null;
-  type: 'earn' | 'redeem' | 'refund' | 'admin_adjust' | 'affiliate_credit' | 'promotional';
+  type: 'earn' | 'redeem' | 'refund' | 'admin_adjust' | 'affiliate_credit' | 'promotional' | 'deduct' | 'penalty' | 'credit';
   coins: number;
   amount: number;
   wallet_type: string;

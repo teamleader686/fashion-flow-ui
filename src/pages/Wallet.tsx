@@ -204,13 +204,18 @@ const Wallet = () => {
                                         <Card key={tx.id} className="overflow-hidden shadow-sm hover:shadow-md transition-shadow group">
                                             <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                                                 <div className="flex items-center gap-4">
-                                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 ${tx.type === 'earn' || (tx.type === 'admin_adjust' && tx.coins > 0) || tx.type === 'refund'
+                                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 ${['earn', 'credit', 'refund'].includes(tx.type) || (tx.type === 'admin_adjust' && tx.coins > 0)
                                                             ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'
-                                                            : 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400'
+                                                            : tx.type === 'penalty' || tx.type === 'deduct'
+                                                                ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
+                                                                : 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400'
                                                         }`}>
                                                         {tx.type === 'earn' ? <ShoppingBag size={22} /> :
                                                             tx.type === 'redeem' ? <TrendingDown size={22} /> :
-                                                                tx.type === 'refund' ? <RefreshCw size={22} /> : <Gift size={22} />}
+                                                                tx.type === 'deduct' ? <TrendingDown size={22} /> :
+                                                                    tx.type === 'penalty' ? <AlertCircle size={22} /> :
+                                                                        tx.type === 'credit' ? <WalletIcon size={22} /> :
+                                                                            tx.type === 'refund' ? <RefreshCw size={22} /> : <Gift size={22} />}
                                                     </div>
                                                     <div className="space-y-0.5">
                                                         <h3 className="font-bold flex items-center gap-2 capitalize">
@@ -235,11 +240,17 @@ const Wallet = () => {
                                                     </div>
                                                 </div>
                                                 <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-1">
-                                                    <div className={`text-2xl font-black ${tx.type === 'earn' || (tx.type === 'admin_adjust' && tx.coins > 0) || tx.type === 'refund'
+                                                    <div className={`text-2xl font-black ${['earn', 'credit', 'refund'].includes(tx.type) || (tx.type === 'admin_adjust' && tx.coins > 0)
                                                             ? 'text-green-600 dark:text-green-400'
-                                                            : 'text-amber-600 dark:text-amber-400'
+                                                            : tx.type === 'penalty' || tx.type === 'deduct'
+                                                                ? 'text-red-600 dark:text-red-400'
+                                                                : 'text-amber-600 dark:text-amber-400'
                                                         }`}>
-                                                        {tx.coins > 0 ? '+' : ''}{tx.coins}
+                                                        {tx.type === 'credit' ? (
+                                                            <span>+₹{tx.amount}</span>
+                                                        ) : (
+                                                            <span>{tx.coins > 0 ? '+' : ''}{tx.coins}</span>
+                                                        )}
                                                     </div>
                                                     <Badge variant="outline" className="text-[10px] uppercase tracking-wider font-bold">
                                                         {tx.status}

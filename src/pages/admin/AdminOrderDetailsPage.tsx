@@ -11,6 +11,7 @@ import ShippingTracker from '@/components/orders/ShippingTracker';
 import { ArrowLeft, Package, MapPin, CreditCard, Phone, Mail, User } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import AdminLayout from '@/components/admin/AdminLayout';
+import OrderRefundManager from '@/components/admin/OrderRefundManager';
 
 export default function AdminOrderDetailsPage() {
   const { orderId } = useParams<{ orderId: string }>();
@@ -118,8 +119,8 @@ export default function AdminOrderDetailsPage() {
                           Quantity: {item.quantity}
                         </p>
                         <p className="text-sm font-medium mt-1">
-                          ₹{item.price.toLocaleString('en-IN')} × {item.quantity} = ₹
-                          {item.total.toLocaleString('en-IN')}
+                          ₹{item.unit_price.toLocaleString('en-IN')} × {item.quantity} = ₹
+                          {item.total_price.toLocaleString('en-IN')}
                         </p>
                       </div>
                     </div>
@@ -178,7 +179,6 @@ export default function AdminOrderDetailsPage() {
                 <CardContent>
                   <p className="text-sm">
                     {order.shipping_address_line1}
-                    {order.shipping_address_line2 && `, ${order.shipping_address_line2}`}
                     <br />
                     {order.shipping_city}, {order.shipping_state} - {order.shipping_zip}
                   </p>
@@ -220,6 +220,9 @@ export default function AdminOrderDetailsPage() {
 
           {/* Sidebar - Management Tools */}
           <div className="space-y-6">
+            {/* Refund & Return Manager */}
+            <OrderRefundManager order={order} onUpdate={loadOrder} />
+
             {/* Order Status Manager */}
             <OrderStatusManager order={order} />
 
