@@ -30,7 +30,9 @@ export default function OfferFormDialog({ open, onClose, offer }: Props) {
     priority: 1,
     stock_limit: null,
     product_ids: [],
-    category_ids: []
+    category_ids: [],
+    max_usage: null,
+    usage_per_user: 1
   });
 
   useEffect(() => {
@@ -50,7 +52,9 @@ export default function OfferFormDialog({ open, onClose, offer }: Props) {
         priority: offer.priority,
         stock_limit: offer.stock_limit,
         product_ids: [],
-        category_ids: []
+        category_ids: [],
+        max_usage: (offer as any).max_usage || null,
+        usage_per_user: (offer as any).usage_per_user || 1
       });
     } else {
       setFormData({
@@ -68,7 +72,9 @@ export default function OfferFormDialog({ open, onClose, offer }: Props) {
         priority: 1,
         stock_limit: null,
         product_ids: [],
-        category_ids: []
+        category_ids: [],
+        max_usage: null,
+        usage_per_user: 1
       });
     }
   }, [offer, open]);
@@ -173,9 +179,9 @@ export default function OfferFormDialog({ open, onClose, offer }: Props) {
                   type="number"
                   step="0.01"
                   value={formData.max_discount || ''}
-                  onChange={(e) => setFormData({ 
-                    ...formData, 
-                    max_discount: e.target.value ? parseFloat(e.target.value) : null 
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    max_discount: e.target.value ? parseFloat(e.target.value) : null
                   })}
                   placeholder="Optional"
                 />
@@ -269,20 +275,69 @@ export default function OfferFormDialog({ open, onClose, offer }: Props) {
             </div>
           </div>
 
+          {/* Usage Limits */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="max_usage">Total Usage Limit</Label>
+              <Input
+                id="max_usage"
+                type="number"
+                value={formData.max_usage || ''}
+                onChange={(e) => setFormData({
+                  ...formData,
+                  max_usage: e.target.value ? parseInt(e.target.value) : null
+                })}
+                placeholder="No limit"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="usage_per_user">Limit Per User</Label>
+              <Input
+                id="usage_per_user"
+                type="number"
+                value={formData.usage_per_user || ''}
+                onChange={(e) => setFormData({
+                  ...formData,
+                  usage_per_user: e.target.value ? parseInt(e.target.value) : null
+                })}
+                placeholder="1"
+              />
+            </div>
+          </div>
+
           {/* Flash Sale Stock */}
           {formData.type === 'flash_sale' && (
             <div>
-              <Label htmlFor="stock_limit">Stock Limit</Label>
+              <Label htmlFor="stock_limit">Flash Sale Stock</Label>
               <Input
                 id="stock_limit"
                 type="number"
                 value={formData.stock_limit || ''}
-                onChange={(e) => setFormData({ 
-                  ...formData, 
-                  stock_limit: e.target.value ? parseInt(e.target.value) : null 
+                onChange={(e) => setFormData({
+                  ...formData,
+                  stock_limit: e.target.value ? parseInt(e.target.value) : null
                 })}
-                placeholder="Limited stock for flash sale"
+                placeholder="Limited stock"
               />
+            </div>
+          )}
+
+          {/* Analytics Display (Read-only) */}
+          {offer && (
+            <div className="bg-gray-50 p-4 rounded-lg grid grid-cols-3 gap-4 text-center">
+              <div>
+                <p className="text-[10px] text-gray-500 uppercase font-bold">Views</p>
+                <p className="text-lg font-bold text-blue-600">{(offer as any).views_count || 0}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-gray-500 uppercase font-bold">Clicks</p>
+                <p className="text-lg font-bold text-orange-600">{(offer as any).clicks_count || 0}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-gray-500 uppercase font-bold">Conversions</p>
+                <p className="text-lg font-bold text-green-600">{(offer as any).conversions_count || 0}</p>
+              </div>
             </div>
           )}
 

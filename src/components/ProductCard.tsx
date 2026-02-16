@@ -5,6 +5,8 @@ import { useCart } from "@/contexts/CartContext";
 import { motion } from "framer-motion";
 import ProductShare from "./ProductShare";
 import CloudImage from "@/components/ui/CloudImage";
+import { useCalculateOfferPrice } from "@/hooks/useOffers";
+import { Badge } from "@/components/ui/badge";
 
 interface ProductCardProps {
   product: Product;
@@ -14,6 +16,17 @@ const ProductCard = ({ product }: ProductCardProps) => {
   const navigate = useNavigate();
   const { wishlist, toggleWishlist } = useCart();
   const isWishlisted = wishlist.includes(product.id);
+  const {
+    offer_price,
+    original_price,
+    discount_percentage,
+    has_offer,
+    offer
+  } = useCalculateOfferPrice(product.price, product.id);
+
+  const displayPrice = has_offer ? offer_price : product.price;
+  const oldPrice = has_offer ? original_price : (product.originalPrice || 0);
+  const discount = has_offer ? discount_percentage : (product.discount || 0);
 
   const handleCardClick = () => {
     navigate(`/product/${product.slug}`);
@@ -47,7 +60,18 @@ const ProductCard = ({ product }: ProductCardProps) => {
         />
 
         {/* Discount Badge */}
-        {product.discount > 0 && (
+        {/* Dynamic Offer Badge */}
+        {has_offer && offer && (
+          <div
+            className="absolute top-3 left-3 text-white text-[10px] font-bold px-2 py-1 rounded-lg shadow-lg"
+            style={{ backgroundColor: offer.badge_color || '#db2777' }}
+          >
+            {offer.badge_text || (offer.type === 'bogo' ? 'BOGO' : `${Math.round(discount)}% OFF`)}
+          </div>
+        )}
+
+        {/* Fallback Static Discount Badge (if no dynamic offer) */}
+        {!has_offer && product.discount > 0 && (
           <div className="absolute top-3 left-3 bg-pink-600 text-white text-[10px] font-bold px-2 py-1 rounded-lg shadow-lg">
             {product.discount}% OFF
           </div>
@@ -64,11 +88,11 @@ const ProductCard = ({ product }: ProductCardProps) => {
         {/* Price Section */}
         <div className="flex items-center gap-2 mb-1">
           <span className="text-base font-bold text-gray-900">
-            ₹{product.price.toLocaleString()}
+            ₹{displayPrice.toLocaleString()}
           </span>
-          {product.originalPrice > product.price && (
+          {oldPrice > displayPrice && (
             <span className="text-[11px] text-gray-400 line-through">
-              ₹{product.originalPrice.toLocaleString()}
+              ₹{oldPrice.toLocaleString()}
             </span>
           )}
           <span className="text-[10px] ml-auto font-medium text-gray-500 bg-gray-50 px-1.5 py-0.5 rounded">

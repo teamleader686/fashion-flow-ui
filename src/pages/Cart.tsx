@@ -95,15 +95,32 @@ const Cart = () => {
                       <span>{item.coinPrice?.toLocaleString()} Coins</span>
                     </div>
                   ) : (
-                    <div className="flex items-baseline gap-2 mt-1">
-                      <span className="font-bold">₹{item.product.price.toLocaleString()}</span>
-                      <span className="text-original-price text-xs">₹{item.product.originalPrice.toLocaleString()}</span>
-                      <span className="text-discount text-xs font-semibold">{item.product.discount}% off</span>
-                      {item.product.shippingCharge > 0 && (
-                        <span className="text-[10px] text-muted-foreground ml-2">
-                          + ₹{item.product.shippingCharge} shipping
+                    <div className="flex flex-col mt-1">
+                      <div className="flex items-baseline gap-2">
+                        <span className="font-bold">
+                          ₹{item.offer?.type === 'bogo'
+                            ? (item.product.price * (item.quantity - Math.floor(item.quantity / 2))).toLocaleString()
+                            : ((item.offerPrice || item.product.price) * item.quantity).toLocaleString()
+                          }
                         </span>
-                      )}
+                        {(item.offerPrice < item.product.price || item.offer?.type === 'bogo') && (
+                          <span className="text-original-price text-xs line-through">
+                            ₹{(item.product.price * item.quantity).toLocaleString()}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {item.offer && (
+                          <span className="text-[10px] font-bold text-pink-600 bg-pink-50 px-1.5 py-0.5 rounded border border-pink-100">
+                            {item.offer.type === 'bogo' ? 'BOGO ACTIVE' : item.offer.badge_text}
+                          </span>
+                        )}
+                        {item.product.shippingCharge > 0 && (
+                          <span className="text-[10px] text-muted-foreground">
+                            + ₹{item.product.shippingCharge} shipping
+                          </span>
+                        )}
+                      </div>
                     </div>
                   )}
 

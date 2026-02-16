@@ -8,11 +8,13 @@ export interface CartItem {
   selectedColor: string;
   isCoinItem?: boolean;
   coinPrice?: number;
+  offer?: any;
+  offerPrice?: number;
 }
 
 interface CartContextType {
   items: CartItem[];
-  addItem: (product: Product, size: string, color: string, isCoinItem?: boolean) => void;
+  addItem: (product: Product, size: string, color: string, isCoinItem?: boolean, offer?: any) => void;
   removeItem: (productId: string, size?: string, color?: string, isCoinItem?: boolean) => void;
   updateQuantity: (productId: string, qty: number, size?: string, color?: string, isCoinItem?: boolean) => void;
   clearCart: () => void;
@@ -32,7 +34,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [items, setItems] = useState<CartItem[]>([]);
   const { wishlist, toggleWishlist, loading: wishlistLoading } = useWishlist();
 
-  const addItem = useCallback((product: Product, selectedSize: string, selectedColor: string, isCoinItem: boolean = false) => {
+  const addItem = useCallback((product: Product, selectedSize: string, selectedColor: string, isCoinItem: boolean = false, offer: any = null) => {
     setItems((prev) => {
       const existing = prev.find((i) =>
         i.product.id === product.id &&
@@ -57,7 +59,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         selectedSize,
         selectedColor,
         isCoinItem,
-        coinPrice: isCoinItem ? (product.loyaltyPrice || 0) : undefined
+        coinPrice: isCoinItem ? (product.loyaltyPrice || 0) : undefined,
+        offer: offer,
+        offerPrice: offer ? offer.final_price : product.price
       }];
     });
   }, []);
@@ -99,7 +103,25 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const clearCart = useCallback(() => setItems([]), []);
 
   const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
-  const totalPrice = items.reduce((sum, i) => sum + (i.isCoinItem ? 0 : i.product.price * i.quantity), 0);
+
+  const totalPrice = items.reduce((sum, i) => {
+    if (i.isCoinItem) return sum;
+
+    // Handle BOGO
+    if (i.offer?.type === 'bogo') {
+      const freeItems = Math.floor(i.quantity / 2);
+      const paidItems = i.quantity - freeItems;
+      return sum + (paidItems * i.product.price);
+    }
+
+    // Handle other offers
+    if (i.offerPrice !== undefined) {
+      return sum + (i.offerPrice * i.quantity);
+    }
+
+    return sum + (i.product.price * i.quantity);
+  }, 0);
+
   const totalCoinsRequired = items.reduce((sum, i) => sum + (i.isCoinItem && i.coinPrice ? i.coinPrice * i.quantity : 0), 0);
   // Calculate unique products shipping charge sum - once per product type
   const totalShippingCost = items.reduce((sum, i) => {

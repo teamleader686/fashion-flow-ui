@@ -44,6 +44,7 @@ interface OrderData {
     quantity: number;
     unit_price: number;
     total_price: number;
+    offer_id?: string;
   }>;
 }
 
@@ -248,6 +249,31 @@ export const useOrderPlacement = () => {
       localStorage.removeItem('affiliate_ref_product_id');
       localStorage.removeItem('campaign_code');
       localStorage.removeItem('campaign_time');
+
+      // ============================================
+      // STEP 4.7: RECORD OFFER USAGES & CONVERSIONS
+      // ============================================
+      for (const item of orderData.items) {
+        if (item.offer_id) {
+          try {
+            // Record usage
+            await supabase.from('offer_usages').insert({
+              offer_id: item.offer_id,
+              user_id: user?.id || '00000000-0000-0000-0000-000000000000',
+              order_id: order.id
+            });
+
+            // Increment conversions & used_count
+            await supabase.rpc('track_offer_interaction', {
+              p_offer_id: item.offer_id,
+              p_interaction_type: 'conversion'
+            });
+
+          } catch (offerErr) {
+            console.error('[Order] Offer tracking error:', offerErr);
+          }
+        }
+      }
 
       toast.success('Order placed successfully!');
       return order.order_number;

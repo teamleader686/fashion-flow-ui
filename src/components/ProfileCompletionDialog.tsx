@@ -120,6 +120,7 @@ export default function ProfileCompletionDialog({
             console.log('Saving profile for user:', user.id);
 
             // 1. Update 'users' table (Main requested table)
+            // Using is_profile_complete as requested in Step 1 & 2
             const { error: userError } = await supabase
                 .from('users')
                 .update({
@@ -129,7 +130,8 @@ export default function ProfileCompletionDialog({
                     date_of_birth: dateStr,
                     anniversary_date: annivStr,
                     gender: gender || null,
-                    profile_completed: true
+                    is_profile_complete: true, // New field per user request
+                    profile_completed: true   // Keep for backward compatibility
                 })
                 .eq('id', user.id);
 
@@ -153,12 +155,15 @@ export default function ProfileCompletionDialog({
 
             if (profileError) throw profileError;
 
+            // 3. Update Local Storage (Step 3)
+            localStorage.setItem("profile_complete", "true");
+
             toast.success('Profile completed successfully! 🎉');
 
             // 🎯 Critical Fix: Stop loading and close dialog BEFORE triggering reload
             onOpenChange(false);
 
-            // Give the UI time to close the dialog and show toast before reload
+            // Give the UI time to close the dialog and show toast before callback
             if (onComplete) {
                 setTimeout(() => {
                     onComplete();

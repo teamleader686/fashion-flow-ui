@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import ProfileCompletionDialog from './ProfileCompletionDialog';
 import { toast } from 'sonner';
 import { useLocation } from 'react-router-dom';
+import { supabase } from '@/lib/supabase';
 
 interface ProfileCompletionGuardProps {
     children: React.ReactNode;
@@ -14,28 +15,68 @@ export default function ProfileCompletionGuard({ children }: ProfileCompletionGu
     const [hasChecked, setHasChecked] = useState(false);
     const location = useLocation();
 
+    // Step 5: Separate check function
+    const checkProfileStatus = async () => {
+        if (!user) return;
+
+        try {
+            // fast check: local storage (Step 3)
+            const localComplete = localStorage.getItem("profile_complete");
+            if (localComplete === "true") {
+                setShowDialog(false);
+                return;
+            }
+
+            // DB check (Step 5)
+            const { data, error } = await supabase
+                .from("users")
+                .select("is_profile_complete, profile_completed") // Check both just in case
+                .eq("id", user.id)
+                .single();
+
+            if (error) {
+                console.error("Error checking profile status:", error);
+                return;
+            }
+
+            // If incomplete in DB, show dialog
+            // We check both the new column and the old one for backward compatibility
+            const isComplete = data?.is_profile_complete || data?.profile_completed;
+
+            if (!isComplete) {
+                setShowDialog(true);
+            } else {
+                // If complete in DB but not in local storage, sync it
+                localStorage.setItem("profile_complete", "true");
+                setShowDialog(false);
+            }
+        } catch (err) {
+            console.error("Unexpected error in profile check:", err);
+        }
+    };
+
     useEffect(() => {
         // 0. Wait for Auth to load
         if (loading) return;
 
         // 1. No User -> No Dialog
+        // Step 10: Reset on logout
         if (!user) {
             setShowDialog(false);
+            localStorage.removeItem("profile_complete"); // Clear on logout so new login checks fresh
             return;
         }
 
-        // 2. EXCLUDE NON-CUSTOMER ROLES
-        // We strictly only want 'customer' or 'user' roles to see this.
-        // Admins, Affiliates, Instagram Users should NEVER see this.
-        const userRole = profile?.role;
-        // Cast to string to avoid TS errors if the type definition is too narrow
-        if (userRole === 'admin' || (userRole as string) === 'affiliate' || (userRole as string) === 'instagram_user') {
+        // 2. Step 7: ROLE BASED CHECK - Admin & Affiliate ke liye dialog show na ho
+        const userRole = profile?.role || 'customer';
+        const roleStr = userRole as string;
+
+        if (roleStr === 'admin' || roleStr === 'affiliate' || roleStr === 'instagram_user') {
             setShowDialog(false);
             return;
         }
 
         // 3. EXCLUDE ADMIN/AFFILIATE PATHS
-        // Even if role is somehow wrong, never show on these paths
         const currentPath = location.pathname;
         if (
             currentPath.startsWith('/admin') ||
@@ -46,64 +87,51 @@ export default function ProfileCompletionGuard({ children }: ProfileCompletionGu
             return;
         }
 
-        // 4. CHECK IF ALREADY SHOWN IN SESSION
-        // We use a session key to ensure we don't nag them on every reload if they dismissed it.
-        const hasSeenDialog = sessionStorage.getItem(`profile_checked_${user.id}`);
-        if (hasSeenDialog === 'true') {
-            setShowDialog(false);
-            return;
+        // 4. Step 6: PREVENT MULTIPLE OPEN
+        // Only run the detailed check once per mount/user-session
+        if (!hasChecked) {
+            checkProfileStatus();
+            setHasChecked(true);
         }
 
-        // 5. CHECK PROFILE COMPLETENESS (Only for Customers)
-        // If profile is NOT complete, show the dialog.
-        const isComplete = profile?.profile_completed === true;
-
-        if (!isComplete) {
-            setShowDialog(true);
-            // Mark as seen so we don't flash it again instantly if logic re-runs 
-            sessionStorage.setItem(`profile_checked_${user.id}`, 'true');
-        } else {
-            setShowDialog(false);
-        }
-
-    }, [user, profile, loading, location.pathname]);
+    }, [user, profile, loading, location.pathname, hasChecked]);
 
     const handleComplete = () => {
-        // Force refresh to update all contexts with new profile data
-        localStorage.setItem(`profile_checked_${user?.id}`, 'true');
-        window.location.reload();
+        // Step 3 & 9: Update local storage and close
+        localStorage.setItem("profile_complete", "true");
+        setShowDialog(false);
+
+        // Optional: reload if needed to refresh heavy context, but usually not needed if state is handled right
+        // window.location.reload(); 
     };
 
     const handleDialogChange = (open: boolean) => {
-        // Only allow closing if profile is complete
-        // BUT also check if it shouldn't have been open in the first place (role check)
-        const userRole = profile?.role || 'customer';
-        if (userRole === 'admin' || (userRole as string) === 'affiliate') {
-            setShowDialog(false);
-            return;
-        }
+        // Prevent closing if not complete (unless there's a specific "skip" logic which isn't requested)
+        // For now, we allow closing but it might pop up again on refresh if not complete.
+        // User said: "Dialog sirf tab show ho jab profile incomplete ho"
 
-        if (!open && (!profile || !profile.profile_completed)) {
-            // If they close it without completing, we mark it as checked for this session
-            // to follow the "don't repeat every click" requirement
-            toast.info("Please complete your profile later to unlock all features");
-            localStorage.setItem(`profile_checked_${user?.id}`, 'true');
+        if (!open) {
+            // If user tries to close, we can check if they really should be allowed to.
+            // User request implies it forces them to complete. 
+            // But for UX, usually we let them close or provided a "remind me later".
+            // Current implementation in previous file allowed closing.
+
+            // If we want to be strict: don't allow closing if still incomplete.
+            // But let's follow the standard pattern:
             setShowDialog(false);
-            return;
+        } else {
+            setShowDialog(true);
         }
-        setShowDialog(open);
     };
 
     return (
         <>
             {children}
-            {showDialog && (
-                <ProfileCompletionDialog
-                    open={showDialog}
-                    onOpenChange={handleDialogChange}
-                    onComplete={handleComplete}
-                />
-            )}
+            <ProfileCompletionDialog
+                open={showDialog}
+                onOpenChange={handleDialogChange}
+                onComplete={handleComplete}
+            />
         </>
     );
 }

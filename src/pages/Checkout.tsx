@@ -109,7 +109,10 @@ const Checkout = () => {
   const [expandedSection, setExpandedSection] = useState<string>("address");
 
   // Calculations
-  const subtotal = totalPrice;
+  const subtotalWithOffers = totalPrice;
+  const subtotalWithoutOffers = items.reduce((sum, i) => sum + (i.isCoinItem ? 0 : i.product.price * i.quantity), 0);
+
+  const subtotal = appliedCoupon ? subtotalWithoutOffers : subtotalWithOffers;
   const shipping = subtotal >= 999 ? 0 : totalShippingCost;
 
   const couponDiscount = useMemo(() => {
@@ -225,7 +228,7 @@ const Checkout = () => {
       const result = await validateCoupon(
         code,
         user?.id || "",
-        subtotal,
+        subtotalWithoutOffers, // Use base price for coupon validation
         items.map(i => i.product.id),
         [] // No other coupons since we only allow one
       );
@@ -304,8 +307,9 @@ const Checkout = () => {
         size: item.selectedSize,
         color: item.selectedColor,
         quantity: item.quantity,
-        unit_price: item.isCoinItem ? 0 : item.product.price,
-        total_price: item.isCoinItem ? 0 : (item.product.price * item.quantity),
+        unit_price: item.isCoinItem ? 0 : (appliedCoupon ? item.product.price : (item.offerPrice || item.product.price)),
+        total_price: item.isCoinItem ? 0 : ((appliedCoupon ? item.product.price : (item.offerPrice || item.product.price)) * item.quantity),
+        offer_id: appliedCoupon ? undefined : item.offer?.offer_id,
         metadata: item.isCoinItem ? { paid_with_coins: true, coins_price: item.coinPrice } : undefined,
       })),
     };
@@ -767,7 +771,15 @@ const Checkout = () => {
                           {(item.coinPrice || 0) * item.quantity}
                         </span>
                       ) : (
-                        `₹${(item.product.price * item.quantity).toLocaleString()}`
+                        item.offer?.type === 'bogo' && !appliedCoupon ? (
+                          <div className="text-right">
+                            <div className="text-[10px] text-discount font-bold">BOGO Active</div>
+                            <div className="line-through text-gray-400 text-[10px]">₹{(item.product.price * item.quantity).toLocaleString()}</div>
+                            <div>₹{(item.product.price * (item.quantity - Math.floor(item.quantity / 2))).toLocaleString()}</div>
+                          </div>
+                        ) : (
+                          `₹${((appliedCoupon ? item.product.price : (item.offerPrice || item.product.price)) * item.quantity).toLocaleString()}`
+                        )
                       )}
                     </span>
                   </div>

@@ -10,6 +10,9 @@ export function useOffers() {
   const fetchOffers = async () => {
     try {
       setLoading(true);
+      // Auto-update statuses before fetching
+      await supabase.rpc('update_offer_statuses');
+
       const { data, error } = await supabase
         .from('offers')
         .select('*')
@@ -116,7 +119,7 @@ export function useOffers() {
     if (offerData.product_ids !== undefined) {
       // Delete existing
       await supabase.from('offer_products').delete().eq('offer_id', id);
-      
+
       // Insert new
       if (offerData.product_ids.length > 0) {
         const productMappings = offerData.product_ids.map(productId => ({
@@ -131,7 +134,7 @@ export function useOffers() {
     if (offerData.category_ids !== undefined) {
       // Delete existing
       await supabase.from('offer_categories').delete().eq('offer_id', id);
-      
+
       // Insert new
       if (offerData.category_ids.length > 0) {
         const categoryMappings = offerData.category_ids.map(categoryId => ({
@@ -169,11 +172,21 @@ export function useOffers() {
     updateOffer,
     deleteOffer,
     toggleOfferStatus,
-    refetch: fetchOffers
+    refetch: fetchOffers,
+    trackInteraction: async (offerId: string, type: 'view' | 'click' | 'conversion') => {
+      try {
+        await supabase.rpc('track_offer_interaction', {
+          p_offer_id: offerId,
+          p_interaction_type: type
+        });
+      } catch (err) {
+        console.error('Error tracking offer interaction:', err);
+      }
+    }
   };
 }
 
-export function useProductOffer(productId: string, categoryId?: string) {
+export function useProductOffer(productId: string, originalPrice: number = 0, categoryId?: string) {
   const [offer, setOffer] = useState<ProductOffer | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -181,9 +194,13 @@ export function useProductOffer(productId: string, categoryId?: string) {
     const fetchProductOffer = async () => {
       try {
         setLoading(true);
+        const { data: userData } = await supabase.auth.getUser();
+
         const { data, error } = await supabase.rpc('get_product_offer', {
           p_product_id: productId,
-          p_category_id: categoryId || null
+          p_category_id: categoryId || null,
+          p_original_price: originalPrice,
+          p_user_id: userData.user?.id || null
         });
 
         if (error) throw error;
@@ -199,7 +216,7 @@ export function useProductOffer(productId: string, categoryId?: string) {
     if (productId) {
       fetchProductOffer();
     }
-  }, [productId, categoryId]);
+  }, [productId, categoryId, originalPrice]);
 
   return { offer, loading };
 }
@@ -209,7 +226,7 @@ export function useCalculateOfferPrice(
   productId: string,
   categoryId?: string
 ): OfferPrice {
-  const { offer, loading } = useProductOffer(productId, categoryId);
+  const { offer, loading } = useProductOffer(productId, originalPrice, categoryId);
 
   if (loading || !offer) {
     return {
@@ -221,20 +238,9 @@ export function useCalculateOfferPrice(
     };
   }
 
-  let discountAmount = 0;
-
-  if (offer.type === 'flat') {
-    discountAmount = Math.min(offer.discount_value, originalPrice);
-  } else if (offer.type === 'percentage') {
-    discountAmount = (originalPrice * offer.discount_value) / 100;
-    if (offer.max_discount) {
-      discountAmount = Math.min(discountAmount, offer.max_discount);
-    }
-  } else if (offer.type === 'bogo') {
-    discountAmount = originalPrice / 2;
-  }
-
-  const offerPrice = Math.max(originalPrice - discountAmount, 0);
+  // Use backend calculated values for consistency
+  const offerPrice = offer.final_price;
+  const discountAmount = offer.discount_amount;
   const discountPercentage = originalPrice > 0 ? (discountAmount / originalPrice) * 100 : 0;
 
   return {

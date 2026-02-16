@@ -16,6 +16,7 @@ import { supabase } from "@/lib/supabase";
 import CloudImage from "@/components/ui/CloudImage";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LazySection } from "@/components/layout/LazySection";
+import { useCalculateOfferPrice, useOffers } from "@/hooks/useOffers";
 
 const ProductDetail = () => {
   const { slug } = useParams();
@@ -34,6 +35,7 @@ const ProductDetail = () => {
   const [selectedImage, setSelectedImage] = useState<string>("");
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false });
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const { trackInteraction } = useOffers();
 
   // Derive product from context or fetched state
   const product = products.find((p) => p.slug === slug) || fetchedProduct;
@@ -213,6 +215,25 @@ const ProductDetail = () => {
     fetchBalance();
   }, [user]);
 
+  const {
+    offer_price,
+    original_price,
+    discount_percentage,
+    has_offer,
+    offer
+  } = useCalculateOfferPrice(product?.price || 0, product?.id || "");
+
+  // Track offer view
+  useEffect(() => {
+    if (has_offer && offer) {
+      trackInteraction(offer.offer_id, 'view');
+    }
+  }, [has_offer, offer?.offer_id]);
+
+  const displayPrice = has_offer ? offer_price : (product?.price || 0);
+  const oldPrice = has_offer ? original_price : (product?.originalPrice || 0);
+  const discount = has_offer ? discount_percentage : (product?.discount || 0);
+
   if (loading || isFetchingProduct) {
     return (
       <Layout>
@@ -257,7 +278,7 @@ const ProductDetail = () => {
       }
     }
 
-    addItem(product, selectedSize, selectedColor || (product.colors[0]?.name || ""), purchaseMode === 'coins');
+    addItem(product, selectedSize, selectedColor || (product.colors[0]?.name || ""), purchaseMode === 'coins', offer);
     toast.success(purchaseMode === 'coins' ? "Added to cart with Coin payment!" : "Added to cart!");
   };
 
@@ -373,13 +394,36 @@ const ProductDetail = () => {
               {purchaseMode === 'money' ? (
                 <>
                   <div className="flex items-baseline gap-3">
-                    <span className="text-2xl font-bold">₹{product.price.toLocaleString()}</span>
-                    <span className="text-original-price text-base">₹{product.originalPrice.toLocaleString()}</span>
-                    <span className="text-discount font-semibold">{product.discount}% off</span>
+                    <span className="text-3xl font-bold">₹{displayPrice.toLocaleString()}</span>
+                    {oldPrice > displayPrice && (
+                      <span className="text-original-price text-lg line-through">₹{oldPrice.toLocaleString()}</span>
+                    )}
+                    {discount > 0 && (
+                      <span className="text-discount font-bold text-lg text-pink-600">
+                        {Math.round(discount)}% off
+                      </span>
+                    )}
                   </div>
-                  <span className="inline-flex items-center gap-1 text-xs font-medium bg-best-price-bg text-best-price-text px-2.5 py-1 rounded-full">
-                    ✨ Best Price ₹{product.bestPrice.toLocaleString()}
-                  </span>
+                  {has_offer && offer && (
+                    <div className="flex items-center gap-2 mt-1">
+                      <span
+                        className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full text-white shadow-sm"
+                        style={{ backgroundColor: offer.badge_color || '#db2777' }}
+                      >
+                        {offer.badge_text || 'Special Offer'}
+                      </span>
+                      {offer.type === 'flash_sale' && offer.stock_remaining !== null && (
+                        <span className="text-[11px] font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-100">
+                          🔥 Only {offer.stock_remaining} left!
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {product.bestPrice && !has_offer && (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium bg-best-price-bg text-best-price-text px-2.5 py-1 rounded-full">
+                      ✨ Best Price ₹{product.bestPrice.toLocaleString()}
+                    </span>
+                  )}
                   <div className="flex items-center gap-1.5 mt-2">
                     <Truck className="h-4 w-4 text-green-600" />
                     <span className="text-sm font-medium text-green-700">

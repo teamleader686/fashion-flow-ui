@@ -110,6 +110,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           date_of_birth: userDBData?.date_of_birth || profileData?.date_of_birth,
           anniversary_date: userDBData?.anniversary_date || profileData?.anniversary_date,
           profile_completed: userDBData?.profile_completed ?? profileData?.profile_completed ?? false,
+          is_profile_complete: userDBData?.is_profile_complete ?? profileData?.is_profile_complete ?? false,
           loyalty_coins_balance: profileData?.loyalty_coins_balance || 0,
           created_at: userDBData?.created_at || profileData?.created_at || '',
           updated_at: profileData?.updated_at || '',

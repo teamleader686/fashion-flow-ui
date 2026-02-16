@@ -28,6 +28,7 @@ export type UserProfile = {
   date_of_birth?: string;
   anniversary_date?: string;
   profile_completed?: boolean;
+  is_profile_complete?: boolean; // Added for robust tracking
   loyalty_coins_balance?: number;
   referred_by_affiliate?: string;
   created_at: string;
@@ -45,6 +46,7 @@ export type UserDB = {
   anniversary_date?: string;
   gender?: string;
   profile_completed: boolean;
+  is_profile_complete: boolean; // Added for robust tracking
   created_at: string;
 };
 

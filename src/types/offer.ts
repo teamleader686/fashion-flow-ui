@@ -70,6 +70,8 @@ export interface OfferFormData {
   stock_limit: number | null;
   product_ids: string[];
   category_ids: string[];
+  max_usage: number | null;
+  usage_per_user: number | null;
 }
 
 export interface ProductOffer {
@@ -83,6 +85,9 @@ export interface ProductOffer {
   end_datetime: string;
   stock_remaining: number | null;
   priority: number;
+  final_price: number;
+  discount_amount: number;
+  scope_priority: number;
 }
 
 export interface OfferPrice {
