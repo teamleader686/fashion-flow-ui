@@ -126,7 +126,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
 
         // Check for stored referral and link if needed
-        const storedReferral = localStorage.getItem('affiliate_referral');
+        const storedReferral = localStorage.getItem('affiliate_referral_code');
         if (storedReferral && !mergedProfile.referred_by_affiliate) {
           const { data: affiliate } = await supabase
             .from('affiliates')

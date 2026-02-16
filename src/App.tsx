@@ -7,6 +7,7 @@ import { CartProvider } from "@/contexts/CartContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { NavigationProvider } from "@/contexts/NavigationContext";
 import ScrollToTop from "@/components/navigation/ScrollToTop";
+import AffiliateTracker from "@/components/marketing/AffiliateTracker";
 import { lazy, Suspense } from "react";
 import { PageLoadingFallback } from "@/components/layout/LazyLoadingFallback";
 
@@ -45,6 +46,7 @@ const InstagramMarketing = lazy(() => import("./pages/admin/InstagramMarketing")
 const InstagramLogin = lazy(() => import("./pages/InstagramLogin"));
 const InstagramDashboard = lazy(() => import("./pages/InstagramDashboard"));
 const AffiliateMarketing = lazy(() => import("./pages/admin/AffiliateMarketing"));
+const AffiliateLogin = lazy(() => import("./pages/AffiliateLogin"));
 const AffiliateDashboard = lazy(() => import("./pages/AffiliateDashboard"));
 const CouponManagement = lazy(() => import("./pages/admin/CouponManagement"));
 const OfferManagement = lazy(() => import("./pages/admin/OfferManagement"));
@@ -55,9 +57,9 @@ const CategoryManagement = lazy(() => import("./pages/admin/CategoryManagement")
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Login = lazy(() => import("./pages/Login"));
 const AuthCallback = lazy(() => import("./pages/AuthCallback"));
-
 import ProtectedRoute from "@/components/admin/ProtectedRoute";
 import UserProtectedRoute from "@/components/auth/UserProtectedRoute";
+import AffiliateProtectedRoute from "@/components/auth/AffiliateProtectedRoute";
 import ProfileCompletionGuard from "@/components/ProfileCompletionGuard";
 
 import ErrorBoundary from "@/components/layout/ErrorBoundary";
@@ -76,6 +78,7 @@ const App = () => (
           <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
             <NavigationProvider>
               <ScrollToTop />
+              <AffiliateTracker />
               <ErrorBoundary>
                 <ProfileCompletionGuard>
                   <Suspense fallback={<PageLoadingFallback />}>
@@ -128,8 +131,10 @@ const App = () => (
                       <Route path="/instagram-login" element={<InstagramLogin />} />
                       <Route path="/instagram-dashboard" element={<InstagramDashboard />} />
 
+
                       {/* Affiliate User Routes */}
-                      <Route path="/affiliate-dashboard" element={<AffiliateDashboard />} />
+                      <Route path="/affiliate-dashboard/login" element={<AffiliateLogin />} />
+                      <Route path="/affiliate-dashboard" element={<AffiliateProtectedRoute><AffiliateDashboard /></AffiliateProtectedRoute>} />
 
                       <Route path="*" element={<NotFound />} />
                     </Routes>

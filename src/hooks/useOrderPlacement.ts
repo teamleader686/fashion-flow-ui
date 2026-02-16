@@ -45,26 +45,116 @@ export const useOrderPlacement = () => {
   const placeOrder = async (orderData: OrderData): Promise<string | null> => {
     setLoading(true);
     try {
-      // 1. Determine Affiliate ID (Priority: Profile > LocalStorage)
-      const userProfileReferral = (profile as any)?.referred_by_affiliate;
-      const storedReferralCode = localStorage.getItem('affiliate_referral');
-      let affiliateId = userProfileReferral || null;
+      // ============================================
+      // STEP 1: RESOLVE AFFILIATE
+      // ============================================
+      // ============================================
+      // STEP 1: RESOLVE AFFILIATE (Coupon > Profile > Link)
+      // ============================================
+      let affiliateId: string | null = null;
+      let affiliateData: any = null;
+      let attributionSource: 'coupon' | 'profile' | 'link' = 'link';
 
-      // If we don't have an affiliate ID from profile, but have a code in storage, look it up
-      if (!affiliateId && storedReferralCode) {
-        const { data: affiliate } = await supabase
-          .from('affiliates')
-          .select('id')
-          .eq('referral_code', storedReferralCode)
-          .eq('status', 'active')
+      // Priority 1: Check if Coupon Code belongs to an affiliate
+      if (orderData.coupon_code) {
+        const { data: couponAffiliate } = await supabase
+          .from('affiliate_coupons')
+          .select('affiliate_id')
+          .eq('coupon_code', orderData.coupon_code)
+          .eq('is_active', true)
           .single();
 
-        if (affiliate) {
-          affiliateId = affiliate.id;
+        if (couponAffiliate) {
+          const { data: aff } = await supabase
+            .from('affiliates')
+            .select('id, commission_type, commission_value')
+            .eq('id', couponAffiliate.affiliate_id)
+            .eq('status', 'active')
+            .single();
+
+          if (aff) {
+            affiliateId = aff.id;
+            affiliateData = aff;
+            attributionSource = 'coupon';
+            console.log('[Affiliate] Attributed via Coupon:', orderData.coupon_code);
+          }
         }
       }
 
-      // 1. Create order
+      // Priority 2: Check user profile for persistent affiliate link (if no coupon affiliate)
+      if (!affiliateId) {
+        const profileAffiliateId = (profile as any)?.referred_by_affiliate;
+        if (profileAffiliateId) {
+          const { data: aff } = await supabase
+            .from('affiliates')
+            .select('id, commission_type, commission_value')
+            .eq('id', profileAffiliateId)
+            .eq('status', 'active')
+            .single();
+          if (aff) {
+            affiliateId = aff.id;
+            affiliateData = aff;
+            attributionSource = 'profile';
+          }
+        }
+      }
+
+      // Priority 3: Check localStorage referral code
+      if (!affiliateId) {
+        const storedReferralCode = localStorage.getItem('affiliate_referral_code');
+        if (storedReferralCode) {
+          const { data: aff } = await supabase
+            .from('affiliates')
+            .select('id, commission_type, commission_value')
+            .eq('referral_code', storedReferralCode)
+            .eq('status', 'active')
+            .single();
+          if (aff) {
+            affiliateId = aff.id;
+            affiliateData = aff;
+            attributionSource = 'link';
+          }
+        }
+      }
+
+      // ============================================
+      // STEP 2: CALCULATE COMMISSION
+      // ============================================
+      let commissionAmount = 0;
+      const refProductId = localStorage.getItem('affiliate_ref_product_id'); // UUID (resolved by tracker)
+
+      if (affiliateData) {
+        let commissionableAmount = 0;
+
+        if (refProductId && attributionSource === 'link') {
+          // Product-Specific Link: Only commission on matching items
+          const matchingItems = orderData.items.filter(item => item.product_id === refProductId);
+          commissionableAmount = matchingItems.reduce((sum, item) => sum + item.total_price, 0);
+
+          // If a global coupon was applied, we should legally prorate it, but for simplicity:
+          // If it's a product link, we usually give commission on the product price.
+          // Let's keep it simple: matching items total.
+        } else {
+          // General referral or Coupon: Commission on Net Subtotal
+          // (Subtotal - Coupon Discount)
+          commissionableAmount = Math.max(0, orderData.subtotal - (orderData.coupon_discount || 0));
+        }
+
+        if (commissionableAmount > 0) {
+          if (affiliateData.commission_type === 'percentage') {
+            commissionAmount = Math.round((commissionableAmount * affiliateData.commission_value) / 100 * 100) / 100;
+          } else {
+            commissionAmount = affiliateData.commission_value;
+          }
+          console.log('[Affiliate] Commission calculated:', commissionAmount);
+        } else {
+          console.log('[Affiliate] No commissionable items in order');
+        }
+      }
+
+      // ============================================
+      // STEP 3: CREATE ORDER
+      // ============================================
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert([{
@@ -93,8 +183,8 @@ export const useOrderPlacement = () => {
           payment_status: orderData.payment_method === 'cod' ? 'pending' : 'paid',
           status: 'pending',
           affiliate_id: affiliateId,
-          affiliate_commission_amount: 0, // Will be updated below or handled by trigger if desired
-          affiliate_commission_status: 'pending',
+          affiliate_commission_amount: commissionAmount > 0 ? commissionAmount : null,
+          affiliate_commission_status: commissionAmount > 0 ? 'pending' : null,
         }])
         .select()
         .single();
@@ -104,7 +194,9 @@ export const useOrderPlacement = () => {
         throw orderError;
       }
 
-      // 2. Create order items
+      // ============================================
+      // STEP 4: CREATE ORDER ITEMS
+      // ============================================
       const orderItems = orderData.items.map(item => ({
         order_id: order.id,
         product_id: item.product_id,
@@ -127,7 +219,9 @@ export const useOrderPlacement = () => {
         throw itemsError;
       }
 
-      // 3. Create initial shipment record
+      // ============================================
+      // STEP 5: CREATE SHIPMENT
+      // ============================================
       const { error: shipmentError } = await supabase
         .from('shipments')
         .insert([{
@@ -137,75 +231,79 @@ export const useOrderPlacement = () => {
 
       if (shipmentError) console.warn('Shipment creation warning:', shipmentError);
 
-      // 4. Track affiliate order and calculate commission
-      if (affiliateId) {
-        const { data: affiliate } = await supabase
-          .from('affiliates')
-          .select('commission_type, commission_value')
-          .eq('id', affiliateId)
-          .single();
+      // ============================================
+      // STEP 6: AFFILIATE COMMISSION RECORD
+      // Only create if there is actual commission > 0
+      // ============================================
+      if (affiliateId && affiliateData && commissionAmount > 0) {
+        // 6a. Insert into affiliate_commissions
+        const { error: commError } = await supabase
+          .from('affiliate_commissions')
+          .insert({
+            affiliate_id: affiliateId,
+            order_id: order.id,
+            commission_type: affiliateData.commission_type,
+            commission_value: affiliateData.commission_value,
+            order_amount: orderData.subtotal,
+            commission_amount: commissionAmount,
+            status: 'pending',
+          });
 
-        if (affiliate) {
-          // Calculate commission
-          let commissionAmount = 0;
-          if (affiliate.commission_type === 'percentage') {
-            commissionAmount = (orderData.total_amount * affiliate.commission_value) / 100;
-          } else {
-            commissionAmount = affiliate.commission_value;
-          }
+        if (commError) console.error('[Affiliate] Commission record error:', commError);
 
-          // Create affiliate order record
-          const { data: affiliateOrder, error: affiliateOrderError } = await supabase
-            .from('affiliate_orders')
-            .insert({
-              order_id: order.id,
-              affiliate_id: affiliateId,
-              user_id: user?.id || null, // Keeping user_id if it exists in schema
-              order_total: orderData.total_amount,
-              order_amount: orderData.total_amount, // For schema compatibility
-              commission_amount: commissionAmount,
-              commission_type: affiliate.commission_type,
-              commission_rate: affiliate.commission_value,
-              commission_status: 'pending',
-              status: 'pending', // For schema compatibility
-            })
-            .select()
+        // 6b. Insert into affiliate_orders (for admin tracking with product info)
+        const { error: aoError } = await supabase
+          .from('affiliate_orders')
+          .insert({
+            affiliate_id: affiliateId,
+            order_id: order.id,
+            user_id: user?.id || null,
+            product_id: refProductId || null,
+            order_amount: orderData.subtotal,
+            commission_amount: commissionAmount,
+            commission_type: affiliateData.commission_type,
+            commission_rate: affiliateData.commission_value,
+            status: 'pending',
+          });
+
+        if (aoError) console.warn('[Affiliate] Affiliate order record warning:', aoError);
+
+        // 6c. Update affiliate wallet balance
+        try {
+          const { data: currentAffiliate } = await supabase
+            .from('affiliates')
+            .select('wallet_balance, total_orders, total_sales, total_commission')
+            .eq('id', affiliateId)
             .single();
 
-          if (!affiliateOrderError && affiliateOrder) {
-            // Also update the order record with the final commission amount
+          if (currentAffiliate) {
             await supabase
-              .from('orders')
-              .update({ affiliate_commission_amount: commissionAmount })
-              .eq('id', order.id);
-
-            // Create commission record
-            const { error: commissionError } = await supabase
-              .from('affiliate_commissions')
-              .insert({
-                affiliate_id: affiliateId,
-                order_id: order.id,
-                // affiliate_order_id removed as it doesn't exist in affiliate_commissions table
-                commission_type: affiliate.commission_type,
-                commission_rate: affiliate.commission_value, // Mapped to commission_rate based on schema
-                order_amount: orderData.total_amount,
-                commission_amount: commissionAmount,
-                status: 'pending',
-              });
-
-            if (commissionError) console.warn('Affiliate commission creation warning:', commissionError);
+              .from('affiliates')
+              .update({
+                wallet_balance: (currentAffiliate.wallet_balance || 0) + commissionAmount,
+                total_orders: (currentAffiliate.total_orders || 0) + 1,
+                total_sales: (currentAffiliate.total_sales || 0) + orderData.total_amount,
+                total_commission: (currentAffiliate.total_commission || 0) + commissionAmount,
+              })
+              .eq('id', affiliateId);
           }
+        } catch (walletErr) {
+          console.error('[Affiliate] Wallet update error:', walletErr);
         }
 
-        // Clear referral code after order is placed
-        localStorage.removeItem('affiliate_referral');
+        console.log('[Affiliate] ✅ Commission assigned:', commissionAmount);
       }
 
-      // 5. Deduct Loyalty Coins if used
+      // 6d. Always clear referral data after order (prevent reuse / duplicate commission)
+      localStorage.removeItem('affiliate_referral_code');
+      localStorage.removeItem('affiliate_referral_time');
+      localStorage.removeItem('affiliate_ref_product_id');
+
+      // ============================================
+      // STEP 7: DEDUCT LOYALTY COINS
+      // ============================================
       if (orderData.loyalty_coins_used > 0 && user?.id) {
         try {
-          // Deduct from wallet
-          // Try RPC first if exists (using expected name pattern)
           const { error: walletError } = await supabase.rpc('deduct_loyalty_balance', {
             p_user_id: user.id,
             p_amount: orderData.loyalty_coins_used
@@ -234,10 +332,6 @@ export const useOrderPlacement = () => {
                 })
                 .eq('user_id', user.id);
             }
-          } else {
-            // If RPC succeeded, we might need to fetch new balance for log, or just estimate?
-            // Assuming RPC returns new balance would be better but void for now.
-            // We'll skip precise balance_after if RPC used without return.
           }
 
           // Log transaction
@@ -247,11 +341,11 @@ export const useOrderPlacement = () => {
               user_id: user.id,
               order_id: order.id,
               coins: orderData.loyalty_coins_used,
-              amount: orderData.loyalty_coins_value, // money equivalent
+              amount: orderData.loyalty_coins_value,
               type: 'redeem',
               wallet_type: 'loyalty',
               description: `Redeemed for Order #${order.order_number}`,
-              balance_after: newBalance, // Best effort
+              balance_after: newBalance,
               status: 'completed'
             });
 

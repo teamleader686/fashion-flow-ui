@@ -1,4 +1,17 @@
-// Affiliate Marketing System Types
+export interface AffiliateProduct {
+  id: string;
+  affiliate_user_id: string;
+  product_id: string;
+  created_at: string;
+  // Included fields from join
+  products?: {
+    id: string;
+    product_name: string;
+    price: number;
+    selling_price: number;
+    images: string[];
+  };
+}
 
 export interface Affiliate {
   id: string;

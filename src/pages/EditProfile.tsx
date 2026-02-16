@@ -168,7 +168,7 @@ export default function EditProfile() {
                     anniversary_date: updateData.anniversary_date,
                     profile_completed: true,
                     updated_at: new Date().toISOString()
-                });
+                }, { onConflict: 'user_id' });
 
             if (profileError) throw profileError;
 

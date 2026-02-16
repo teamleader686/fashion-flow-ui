@@ -147,7 +147,7 @@ export default function ProfileCompletionDialog({
                     anniversary_date: annivStr,
                     profile_completed: true,
                     updated_at: new Date().toISOString(),
-                });
+                }, { onConflict: 'user_id' });
 
             if (profileError) throw profileError;
 
