@@ -35,7 +35,7 @@ export default function OrderTimeline({ order, history = [] }: OrderTimelineProp
     if (historyItem) {
       return {
         timestamp: historyItem.created_at,
-        note: historyItem.note
+        note: historyItem.notes
       };
     }
 
@@ -69,6 +69,22 @@ export default function OrderTimeline({ order, history = [] }: OrderTimelineProp
         <p className="text-sm text-gray-600 mt-1">
           This order has been returned
         </p>
+      </div>
+    );
+  }
+
+  if (order.status === 'cancellation_requested' || order.cancellation_status === 'requested') {
+    return (
+      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+        <div className="flex gap-3">
+          <Clock className="h-5 w-5 text-amber-600 shrink-0" />
+          <div>
+            <p className="text-amber-800 font-medium">Cancellation Requested</p>
+            <p className="text-xs text-amber-600 mt-1">
+              Your cancellation request is pending admin approval. The fulfillment process is temporarily paused.
+            </p>
+          </div>
+        </div>
       </div>
     );
   }

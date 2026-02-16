@@ -89,6 +89,27 @@ export const useOrderPlacement = () => {
       }
 
       // ============================================
+      // STEP 1.5: RESOLVE INSTAGRAM CAMPAIGN
+      // ============================================
+      const campaignCode = localStorage.getItem('campaign_code');
+      let finalCampaignId: string | null = null;
+
+      if (campaignCode && !finalAffiliateId) {
+        // Priority: Affiliate > Instagram
+        const { data: campaign } = await supabase
+          .from('instagram_campaigns')
+          .select('id')
+          .eq('campaign_code', campaignCode)
+          .eq('is_active', true)
+          .maybeSingle();
+
+        if (campaign) {
+          finalCampaignId = campaign.id;
+          console.log('[Order] Attribution via Instagram Campaign:', campaignCode);
+        }
+      }
+
+      // ============================================
       // STEP 2: CREATE ORDER
       // ============================================
       const { data: order, error: orderError } = await supabase
@@ -173,6 +194,17 @@ export const useOrderPlacement = () => {
       }
 
       // ============================================
+      // STEP 4.5: RECORD INSTAGRAM CAMPAIGN ORDER
+      // ============================================
+      if (finalCampaignId) {
+        await supabase.from('campaign_orders').insert({
+          campaign_id: finalCampaignId,
+          order_id: order.id,
+          revenue: orderData.total_amount
+        });
+      }
+
+      // ============================================
       // STEP 5: CREATE SHIPMENT
       // ============================================
       await supabase.from('shipments').insert([{ order_id: order.id, status: 'pending' }]);
@@ -203,10 +235,12 @@ export const useOrderPlacement = () => {
         }
       }
 
-      // Cleanup referral tracking
+      // Cleanup referral & campaign tracking
       localStorage.removeItem('affiliate_referral_code');
       localStorage.removeItem('affiliate_referral_time');
       localStorage.removeItem('affiliate_ref_product_id');
+      localStorage.removeItem('campaign_code');
+      localStorage.removeItem('campaign_time');
 
       toast.success('Order placed successfully!');
       return order.order_number;

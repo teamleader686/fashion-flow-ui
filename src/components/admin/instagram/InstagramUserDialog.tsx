@@ -78,8 +78,15 @@ export default function InstagramUserDialog({ open, onOpenChange, user }: Props)
               <Label htmlFor="mobile_number">Mobile Number *</Label>
               <Input
                 id="mobile_number"
-                {...register('mobile_number', { required: 'Mobile number is required' })}
-                placeholder="Enter mobile number"
+                {...register('mobile_number', {
+                  required: 'Mobile number is required',
+                  pattern: {
+                    value: /^[0-9]{10}$/,
+                    message: 'Mobile number must be exactly 10 digits'
+                  }
+                })}
+                placeholder="e.g. 9876543210"
+                maxLength={10}
               />
               {errors.mobile_number && <p className="text-sm text-red-500 mt-1">{errors.mobile_number.message}</p>}
             </div>

@@ -45,20 +45,28 @@ export default function AssignCoinsDialog({ open, onOpenChange }: Props) {
             <Label htmlFor="user_id" className="text-sm font-medium">
               Select Instagram User <span className="text-destructive">*</span>
             </Label>
-            <Select onValueChange={(value) => setValue('user_id', value)}>
+            <Select onValueChange={(value) => setValue('user_id', value, { shouldValidate: true })}>
               <SelectTrigger className="h-11">
-                <SelectValue placeholder="Choose user" />
+                <SelectValue placeholder={users.length > 0 ? "Choose user" : "No users found"} />
               </SelectTrigger>
               <SelectContent>
-                {users.filter(u => u.status === 'active').map((user) => (
-                  <SelectItem key={user.id} value={user.id}>
-                    {user.name} (@{user.instagram_username}) - {user.total_coins} coins
-                  </SelectItem>
-                ))}
+                {users && users.length > 0 ? (
+                  users.filter(u => u.status === 'active').map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.name} (@{user.instagram_username}) - {user.total_coins || 0} coins
+                    </SelectItem>
+                  ))
+                ) : (
+                  <div className="p-2 text-sm text-gray-500 text-center">No active users found</div>
+                )}
               </SelectContent>
             </Select>
+            <input
+              type="hidden"
+              {...register('user_id', { required: 'Please select a user' })}
+            />
             {errors.user_id && (
-              <p className="text-sm text-red-500 mt-1.5">User is required</p>
+              <p className="text-sm text-red-500 mt-1.5">{errors.user_id.message as string}</p>
             )}
           </div>
 

@@ -48,6 +48,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     checkInitialSession();
 
+    // Fallback: Ensure loading always completes
+    const fallbackTimer = setTimeout(() => {
+      if (mounted) setLoading(false);
+    }, 8000); // 8 seconds for auth a bit longer than data
+
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log("Auth Event:", event);

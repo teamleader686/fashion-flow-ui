@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { Order } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,6 +8,7 @@ import { notificationService } from '@/lib/notificationService';
 
 export function useUserOrders() {
   const { user } = useAuth();
+  const { pathname } = useLocation();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -44,7 +46,7 @@ export function useUserOrders() {
     } catch (err: any) {
       console.error('Error fetching orders:', err);
       setError(err.message || 'Failed to fetch orders');
-      toast.error('Failed to load orders');
+      // toast.error('Failed to load orders');
     } finally {
       setTimeout(() => {
         setLoading(false);
@@ -90,38 +92,69 @@ export function useUserOrders() {
     return () => {
       channel.unsubscribe();
     };
-  }, [user, fetchOrders]);
+  }, [user, fetchOrders, pathname]);
 
   const cancelOrder = async (orderId: string, reason: string, comment: string): Promise<boolean> => {
     try {
-      // Get order details for notification
+      // 1. Check for existing pending request
+      const { data: existingRequest } = await supabase
+        .from('cancellation_requests')
+        .select('id')
+        .eq('order_id', orderId)
+        .eq('status', 'pending')
+        .maybeSingle();
+
+      if (existingRequest) {
+        toast.error('A cancellation request is already pending for this order');
+        return false;
+      }
+
+      // 2. Get order details for notification
       const { data: orderData } = await supabase
         .from('orders')
         .select('order_number')
         .eq('id', orderId)
         .single();
 
-      // Create cancellation request
+      // 3. Create cancellation request
+      console.log('Submitting cancellation request:', {
+        order_id: orderId,
+        user_id: user?.id,
+        reason,
+        status: 'pending'
+      });
+
+      if (!user?.id) {
+        throw new Error('User not authenticated');
+      }
+
       const { error } = await supabase
         .from('cancellation_requests')
         .insert({
           order_id: orderId,
-          user_id: user?.id,
+          user_id: user.id,
           reason,
-          comment,
+          comment: comment || null,
           status: 'pending',
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase insertion error:', error);
+        throw error;
+      }
 
-      // Send notifications
+      // 4. Send notifications
       if (orderData && user) {
-        await notificationService.notifyCancellationRequested(
-          orderId,
-          orderData.order_number,
-          user.id,
-          reason
-        );
+        try {
+          await notificationService.notifyCancellationRequested(
+            orderId,
+            orderData.order_number,
+            user.id,
+            reason
+          );
+        } catch (notifyErr) {
+          console.error('Notification error (ignoring):', notifyErr);
+        }
       }
 
       toast.success('Cancellation request submitted. Awaiting admin approval.');
@@ -129,7 +162,7 @@ export function useUserOrders() {
       return true;
     } catch (err: any) {
       console.error('Error submitting cancellation request:', err);
-      toast.error('Failed to submit cancellation request');
+      toast.error(err.message || 'Failed to submit cancellation request');
       return false;
     }
   };

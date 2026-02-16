@@ -29,7 +29,7 @@ interface CancellationRequest {
   reason: string;
   comment: string | null;
   status: 'pending' | 'approved' | 'rejected';
-  rejection_reason: string | null;
+  admin_note: string | null;
   previous_order_status: string;
   created_at: string;
   reviewed_at: string | null;
@@ -140,7 +140,7 @@ export default function CancellationRequests() {
       const { error } = await supabase.rpc('reject_cancellation_request', {
         p_request_id: requestId,
         p_admin_id: adminData.user.id,
-        p_rejection_reason: rejectionReason,
+        p_admin_note: rejectionReason,
       });
 
       if (error) throw error;
@@ -275,8 +275,8 @@ export default function CancellationRequests() {
                                 request.status === 'pending'
                                   ? 'bg-amber-100 text-amber-800'
                                   : request.status === 'approved'
-                                  ? 'bg-green-100 text-green-800'
-                                  : 'bg-red-100 text-red-800'
+                                    ? 'bg-green-100 text-green-800'
+                                    : 'bg-red-100 text-red-800'
                               }
                             >
                               {request.status.toUpperCase()}
@@ -314,10 +314,10 @@ export default function CancellationRequests() {
                           </div>
                         )}
                       </div>
-                      {request.rejection_reason && (
-                        <div className="bg-red-50 border border-red-200 rounded p-3 text-sm">
-                          <p className="font-medium text-red-800 mb-1">Rejection Reason:</p>
-                          <p className="text-red-600">{request.rejection_reason}</p>
+                      {request.admin_note && (
+                        <div className="bg-red-50 border border-red-200 rounded p-3 text-sm mt-3">
+                          <p className="font-medium text-red-800 mb-1">Admin Note:</p>
+                          <p className="text-red-600">{request.admin_note}</p>
                         </div>
                       )}
                     </div>

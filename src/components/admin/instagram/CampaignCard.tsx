@@ -22,7 +22,7 @@ export default function CampaignCard({ campaign }: Props) {
           </div>
           <Badge variant={
             campaign.status === 'active' ? 'default' :
-            campaign.status === 'completed' ? 'secondary' : 'destructive'
+              campaign.status === 'completed' ? 'secondary' : 'destructive'
           }>
             {campaign.status}
           </Badge>
@@ -50,7 +50,25 @@ export default function CampaignCard({ campaign }: Props) {
           )}
         </div>
 
-        <div className="text-xs text-muted-foreground">
+        <div className="space-y-2 mt-4 pt-4 border-t">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">Code: <span className="font-mono font-bold text-foreground">{campaign.campaign_code}</span></span>
+            <span className="text-muted-foreground">{campaign.source} / {campaign.medium || 'direct'}</span>
+          </div>
+
+          <button
+            onClick={() => {
+              const url = `${window.location.origin}/?campaign=${campaign.campaign_code}`;
+              navigator.clipboard.writeText(url);
+              alert('Tracking link copied!');
+            }}
+            className="w-full text-xs py-2 bg-secondary hover:bg-secondary/80 rounded border transition-colors flex items-center justify-center gap-2"
+          >
+            Copy Tracking Link
+          </button>
+        </div>
+
+        <div className="text-[10px] text-muted-foreground mt-2 text-right">
           Created: {new Date(campaign.created_at).toLocaleDateString()}
         </div>
       </CardContent>

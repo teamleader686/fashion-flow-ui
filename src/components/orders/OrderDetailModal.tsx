@@ -5,6 +5,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -85,11 +86,10 @@ export default function OrderDetailModal({
   if (!order) return null;
 
   const canConfirm = ['shipped', 'out_for_delivery'].includes(order.status);
-  const canCancel = ['pending', 'confirmed', 'processing'].includes(
-    order.status
-  );
+  const canCancel = ['placed', 'confirmed', 'processing', 'pending'].includes(order.status) &&
+    (!order.cancellation_status || order.cancellation_status === 'none');
   const canReturn = order.status === 'delivered';
-  const isCancellationRequested = (order.status as string) === 'cancellation_requested';
+  const isCancellationRequested = order.cancellation_status === 'requested' || order.status === 'cancellation_requested';
 
   const handleCancelOrder = async (reason: string, comment: string) => {
     setLoading(true);
@@ -149,20 +149,14 @@ export default function OrderDetailModal({
               <DialogTitle className="text-lg sm:text-xl">
                 Order Details
               </DialogTitle>
-              <div className="sr-only">
-                <DialogHeader>
-                  <DialogTitle>Order Summary</DialogTitle>
-                  <p>Details for order #{order.order_number}</p>
-                </DialogHeader>
-              </div>
               <Badge className={getStatusColor(order.status)}>
                 {getStatusLabel(order.status).toUpperCase()}
               </Badge>
             </div>
-            <div className="text-sm text-muted-foreground">
+            <DialogDescription className="text-sm text-muted-foreground">
               Order #{order.order_number} • Placed on{' '}
               {format(new Date(order.created_at), 'MMM dd, yyyy')}
-            </div>
+            </DialogDescription>
           </DialogHeader>
 
           <ScrollArea className="max-h-[calc(90vh-120px)]">
@@ -349,13 +343,33 @@ export default function OrderDetailModal({
               {(canCancel || canReturn || isCancellationRequested || canConfirm) && (
                 <>
                   <Separator />
-                  {isCancellationRequested && (
+                  {order.cancellation_status === 'requested' && (
                     <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-center">
                       <p className="text-sm font-medium text-amber-800">
                         Cancellation Requested
                       </p>
                       <p className="text-xs text-amber-600 mt-1">
                         Your cancellation request is pending admin approval.
+                      </p>
+                    </div>
+                  )}
+                  {order.cancellation_status === 'approved' && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+                      <p className="text-sm font-medium text-green-800">
+                        Cancellation Approved
+                      </p>
+                      <p className="text-xs text-green-600 mt-1">
+                        Your cancellation request has been approved. Refund processed.
+                      </p>
+                    </div>
+                  )}
+                  {order.cancellation_status === 'rejected' && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+                      <p className="text-sm font-medium text-red-800">
+                        Cancellation Rejected
+                      </p>
+                      <p className="text-xs text-red-600 mt-1">
+                        Your cancellation request was rejected by admin.
                       </p>
                     </div>
                   )}

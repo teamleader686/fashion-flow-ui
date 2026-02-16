@@ -117,6 +117,8 @@ export default function ProfileCompletionDialog({
             const dateStr = dateOfBirth ? format(dateOfBirth, 'yyyy-MM-dd') : null;
             const annivStr = anniversaryDate ? format(anniversaryDate, 'yyyy-MM-dd') : null;
 
+            console.log('Saving profile for user:', user.id);
+
             // 1. Update 'users' table (Main requested table)
             const { error: userError } = await supabase
                 .from('users')
@@ -152,17 +154,24 @@ export default function ProfileCompletionDialog({
             if (profileError) throw profileError;
 
             toast.success('Profile completed successfully! 🎉');
-            onComplete();
+
+            // 🎯 Critical Fix: Stop loading and close dialog BEFORE triggering reload
             onOpenChange(false);
+
+            // Give the UI time to close the dialog and show toast before reload
+            if (onComplete) {
+                setTimeout(() => {
+                    onComplete();
+                }, 500);
+            }
+
         } catch (error: any) {
             console.error('Error updating profile:', error);
-            toast.error('Failed to update profile. Please try again.');
+            toast.error(error.message || 'Failed to update profile. Please try again.');
         } finally {
-            setLoading(false);
+            setLoading(false); // Ensure loading stops on error or success
         }
     };
-
-    // No skip allowed as per requirement
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>

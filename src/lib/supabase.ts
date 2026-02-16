@@ -195,7 +195,7 @@ export type Order = {
   shipping_cost: number;
   discount_amount: number;
   total_amount: number;
-  status: 'placed' | 'confirmed' | 'processing' | 'packed' | 'shipped' | 'out_for_delivery' | 'delivered' | 'cancelled' | 'returned';
+  status: 'placed' | 'confirmed' | 'processing' | 'packed' | 'shipped' | 'out_for_delivery' | 'delivered' | 'cancelled' | 'returned' | 'cancellation_requested';
   payment_status: 'pending' | 'paid' | 'partially_paid' | 'failed' | 'refunded';
   payment_method: 'cod';
   created_at: string;
@@ -213,6 +213,7 @@ export type Order = {
   shipping_charge?: number;
   confirmed_at?: string;
   packed_at?: string;
+  cancellation_status?: 'none' | 'requested' | 'approved' | 'rejected';
   order_status?: string; // For compatibility with user's new column
   // Relations
   order_items?: OrderItem[];
@@ -225,7 +226,7 @@ export type OrderStatusHistory = {
   id: string;
   order_id: string;
   status: string;
-  note?: string;
+  notes?: string;
   created_at: string;
 };
 
@@ -292,6 +293,7 @@ export type InstagramUser = {
   instagram_profile_url?: string;
   followers_count: number;
   status: 'active' | 'inactive';
+  total_coins: number;
   total_coins_earned: number;
   available_coins: number;
   created_at: string;

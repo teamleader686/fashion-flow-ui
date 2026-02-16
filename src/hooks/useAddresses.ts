@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { useLocation } from 'react-router-dom';
 
 export interface UserAddress {
     id: string;
@@ -30,6 +31,7 @@ const toTitleCase = (str: string): 'Home' | 'Work' | 'Other' => {
 
 export const useAddresses = () => {
     const { user } = useAuth();
+    const { pathname } = useLocation();
     const [addresses, setAddresses] = useState<UserAddress[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -64,8 +66,17 @@ export const useAddresses = () => {
     }, [user]);
 
     useEffect(() => {
+        // Fallback security: never stay in loading state forever
+        const timer = setTimeout(() => {
+            setLoading(false);
+        }, 5000);
+
+        return () => clearTimeout(timer);
+    }, [loading]);
+
+    useEffect(() => {
         fetchAddresses();
-    }, [fetchAddresses]);
+    }, [fetchAddresses, pathname]);
 
     const addAddress = async (address: Omit<UserAddress, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
         if (!user) return;

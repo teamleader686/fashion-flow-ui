@@ -124,7 +124,7 @@ export function useInstagramCampaigns() {
 
       if (uploadError) {
         console.error('❌ Upload error:', uploadError);
-        
+
         // Detailed error messages
         if (uploadError.message.includes('not found')) {
           throw new Error('Storage bucket "product" nahi mila. Dashboard se bucket create karo.');
@@ -135,7 +135,7 @@ export function useInstagramCampaigns() {
         if (uploadError.message.includes('size')) {
           throw new Error('File bahut badi hai. 50MB se chhoti file upload karo.');
         }
-        
+
         throw new Error(`Upload failed: ${uploadError.message}`);
       }
 
@@ -167,9 +167,13 @@ export function useInstagramCampaigns() {
 
     const campaignPayload = {
       campaign_title: campaignData.campaign_title,
+      name: campaignData.name || campaignData.campaign_title,
       description: campaignData.description,
+      campaign_code: campaignData.campaign_code,
+      source: campaignData.source || 'instagram',
+      medium: campaignData.medium,
       media_url: mediaUrl,
-      media_type: mediaType || 'image', // Default to 'image' if not specified
+      media_type: mediaType || 'image',
       expiry_hours: campaignData.expiry_hours,
       created_by: user.user?.id
     };
@@ -211,14 +215,14 @@ export function useInstagramCampaigns() {
   return { campaigns, loading, error, createCampaign, refetch: fetchCampaigns };
 }
 
-export function useInstagramAssignments() {
+export function useInstagramAssignments(userId?: string) {
   const [assignments, setAssignments] = useState<InstagramAssignment[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchAssignments = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      let query = supabase
         .from('instagram_assignments')
         .select(`
           *,
@@ -226,6 +230,12 @@ export function useInstagramAssignments() {
           user:instagram_users(*)
         `)
         .order('assigned_date', { ascending: false });
+
+      if (userId) {
+        query = query.eq('user_id', userId);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setAssignments(data || []);
@@ -238,7 +248,7 @@ export function useInstagramAssignments() {
 
   useEffect(() => {
     fetchAssignments();
-  }, []);
+  }, [userId]);
 
   return { assignments, loading, refetch: fetchAssignments };
 }

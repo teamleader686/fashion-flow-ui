@@ -7,14 +7,15 @@ import InstagramStoryCard from '@/components/instagram/InstagramStoryCard';
 import CoinHistoryCard from '@/components/instagram/CoinHistoryCard';
 import InstagramLayout from '@/components/instagram/InstagramLayout';
 import { useInstagramAssignments, useInstagramCoinLogs } from '@/hooks/useInstagramMarketing';
+import { ShimmerDashboard } from '@/components/ui/shimmer-instagram';
 import type { InstagramUser } from '@/lib/supabase';
 
 export default function InstagramDashboard() {
   const navigate = useNavigate();
   const [user, setUser] = useState<InstagramUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const { assignments } = useInstagramAssignments();
-  const { coinLogs } = useInstagramCoinLogs();
+  const { assignments } = useInstagramAssignments(user?.id);
+  const { coinLogs } = useInstagramCoinLogs(user?.id);
 
   useEffect(() => {
     checkAuth();
@@ -22,8 +23,28 @@ export default function InstagramDashboard() {
 
   const checkAuth = async () => {
     try {
+      // 1. Check for manual session override (from login bypass)
+      const localUserId = localStorage.getItem('instagram_user_id');
+
+      if (localUserId) {
+        const { data: localUser, error: localError } = await supabase
+          .from('instagram_users')
+          .select('*')
+          .eq('id', localUserId)
+          .maybeSingle();
+
+        if (localUser && !localError && localUser.status === 'active') {
+          setUser(localUser);
+          setLoading(false);
+          return;
+        } else {
+          localStorage.removeItem('instagram_user_id'); // Invalid ID, clear it
+        }
+      }
+
+      // 2. Fallback to Standard Supabase Auth
       const { data: { user: authUser } } = await supabase.auth.getUser();
-      
+
       if (!authUser) {
         navigate('/instagram-login');
         return;
@@ -32,8 +53,8 @@ export default function InstagramDashboard() {
       const { data: instagramUser, error } = await supabase
         .from('instagram_users')
         .select('*')
-        .eq('id', authUser.id)
-        .single();
+        .or(`id.eq.${authUser.id},auth_user_id.eq.${authUser.id}`)
+        .maybeSingle();
 
       if (error || !instagramUser) {
         navigate('/instagram-login');
@@ -57,8 +78,13 @@ export default function InstagramDashboard() {
   const activeStories = assignments.filter(a => a.status === 'active');
   const expiredStories = assignments.filter(a => a.status === 'expired');
 
+
   if (loading) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+    return (
+      <InstagramLayout user={{ name: 'Loading', instagram_username: 'loading', total_coins: 0 } as any}>
+        <ShimmerDashboard />
+      </InstagramLayout>
+    );
   }
 
   if (!user) return null;
@@ -77,7 +103,7 @@ export default function InstagramDashboard() {
             <CardContent>
               <div className="text-2xl font-bold text-yellow-600 flex items-center gap-2">
                 <Award className="w-5 h-5" />
-                {user.total_coins_earned || 0}
+                {user.total_coins || 0}
               </div>
             </CardContent>
           </Card>

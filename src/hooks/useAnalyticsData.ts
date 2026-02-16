@@ -23,12 +23,19 @@ export function useAnalyticsData(
   });
 
   useEffect(() => {
+    // Fallback security: never stay in loading state forever
+    const timer = setTimeout(() => {
+      setData(prev => ({ ...prev, loading: false }));
+    }, 8000);
+
     fetchAnalyticsData();
+
+    return () => clearTimeout(timer);
   }, [filter, customRange.from, customRange.to]);
 
   const getDateRange = () => {
     const now = new Date();
-    
+
     switch (filter) {
       case 'today':
         return { start: startOfDay(now), end: endOfDay(now) };
@@ -49,7 +56,7 @@ export function useAnalyticsData(
   const fetchAnalyticsData = async () => {
     try {
       setData(prev => ({ ...prev, loading: true, error: null }));
-      
+
       const { start, end } = getDateRange();
 
       // Fetch orders within date range
@@ -64,10 +71,10 @@ export function useAnalyticsData(
 
       // Generate date intervals
       const dateIntervals = eachDayOfInterval({ start, end });
-      
+
       // Process data by date
       const dataByDate = new Map<string, { revenue: number; expenses: number }>();
-      
+
       dateIntervals.forEach(date => {
         const dateKey = format(date, 'MMM dd');
         dataByDate.set(dateKey, { revenue: 0, expenses: 0 });
@@ -77,20 +84,20 @@ export function useAnalyticsData(
       orders?.forEach(order => {
         const dateKey = format(new Date(order.created_at), 'MMM dd');
         const current = dataByDate.get(dateKey) || { revenue: 0, expenses: 0 };
-        
+
         // Revenue from completed orders
         if (['delivered', 'shipped', 'out_for_delivery', 'processing', 'confirmed'].includes(order.status)) {
           current.revenue += parseFloat(order.total_amount || '0');
         }
-        
+
         // Expenses (shipping costs, returns, etc.)
         current.expenses += parseFloat(order.shipping_cost || '0');
-        
+
         // Add estimated product cost (assuming 60% of order value as cost)
         if (['delivered', 'shipped', 'out_for_delivery', 'processing', 'confirmed'].includes(order.status)) {
           current.expenses += parseFloat(order.total_amount || '0') * 0.6;
         }
-        
+
         dataByDate.set(dateKey, current);
       });
 

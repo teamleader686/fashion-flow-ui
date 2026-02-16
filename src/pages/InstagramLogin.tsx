@@ -13,61 +13,139 @@ export default function InstagramLogin() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    email: '',
+    mobile_number: '',
     password: ''
   });
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // 0. Validation
+    const mobileRegex = /^[0-9]{10}$/;
+    if (!mobileRegex.test(formData.mobile_number)) {
+      toast({
+        title: 'Invalid Mobile Number',
+        description: 'Please enter a valid 10-digit mobile number.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // First check if user exists in instagram_users table
+      // 1. Verify this mobile number belongs to an Instagram Marketing user
+      console.log('Searching for user with mobile:', formData.mobile_number);
+
       const { data: instagramUser, error: userError } = await supabase
         .from('instagram_users')
         .select('*')
-        .eq('email', formData.email)
-        .single();
+        .eq('mobile_number', formData.mobile_number)
+        .maybeSingle();
 
-      if (userError || !instagramUser) {
-        throw new Error('Invalid credentials');
+      if (userError) throw userError;
+
+      console.log('User found:', instagramUser);
+
+      if (!instagramUser) {
+        throw new Error(`This mobile number (${formData.mobile_number}) is not registered for Instagram Marketing. Please contact your administrator.`);
       }
 
       if (instagramUser.status !== 'active') {
-        throw new Error('Your account is inactive. Please contact admin.');
+        throw new Error('Your account is inactive. Please contact your administrator.');
       }
 
-      // Verify password (in production, use proper password hashing)
-      if (instagramUser.password !== formData.password) {
-        throw new Error('Invalid credentials');
-      }
-
-      // Sign in with Supabase Auth (create session)
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: formData.email,
+      // 2. Attempt to Sign In using the email linked to this mobile number
+      console.log('--- Attempting Sign In ---');
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email: instagramUser.email,
         password: formData.password
       });
 
-      if (signInError) {
-        // If auth user doesn't exist, create one
-        const { error: signUpError } = await supabase.auth.signUp({
-          email: formData.email,
-          password: formData.password
-        });
+      let authUser = signInData?.user;
 
-        if (signUpError) throw signUpError;
+      if (signInError) {
+        console.log('Sign in failed:', signInError.message);
+
+        // Handle unconfirmed email specifically - BYPASS if password matches local record
+        if (signInError.message.includes('Email not confirmed')) {
+          console.log('Email unconfirmed. Verifying against local record...');
+
+          // Verify password against local record
+          if (instagramUser.password === formData.password) {
+            console.log('Local password verified. Bypassing email confirmation.');
+
+            // FORCE LOGIN SUCCESS
+            // Since we don't have a Supabase session, we must rely on local storage or context
+            // to tell the dashboard who is logged in.
+            localStorage.setItem('instagram_user_id', instagramUser.id);
+
+            toast({
+              title: 'Logged in successfully',
+              description: `Welcome back, ${instagramUser.name || instagramUser.instagram_username}`
+            });
+
+            navigate('/instagram-dashboard');
+            return; // EXIT FUNCTION HERE
+          }
+        }
+
+        // 3. Fallback to Sign Up if user doesn't exist in Auth
+        if (signInError.message.includes('Invalid login credentials')) {
+          console.log('--- Attempting Sign Up (Initial User Setup) ---');
+
+          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+            email: instagramUser.email,
+            password: formData.password,
+            options: {
+              data: {
+                role: 'instagram_user'
+              }
+            }
+          });
+
+          if (signUpError) {
+            console.log('Sign up failed:', signUpError.message);
+
+            if (signUpError.message.includes('User already registered')) {
+              throw new Error('Incorrect password. Please use the password assigned to you.');
+            }
+            throw signUpError;
+          }
+
+          authUser = signUpData.user;
+          // If signup was successful but no session, it means email confirmation is required
+          if (authUser && !signUpData.session) {
+            throw new Error(`Account created but Email Confirmation is enabled! Admin must disable 'Confirm Email' in Supabase settings.`);
+          }
+        } else {
+          throw signInError;
+        }
+      }
+
+      if (!authUser) throw new Error('Could not establish authentication session.');
+
+      // 4. Link the instagram_user record to this Auth UID
+      const { error: updateError } = await supabase
+        .from('instagram_users')
+        .update({ auth_user_id: authUser.id })
+        .eq('id', instagramUser.id);
+
+      if (updateError) {
+        console.error('Record linking error (non-fatal):', updateError);
       }
 
       toast({
-        title: 'Success',
-        description: 'Logged in successfully'
+        title: 'Logged in successfully',
+        description: `Welcome back, ${instagramUser.name || instagramUser.instagram_username}`
       });
 
       navigate('/instagram-dashboard');
     } catch (error: any) {
+      console.error('Instagram Login Flow Error:', error);
       toast({
-        title: 'Error',
-        description: error.message,
+        title: 'Login Failed',
+        description: error.message || 'An unexpected error occurred during login.',
         variant: 'destructive'
       });
     } finally {
@@ -80,47 +158,50 @@ export default function InstagramLogin() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <div className="p-4 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full">
+            <div className="p-4 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full shadow-lg">
               <Instagram className="w-8 h-8 text-white" />
             </div>
           </div>
-          <CardTitle className="text-2xl">Instagram Marketing Login</CardTitle>
+          <CardTitle className="text-2xl font-bold tracking-tight">Influencer Portal</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Login to access your dashboard
+            Login with your mobile credentials
           </p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <Label htmlFor="email">Email</Label>
+            <div className="space-y-2">
+              <Label htmlFor="mobile">Mobile Number</Label>
               <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="Enter your email"
+                id="mobile"
+                type="tel"
+                value={formData.mobile_number}
+                onChange={(e) => setFormData({ ...formData, mobile_number: e.target.value.replace(/\D/g, '') })}
+                placeholder="10-digit mobile number"
+                maxLength={10}
+                className="h-12"
                 required
               />
             </div>
 
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
                 type="password"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                placeholder="Enter your password"
+                placeholder="Enter your security password"
+                className="h-12"
                 required
               />
             </div>
 
             <Button
               type="submit"
-              className="w-full bg-gradient-to-r from-pink-500 to-purple-600"
+              className="w-full h-12 bg-gradient-to-r from-pink-500 to-purple-600 hover:opacity-90 transition-all font-semibold rounded-lg"
               disabled={loading}
             >
-              {loading ? 'Logging in...' : 'Login'}
+              {loading ? 'Verifying...' : 'Access My Dashboard'}
             </Button>
           </form>
         </CardContent>

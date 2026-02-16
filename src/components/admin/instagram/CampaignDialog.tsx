@@ -71,14 +71,59 @@ export default function CampaignDialog({ open, onOpenChange }: Props) {
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div>
-            <Label htmlFor="campaign_title">Campaign Title *</Label>
-            <Input
-              id="campaign_title"
-              {...register('campaign_title', { required: 'Title is required' })}
-              placeholder="Enter campaign title"
-            />
-            {errors.campaign_title && <p className="text-sm text-red-500 mt-1">{errors.campaign_title.message as string}</p>}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="campaign_title">Campaign Title *</Label>
+              <Input
+                id="campaign_title"
+                {...register('campaign_title', { required: 'Title is required' })}
+                placeholder="Enter campaign title"
+              />
+              {errors.campaign_title && <p className="text-sm text-red-500 mt-1">{errors.campaign_title.message as string}</p>}
+            </div>
+
+            <div>
+              <Label htmlFor="campaign_code">Campaign Code *</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="campaign_code"
+                  {...register('campaign_code', { required: 'Code is required' })}
+                  placeholder="e.g. INSTA-SUMMER"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    const code = 'INST-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+                    setValue('campaign_code', code);
+                  }}
+                >
+                  Regen
+                </Button>
+              </div>
+              {errors.campaign_code && <p className="text-sm text-red-500 mt-1">{errors.campaign_code.message as string}</p>}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="source">Source</Label>
+              <Input
+                id="source"
+                {...register('source')}
+                defaultValue="instagram"
+                placeholder="instagram"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="medium">Medium</Label>
+              <Input
+                id="medium"
+                {...register('medium')}
+                placeholder="story, bio, ads"
+              />
+            </div>
           </div>
 
           <div>
@@ -87,7 +132,7 @@ export default function CampaignDialog({ open, onOpenChange }: Props) {
               id="description"
               {...register('description')}
               placeholder="Enter campaign description"
-              rows={3}
+              rows={2}
             />
           </div>
 

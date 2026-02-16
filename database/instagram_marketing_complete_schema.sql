@@ -331,14 +331,19 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- ANALYTICS VIEWS
 -- ============================================
 
-CREATE OR REPLACE VIEW instagram_analytics AS
+DROP VIEW IF EXISTS instagram_analytics;
+CREATE VIEW instagram_analytics AS
 SELECT
   (SELECT COUNT(*) FROM instagram_users WHERE status = 'active') as total_active_users,
   (SELECT COUNT(*) FROM instagram_campaigns) as total_campaigns,
   (SELECT COALESCE(SUM(coins), 0) FROM instagram_coin_logs) as total_coins_distributed,
   (SELECT COUNT(*) FROM instagram_assignments WHERE status = 'active') as active_stories,
   (SELECT COUNT(*) FROM instagram_assignments WHERE status = 'expired') as expired_stories,
-  (SELECT COUNT(*) FROM instagram_assignments WHERE status = 'completed') as completed_stories;
+  (SELECT COUNT(*) FROM instagram_assignments WHERE status = 'completed') as completed_stories,
+  -- New Tracking Metrics
+  (SELECT COUNT(*) FROM campaign_clicks) as total_clicks,
+  (SELECT COUNT(*) FROM campaign_orders) as total_orders,
+  (SELECT COALESCE(SUM(revenue), 0) FROM campaign_orders) as total_revenue;
 
 -- Grant access to analytics view
 GRANT SELECT ON instagram_analytics TO authenticated;

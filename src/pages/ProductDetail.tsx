@@ -39,6 +39,21 @@ const ProductDetail = () => {
   const product = products.find((p) => p.slug === slug) || fetchedProduct;
 
   useEffect(() => {
+    // Fallback security for global loading
+    const timer = setTimeout(() => {
+      // setIsFetchingProduct handled by useProducts internal fallback if logic matches
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [loading]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsFetchingProduct(false);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [isFetchingProduct]);
+
+  useEffect(() => {
     if (product?.images?.length > 0) {
       setSelectedImage(product.images[0]);
     }

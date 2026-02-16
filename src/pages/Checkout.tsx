@@ -128,6 +128,11 @@ const Checkout = () => {
 
   // Fetch coupons
   useEffect(() => {
+    // Fallback security: never stay in loading state forever
+    const timer = setTimeout(() => {
+      setLoadingData(false);
+    }, 5000);
+
     const fetchData = async () => {
       try {
         setLoadingData(true);

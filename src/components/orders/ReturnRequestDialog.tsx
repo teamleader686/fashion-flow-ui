@@ -5,6 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -54,9 +55,9 @@ export default function ReturnRequestDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Request Return</DialogTitle>
-          <p className="text-sm text-muted-foreground">
+          <DialogDescription>
             Order #{orderNumber}
-          </p>
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">

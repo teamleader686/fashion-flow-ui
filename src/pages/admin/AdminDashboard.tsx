@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -39,19 +40,27 @@ const AdminDashboard = () => {
     todayOrders: 0,
   });
   const [loading, setLoading] = useState(true);
-  
+
   const [dateFilter, setDateFilter] = useState<DateFilter>('month');
   const [customDateRange, setCustomDateRange] = useState<{
     from: Date | undefined;
     to: Date | undefined;
   }>({ from: undefined, to: undefined });
   const [chartType, setChartType] = useState<'line' | 'bar'>('line');
-  
+  const { pathname } = useLocation();
+
   const analyticsData = useAnalyticsData(dateFilter, customDateRange);
 
   useEffect(() => {
+    // Fallback security: never stay in loading state forever
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 5000);
+
     fetchDashboardStats();
-  }, []);
+
+    return () => clearTimeout(timer);
+  }, [pathname]); // Use pathname for route changes
 
   const fetchDashboardStats = async () => {
     try {
@@ -76,11 +85,11 @@ const AdminDashboard = () => {
         .lte('stock_quantity', 10);
 
       const today = new Date().toISOString().split('T')[0];
-      const todayOrders = orders?.filter(o => 
+      const todayOrders = orders?.filter(o =>
         o.created_at.startsWith(today)
       ).length || 0;
 
-      const totalRevenue = orders?.reduce((sum, order) => 
+      const totalRevenue = orders?.reduce((sum, order) =>
         sum + parseFloat(order.total_amount || '0'), 0
       ) || 0;
 
@@ -209,9 +218,9 @@ const AdminDashboard = () => {
               totalProfit: analyticsData.profitLossData.reduce((sum, item) => sum + item.profit, 0),
               totalLoss: analyticsData.profitLossData.reduce((sum, item) => sum + item.loss, 0),
               profitMargin: analyticsData.revenueExpenseData.reduce((sum, item) => sum + item.revenue, 0) > 0
-                ? ((analyticsData.revenueExpenseData.reduce((sum, item) => sum + item.revenue, 0) - 
-                    analyticsData.revenueExpenseData.reduce((sum, item) => sum + item.expenses, 0)) / 
-                    analyticsData.revenueExpenseData.reduce((sum, item) => sum + item.revenue, 0)) * 100
+                ? ((analyticsData.revenueExpenseData.reduce((sum, item) => sum + item.revenue, 0) -
+                  analyticsData.revenueExpenseData.reduce((sum, item) => sum + item.expenses, 0)) /
+                  analyticsData.revenueExpenseData.reduce((sum, item) => sum + item.revenue, 0)) * 100
                 : 0,
             }}
             loading={analyticsData.loading}

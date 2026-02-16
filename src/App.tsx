@@ -8,6 +8,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { NavigationProvider } from "@/contexts/NavigationContext";
 import ScrollToTop from "@/components/navigation/ScrollToTop";
 import AffiliateTracker from "@/components/marketing/AffiliateTracker";
+import InstagramTracker from "@/components/marketing/InstagramTracker";
 import { lazy, Suspense } from "react";
 import { PageLoadingFallback } from "@/components/layout/LazyLoadingFallback";
 
@@ -79,6 +80,7 @@ const App = () => (
             <NavigationProvider>
               <ScrollToTop />
               <AffiliateTracker />
+              <InstagramTracker />
               <ErrorBoundary>
                 <ProfileCompletionGuard>
                   <Suspense fallback={<PageLoadingFallback />}>

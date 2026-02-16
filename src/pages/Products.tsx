@@ -54,6 +54,13 @@ const Products = () => {
 
   // Fetch products based on filters and page
   useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [loading]);
+
+  useEffect(() => {
     const fetchProducts = async () => {
       // Safety check: if already loading, don't trigger another one unless it's page 0
       if (loading && page > 0) return;

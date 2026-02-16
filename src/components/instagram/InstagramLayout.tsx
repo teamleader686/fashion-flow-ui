@@ -34,13 +34,14 @@ const InstagramLayout = ({ children, user }: InstagramLayoutProps) => {
         setSidebarOpen(false);
       }
     };
-    
+
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   const handleLogout = async () => {
+    localStorage.removeItem('instagram_user_id'); // Clear manual session
     await supabase.auth.signOut();
     navigate('/instagram-login');
   };
@@ -147,8 +148,8 @@ const InstagramLayout = ({ children, user }: InstagramLayoutProps) => {
           <nav className="flex-1 overflow-y-auto p-4 space-y-2">
             {menuItems.map((item) => {
               const Icon = item.icon;
-              const isActive = location.pathname === item.path || 
-                              (item.path.includes('#') && location.hash === item.path.split('#')[1]);
+              const isActive = location.pathname === item.path ||
+                (item.path.includes('#') && location.hash === item.path.split('#')[1]);
               return (
                 <Link key={item.path} to={item.path} onClick={closeMobileSidebar}>
                   <Button

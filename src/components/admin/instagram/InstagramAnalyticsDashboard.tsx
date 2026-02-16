@@ -28,46 +28,54 @@ export default function InstagramAnalyticsDashboard() {
   const stats = [
     {
       title: 'Active Instagram Users',
-      value: analytics.total_active_users,
+      value: analytics.total_active_users ?? 0,
       icon: Users,
       color: 'text-blue-600',
       bgColor: 'bg-blue-100'
     },
     {
       title: 'Total Campaigns',
-      value: analytics.total_campaigns,
+      value: analytics.total_campaigns ?? 0,
       icon: FileImage,
       color: 'text-purple-600',
       bgColor: 'bg-purple-100'
     },
     {
       title: 'Total Coins Distributed',
-      value: analytics.total_coins_distributed,
+      value: analytics.total_coins_distributed ?? 0,
       icon: Award,
       color: 'text-yellow-600',
       bgColor: 'bg-yellow-100'
     },
     {
-      title: 'Active Stories',
-      value: analytics.active_stories,
+      title: 'Campaign Clicks',
+      value: analytics.total_clicks ?? 0,
       icon: TrendingUp,
+      color: 'text-indigo-600',
+      bgColor: 'bg-indigo-100'
+    },
+    {
+      title: 'Campaign Orders',
+      value: analytics.total_orders ?? 0,
+      icon: CheckCircle,
+      color: 'text-pink-600',
+      bgColor: 'bg-pink-100'
+    },
+    {
+      title: 'Campaign Revenue',
+      value: analytics.total_revenue ?? 0,
+      icon: Award,
+      color: 'text-emerald-600',
+      bgColor: 'bg-emerald-100',
+      isCurrency: true
+    },
+    {
+      title: 'Active Stories',
+      value: analytics.active_stories ?? 0,
+      icon: Clock,
       color: 'text-green-600',
       bgColor: 'bg-green-100'
     },
-    {
-      title: 'Expired Stories',
-      value: analytics.expired_stories,
-      icon: Clock,
-      color: 'text-red-600',
-      bgColor: 'bg-red-100'
-    },
-    {
-      title: 'Completed Stories',
-      value: analytics.completed_stories,
-      icon: CheckCircle,
-      color: 'text-teal-600',
-      bgColor: 'bg-teal-100'
-    }
   ];
 
   return (
@@ -86,7 +94,7 @@ export default function InstagramAnalyticsDashboard() {
             </CardHeader>
             <CardContent>
               <div className={`text-3xl font-bold ${stat.color}`}>
-                {stat.value.toLocaleString()}
+                {stat.isCurrency ? `₹${(stat.value ?? 0).toLocaleString()}` : (stat.value ?? 0).toLocaleString()}
               </div>
             </CardContent>
           </Card>
@@ -112,11 +120,10 @@ export default function InstagramAnalyticsDashboard() {
               <div
                 className="bg-green-600 h-2 rounded-full transition-all"
                 style={{
-                  width: `${
-                    analytics.total_campaigns > 0
-                      ? (analytics.completed_stories / analytics.total_campaigns) * 100
-                      : 0
-                  }%`
+                  width: `${analytics.total_campaigns > 0
+                    ? (analytics.completed_stories / analytics.total_campaigns) * 100
+                    : 0
+                    }%`
                 }}
               />
             </div>

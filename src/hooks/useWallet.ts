@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -35,6 +36,7 @@ export interface WalletData {
 // Hook for User-side Wallet
 export const useWallet = () => {
   const { user } = useAuth();
+  const { pathname } = useLocation();
   const [wallet, setWallet] = useState<WalletData | null>(null);
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,6 +85,15 @@ export const useWallet = () => {
   }, [user]);
 
   useEffect(() => {
+    // Fallback security: never stay in loading state forever
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [loading]);
+
+  useEffect(() => {
     fetchWalletData();
     if (!user) return;
 
@@ -92,7 +103,7 @@ export const useWallet = () => {
       .subscribe();
 
     return () => { channel.unsubscribe(); };
-  }, [user, fetchWalletData]);
+  }, [user, fetchWalletData, pathname]);
 
   return { wallet, transactions, loading, error, refetch: fetchWalletData };
 };

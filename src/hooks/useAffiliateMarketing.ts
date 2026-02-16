@@ -14,6 +14,15 @@ export function useAffiliateMarketing() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (loading) {
+      const timer = setTimeout(() => {
+        setLoading(false);
+      }, 8000);
+      return () => clearTimeout(timer);
+    }
+  }, [loading]);
+
   // ============================================
   // ADMIN FUNCTIONS
   // ============================================

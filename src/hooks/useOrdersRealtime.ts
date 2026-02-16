@@ -86,6 +86,15 @@ export const useOrdersRealtime = (options: {
   };
 
   useEffect(() => {
+    // Fallback security: never stay in loading state forever
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [loading]);
+
+  useEffect(() => {
     fetchOrders();
 
     // Setup realtime subscription
@@ -132,7 +141,7 @@ export const useOrdersRealtime = (options: {
       await supabase.from('order_status_history').insert({
         order_id: orderId,
         status: status,
-        note: note || `Order status updated to ${status}`
+        notes: note || `Order status updated to ${status}`
       });
 
       toast.success('Order status updated');

@@ -16,12 +16,17 @@ export interface InstagramUser {
 
 export interface InstagramCampaign {
   id: string;
-  campaign_title: string;
+  campaign_title: string; // Keep for legacy
+  name?: string;
   description?: string;
-  media_url: string;
-  media_type: 'image' | 'video';
+  campaign_code?: string;
+  source?: string;
+  medium?: string;
+  media_url?: string;
+  media_type?: 'image' | 'video';
   expiry_hours: number;
   status: 'active' | 'expired' | 'completed';
+  is_active: boolean;
   created_by?: string;
   created_at: string;
   updated_at: string;
@@ -72,6 +77,9 @@ export interface InstagramAnalytics {
   active_stories: number;
   expired_stories: number;
   completed_stories: number;
+  total_clicks: number;
+  total_orders: number;
+  total_revenue: number;
 }
 
 export interface InstagramUserFormData {
@@ -86,7 +94,11 @@ export interface InstagramUserFormData {
 
 export interface CampaignFormData {
   campaign_title: string;
+  name?: string;
   description?: string;
+  campaign_code?: string;
+  source?: string;
+  medium?: string;
   media_file?: File;
   media_url?: string;
   media_type: 'image' | 'video';

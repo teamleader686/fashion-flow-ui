@@ -132,6 +132,15 @@ export const useProducts = () => {
   };
 
   useEffect(() => {
+    // Fallback security: never stay in loading state forever
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [loading]);
+
+  useEffect(() => {
     // Fetch products immediately on mount
     fetchProducts();
 
