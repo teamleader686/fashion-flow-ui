@@ -1,5 +1,5 @@
 import Layout from "@/components/layout/Layout";
-import { User, Package, MapPin, Wallet, Gift, LogIn, ChevronRight, Settings, Heart } from "lucide-react";
+import { User, Package, MapPin, Wallet, Gift, LogIn, Settings, Heart } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -11,25 +11,31 @@ const menuItems = [
   { icon: Wallet, label: "My Wallet & Rewards", desc: "Balance, coins & transactions", link: "/wallet", color: "text-emerald-500", bg: "bg-emerald-50" },
 ];
 
+// ... imports
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { FileText, HelpCircle, MessageSquare, ChevronRight } from "lucide-react";
+
+// ... existing code
+
 const Account = () => {
   const { user, profile, loading, signOut } = useAuth();
+  const [pages, setPages] = useState<{ slug: string; title: string }[]>([]);
 
-  if (loading) return (
-    <Layout>
-      <div className="container py-8 max-w-2xl mx-auto space-y-4">
-        <div className="h-32 bg-secondary/50 rounded-2xl animate-pulse" />
-        <div className="h-16 bg-secondary/50 rounded-xl animate-pulse" />
-        <div className="h-16 bg-secondary/50 rounded-xl animate-pulse" />
-      </div>
-    </Layout>
-  );
+  useEffect(() => {
+    supabase.from("pages").select("slug, title").eq("is_active", true)
+      .then(({ data }) => setPages(data || []));
+  }, []);
+
+  // ... loading check
 
   return (
     <Layout>
-      <div className="container py-4 lg:py-8 max-w-2xl mx-auto">
-        {/* Profile Card */}
+      <div className="container py-4 lg:py-8 max-w-2xl mx-auto space-y-8">
+        {/* ... Profile Card ... */}
         {user ? (
-          <div className="bg-gradient-to-br from-primary/10 via-background to-secondary/30 rounded-2xl border border-primary/10 p-6 mb-8 relative overflow-hidden group">
+          <div className="bg-gradient-to-br from-primary/10 via-background to-secondary/30 rounded-2xl border border-primary/10 p-6 relative overflow-hidden group">
+            {/* ... profile content ... */}
             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
               <User size={120} />
             </div>
@@ -49,14 +55,15 @@ const Account = () => {
             </div>
           </div>
         ) : (
-          <div className="bg-card rounded-2xl border border-dashed border-border p-8 text-center mb-8">
+          // ... guest content ...
+          <div className="bg-card rounded-2xl border border-dashed border-border p-8 text-center">
             <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center mx-auto mb-4">
               <User className="h-8 w-8 text-muted-foreground" />
             </div>
             <h1 className="text-xl font-bold mb-2">Welcome to StyleBazaar</h1>
             <p className="text-sm text-muted-foreground mb-6">Sign in to track orders, manage addresses and more.</p>
             <Button asChild className="rounded-full px-10">
-              <Link to="/auth">
+              <Link to="/login">
                 <LogIn className="h-4 w-4 mr-2" />
                 Sign In / Sign Up
               </Link>
@@ -84,8 +91,43 @@ const Account = () => {
           ))}
         </div>
 
+        {/* Legal & Support Section */}
+        <div className="space-y-3">
+          <h3 className="text-lg font-semibold ml-1">Legal & Support</h3>
+          <div className="bg-card rounded-xl border border-border/60 divide-y">
+            {pages.map((page) => (
+              <Link
+                key={page.slug}
+                to={`/pages/${page.slug}`}
+                className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">{page.title}</span>
+                </div>
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              </Link>
+            ))}
+            {/* Static Links for FAQ & Contact */}
+            <Link to="#" className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors">
+              <div className="flex items-center gap-3">
+                <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">FAQ</span>
+              </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </Link>
+            <Link to="#" className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors">
+              <div className="flex items-center gap-3">
+                <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Contact Us</span>
+              </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </Link>
+          </div>
+        </div>
+
         {user && (
-          <div className="mt-8 text-center">
+          <div className="pt-4 text-center">
             <button
               onClick={() => signOut()}
               className="text-sm font-medium text-destructive hover:underline transition-all"

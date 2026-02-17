@@ -52,6 +52,7 @@ interface AddressForm {
 import { AddressSection } from "@/components/checkout/AddressSection";
 import { UserAddress } from "@/hooks/useAddresses";
 import CloudImage from "@/components/ui/CloudImage";
+import LocationPicker from "@/components/checkout/LocationPicker";
 
 const Checkout = () => {
   const navigate = useNavigate();
@@ -107,6 +108,10 @@ const Checkout = () => {
 
   // Order sections expand (mobile)
   const [expandedSection, setExpandedSection] = useState<string>("address");
+
+  // Map Location State
+  const [showMap, setShowMap] = useState(false);
+  const [mapLocation, setMapLocation] = useState<{ lat?: number; lng?: number; address?: string }>({});
 
   // Calculations
   const subtotalWithOffers = totalPrice;
@@ -299,6 +304,9 @@ const Checkout = () => {
         commission_amount: appliedCoupon.commission_amount
       }] : [],
       payment_method: 'cod' as const,
+      latitude: mapLocation.lat,
+      longitude: mapLocation.lng,
+      map_address: mapLocation.address,
       items: items.map(item => ({
         product_id: item.product.id,
         product_name: item.product.name,
@@ -483,388 +491,437 @@ const Checkout = () => {
               </AnimatePresence>
             </div>
 
-            {/* ──────── COUPON CODE ──────── */}
-            <div className="bg-card rounded-xl border border-border overflow-hidden">
-              <button
-                onClick={() => toggleSection("coupon")}
-                className="w-full flex items-center justify-between p-4 lg:cursor-default"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Tag className="h-4 w-4 text-primary" />
-                  </div>
-                  <h2 className="font-semibold text-sm">Apply Coupon</h2>
-                  {appliedCoupon && (
-                    <span className="text-xs font-semibold text-discount bg-primary/10 px-2 py-0.5 rounded-full">
-                      -{couponDiscount > 0 ? `₹${couponDiscount}` : ""}
-                    </span>
-                  )}
-                </div>
-                <span className="lg:hidden">
-                  {expandedSection === "coupon" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                </span>
-              </button>
-
-              <AnimatePresence initial={false}>
-                {(expandedSection === "coupon" || window.innerWidth >= 1024) && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="px-4 pb-4">
-                      {appliedCoupon ? (
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between p-3 bg-primary/5 border border-primary/20 rounded-lg">
-                            <div>
-                              <p className="text-sm font-bold text-primary">
-                                {appliedCoupon.code}
-                                {appliedCoupon.is_affiliate_coupon && (
-                                  <span className="ml-2 text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">AFFILIATE</span>
-                                )}
-                              </p>
-                              <p className="text-xs font-semibold text-discount mt-0.5">You save ₹{appliedCoupon.discount}</p>
-                            </div>
-                            <button onClick={removeCoupon} className="p-1.5 hover:bg-secondary rounded-full">
-                              <X className="h-4 w-4 text-muted-foreground" />
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
-                              placeholder="Enter coupon code"
-                              maxLength={20}
-                              value={couponCode}
-                              onChange={(e) => setCouponCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
-                              className="flex-1 rounded-lg border border-border px-3 py-2.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 uppercase"
-                            />
-                            <button
-                              onClick={handleApplyCoupon}
-                              disabled={validatingCoupon}
-                              className="px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
-                            >
-                              {validatingCoupon ? "..." : "Apply"}
-                            </button>
-                          </div>
-
-                          <button
-                            onClick={() => setShowCoupons(!showCoupons)}
-                            className="text-xs text-primary font-medium mt-2 hover:underline"
-                          >
-                            {showCoupons ? "Hide coupons" : "View available coupons"}
-                          </button>
-
-                          <AnimatePresence>
-                            {showCoupons && (
-                              <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: "auto", opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                className="mt-2 space-y-2 overflow-hidden"
-                              >
-                                {availableCoupons.length === 0 ? (
-                                  <p className="text-xs text-muted-foreground py-2">No coupons available right now</p>
-                                ) : (
-                                  availableCoupons.map((coupon) => (
-                                    <div
-                                      key={coupon.id}
-                                      className="flex items-center justify-between p-3 border border-dashed border-border rounded-lg"
-                                    >
-                                      <div>
-                                        <p className="text-sm font-bold">{coupon.coupon_code}</p>
-                                        <p className="text-[11px] text-muted-foreground">{coupon.description || coupon.coupon_title}</p>
-                                        <p className="text-[11px] text-muted-foreground">Min order: ₹{coupon.min_order_value}</p>
-                                      </div>
-                                      <button
-                                        onClick={() => {
-                                          setCouponCode(coupon.coupon_code);
-                                          if (subtotal >= coupon.min_order_value) {
-                                            handleApplyCoupon();
-                                          } else {
-                                            toast.error(`Minimum order of ₹${coupon.min_order_value} required`);
-                                          }
-                                        }}
-                                        className="text-xs font-semibold text-primary hover:underline whitespace-nowrap"
-                                      >
-                                        Apply
-                                      </button>
-                                    </div>
-                                  ))
-                                )}
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </>
-                      )}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* ──────── LOYALTY COINS ──────── */}
-            <div className="bg-card rounded-xl border border-border overflow-hidden">
-              <button
-                onClick={() => toggleSection("coins")}
-                className="w-full flex items-center justify-between p-4 lg:cursor-default"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-star/20 flex items-center justify-center">
-                    <Coins className="h-4 w-4 text-star" />
-                  </div>
-                  <div className="text-left">
-                    <h2 className="font-semibold text-sm">Loyalty Coins</h2>
-                    <p className="text-[11px] text-muted-foreground">Balance: {loyaltyBalance} coins</p>
-                  </div>
-                  {useCoins && coinsValue > 0 && (
-                    <span className="text-xs font-semibold text-discount bg-primary/10 px-2 py-0.5 rounded-full">
-                      -₹{coinsValue}
-                    </span>
-                  )}
-                </div>
-                <span className="lg:hidden">
-                  {expandedSection === "coins" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                </span>
-              </button>
-
-              <AnimatePresence initial={false}>
-                {(expandedSection === "coins" || window.innerWidth >= 1024) && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="px-4 pb-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm">Use coins for this order</span>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={useCoins}
-                            onChange={(e) => {
-                              setUseCoins(e.target.checked);
-                              if (e.target.checked) setCoinsToUse(maxCoinsUsable);
-                              else setCoinsToUse(0);
-                            }}
-                            className="sr-only peer"
-                          />
-                          <div className="w-9 h-5 bg-border rounded-full peer peer-checked:bg-primary transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-card after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4"></div>
-                        </label>
-                      </div>
-
-                      {useCoins && (
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-3">
-                            <input
-                              type="range"
-                              min={0}
-                              max={maxCoinsUsable}
-                              step={10}
-                              value={coinsToUse}
-                              onChange={(e) => setCoinsToUse(Number(e.target.value))}
-                              className="flex-1 accent-primary"
-                            />
-                            <span className="text-sm font-bold w-16 text-right">{coinsToUse} coins</span>
-                          </div>
-                          <div className="flex justify-between text-[11px] text-muted-foreground">
-                            <span>0</span>
-                            <span>Max: {maxCoinsUsable} coins (₹{maxCoinsUsable})</span>
-                          </div>
-                          <p className="text-[11px] text-muted-foreground">
-                            1 coin = ₹1 • Max {MAX_COINS_PERCENT}% of order value
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* ──────── PAYMENT METHOD ──────── */}
-            <div className="bg-card rounded-xl border border-border overflow-hidden">
-              <button
-                onClick={() => toggleSection("payment")}
-                className="w-full flex items-center justify-between p-4 lg:cursor-default"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                    <CreditCard className="h-4 w-4 text-primary" />
-                  </div>
-                  <h2 className="font-semibold text-sm">Payment Method</h2>
-                </div>
-                <span className="lg:hidden">
-                  {expandedSection === "payment" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                </span>
-              </button>
-
-              <AnimatePresence initial={false}>
-                {(expandedSection === "payment" || window.innerWidth >= 1024) && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="px-4 pb-4">
-                      <div className="flex items-center gap-3 p-4 rounded-xl border-2 border-primary bg-primary/5">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                          <Banknote className="h-5 w-5 text-primary" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-bold text-gray-900">Cash on Delivery (COD)</p>
-                          <p className="text-[11px] text-muted-foreground font-medium">Pay securely when you receive your order</p>
-                        </div>
-                        <div className="h-5 w-5 rounded-full border-2 border-primary flex items-center justify-center">
-                          <div className="h-2.5 w-2.5 rounded-full bg-primary" />
-                        </div>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground mt-3 text-center italic">
-                        No other payment methods are available at this time.
-                      </p>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
           </div>
 
-          {/* ──────── RIGHT: ORDER SUMMARY ──────── */}
-          <div className="lg:w-80">
-            <div className="bg-card rounded-xl border border-border p-5 sticky top-20 space-y-4">
-              <h3 className="font-semibold">Order Summary</h3>
-
-              {/* Items preview */}
-              <div className="space-y-2 max-h-40 overflow-y-auto scrollbar-hide">
-                {items.map((item) => (
-                  <div key={`${item.product.id}-${item.selectedSize}-${item.selectedColor}-${item.isCoinItem}`} className="flex gap-2 text-sm">
-                    <CloudImage
-                      src={item.product.image}
-                      alt={item.product.name}
-                      className="w-10 h-12 rounded shrink-0"
-                      imageClassName="w-full h-full object-cover"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs">{item.product.name}</p>
-                      <p className="text-[11px] text-muted-foreground flex gap-2">
-                        <span>Size: {item.selectedSize}</span>
-                        {item.selectedColor && (
-                          <>
-                            <span>•</span>
-                            <span>Color: {item.selectedColor}</span>
-                          </>
-                        )}
-                        <span>× {item.quantity}</span>
-                      </p>
-                    </div>
-                    <span className="text-xs font-medium whitespace-nowrap">
-                      {item.isCoinItem ? (
-                        <span className="text-purple-700 font-bold flex items-center gap-1">
-                          <Coins className="h-3 w-3" />
-                          {(item.coinPrice || 0) * item.quantity}
-                        </span>
-                      ) : (
-                        item.offer?.type === 'bogo' && !appliedCoupon ? (
-                          <div className="text-right">
-                            <div className="text-[10px] text-discount font-bold">BOGO Active</div>
-                            <div className="line-through text-gray-400 text-[10px]">₹{(item.product.price * item.quantity).toLocaleString()}</div>
-                            <div>₹{(item.product.price * (item.quantity - Math.floor(item.quantity / 2))).toLocaleString()}</div>
-                          </div>
-                        ) : (
-                          `₹${((appliedCoupon ? item.product.price : (item.offerPrice || item.product.price)) * item.quantity).toLocaleString()}`
-                        )
-                      )}
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="border-t border-border pt-3 space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Subtotal</span>
-                  <span>₹{subtotal.toLocaleString()}</span>
+          {/* ──────── MAP LOCATION (OPTIONAL) ──────── */}
+          <div className="bg-card rounded-xl border border-border overflow-hidden mt-4">
+            <button
+              onClick={() => setShowMap(!showMap)}
+              className="w-full flex items-center justify-between p-4 lg:cursor-default"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                  <MapPin className="h-4 w-4 text-primary" />
                 </div>
-                {totalCoinsRequired > 0 && (
-                  <div className="flex justify-between text-purple-700">
-                    <span className="text-muted-foreground">Coins Redemption</span>
-                    <span className="font-medium flex items-center gap-1">
-                      <Coins className="h-3 w-3" />
-                      {totalCoinsRequired.toLocaleString()}
-                    </span>
+                <div>
+                  <h2 className="font-semibold text-sm">Pin Location on Map</h2>
+                  <p className="text-[10px] text-muted-foreground">{mapLocation.address ? "Location Selected" : "Optional"}</p>
+                </div>
+              </div>
+              {showMap ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+
+            <AnimatePresence>
+              {showMap && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="p-4 pt-0">
+                    <LocationPicker
+                      onSelect={(loc) => {
+                        setMapLocation({
+                          lat: loc.lat,
+                          lng: loc.lng,
+                          address: loc.address
+                        });
+                      }}
+                      initialLocation={mapLocation.lat ? { lat: mapLocation.lat, lng: mapLocation.lng } : undefined}
+                    />
+                    {mapLocation.address && (
+                      <div className="mt-2 text-xs bg-muted p-2 rounded">
+                        <span className="font-semibold">Selected Location:</span> {mapLocation.address}
+                      </div>
+                    )}
                   </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* ──────── COUPON CODE ──────── */}
+          <div className="bg-card rounded-xl border border-border overflow-hidden">
+            <button
+              onClick={() => toggleSection("coupon")}
+              className="w-full flex items-center justify-between p-4 lg:cursor-default"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Tag className="h-4 w-4 text-primary" />
+                </div>
+                <h2 className="font-semibold text-sm">Apply Coupon</h2>
+                {appliedCoupon && (
+                  <span className="text-xs font-semibold text-discount bg-primary/10 px-2 py-0.5 rounded-full">
+                    -{couponDiscount > 0 ? `₹${couponDiscount}` : ""}
+                  </span>
                 )}
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Shipping</span>
-                  <span className={shipping === 0 ? "text-discount font-medium" : ""}>
-                    {shipping === 0 ? "FREE" : `₹${shipping}`}
+              </div>
+              <span className="lg:hidden">
+                {expandedSection === "coupon" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </span>
+            </button>
+
+            <AnimatePresence initial={false}>
+              {(expandedSection === "coupon" || window.innerWidth >= 1024) && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="px-4 pb-4">
+                    {appliedCoupon ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                          <div>
+                            <p className="text-sm font-bold text-primary">
+                              {appliedCoupon.code}
+                              {appliedCoupon.is_affiliate_coupon && (
+                                <span className="ml-2 text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">AFFILIATE</span>
+                              )}
+                            </p>
+                            <p className="text-xs font-semibold text-discount mt-0.5">You save ₹{appliedCoupon.discount}</p>
+                          </div>
+                          <button onClick={removeCoupon} className="p-1.5 hover:bg-secondary rounded-full">
+                            <X className="h-4 w-4 text-muted-foreground" />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="Enter coupon code"
+                            maxLength={20}
+                            value={couponCode}
+                            onChange={(e) => setCouponCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+                            className="flex-1 rounded-lg border border-border px-3 py-2.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 uppercase"
+                          />
+                          <button
+                            onClick={handleApplyCoupon}
+                            disabled={validatingCoupon}
+                            className="px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+                          >
+                            {validatingCoupon ? "..." : "Apply"}
+                          </button>
+                        </div>
+
+                        <button
+                          onClick={() => setShowCoupons(!showCoupons)}
+                          className="text-xs text-primary font-medium mt-2 hover:underline"
+                        >
+                          {showCoupons ? "Hide coupons" : "View available coupons"}
+                        </button>
+
+                        <AnimatePresence>
+                          {showCoupons && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              className="mt-2 space-y-2 overflow-hidden"
+                            >
+                              {availableCoupons.length === 0 ? (
+                                <p className="text-xs text-muted-foreground py-2">No coupons available right now</p>
+                              ) : (
+                                availableCoupons.map((coupon) => (
+                                  <div
+                                    key={coupon.id}
+                                    className="flex items-center justify-between p-3 border border-dashed border-border rounded-lg"
+                                  >
+                                    <div>
+                                      <p className="text-sm font-bold">{coupon.coupon_code}</p>
+                                      <p className="text-[11px] text-muted-foreground">{coupon.description || coupon.coupon_title}</p>
+                                      <p className="text-[11px] text-muted-foreground">Min order: ₹{coupon.min_order_value}</p>
+                                    </div>
+                                    <button
+                                      onClick={() => {
+                                        setCouponCode(coupon.coupon_code);
+                                        if (subtotal >= coupon.min_order_value) {
+                                          handleApplyCoupon();
+                                        } else {
+                                          toast.error(`Minimum order of ₹${coupon.min_order_value} required`);
+                                        }
+                                      }}
+                                      className="text-xs font-semibold text-primary hover:underline whitespace-nowrap"
+                                    >
+                                      Apply
+                                    </button>
+                                  </div>
+                                ))
+                              )}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* ──────── LOYALTY COINS ──────── */}
+          <div className="bg-card rounded-xl border border-border overflow-hidden">
+            <button
+              onClick={() => toggleSection("coins")}
+              className="w-full flex items-center justify-between p-4 lg:cursor-default"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-star/20 flex items-center justify-center">
+                  <Coins className="h-4 w-4 text-star" />
+                </div>
+                <div className="text-left">
+                  <h2 className="font-semibold text-sm">Loyalty Coins</h2>
+                  <p className="text-[11px] text-muted-foreground">Balance: {loyaltyBalance} coins</p>
+                </div>
+                {useCoins && coinsValue > 0 && (
+                  <span className="text-xs font-semibold text-discount bg-primary/10 px-2 py-0.5 rounded-full">
+                    -₹{coinsValue}
+                  </span>
+                )}
+              </div>
+              <span className="lg:hidden">
+                {expandedSection === "coins" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </span>
+            </button>
+
+            <AnimatePresence initial={false}>
+              {(expandedSection === "coins" || window.innerWidth >= 1024) && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="px-4 pb-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm">Use coins for this order</span>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={useCoins}
+                          onChange={(e) => {
+                            setUseCoins(e.target.checked);
+                            if (e.target.checked) setCoinsToUse(maxCoinsUsable);
+                            else setCoinsToUse(0);
+                          }}
+                          className="sr-only peer"
+                        />
+                        <div className="w-9 h-5 bg-border rounded-full peer peer-checked:bg-primary transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-card after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4"></div>
+                      </label>
+                    </div>
+
+                    {useCoins && (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="range"
+                            min={0}
+                            max={maxCoinsUsable}
+                            step={10}
+                            value={coinsToUse}
+                            onChange={(e) => setCoinsToUse(Number(e.target.value))}
+                            className="flex-1 accent-primary"
+                          />
+                          <span className="text-sm font-bold w-16 text-right">{coinsToUse} coins</span>
+                        </div>
+                        <div className="flex justify-between text-[11px] text-muted-foreground">
+                          <span>0</span>
+                          <span>Max: {maxCoinsUsable} coins (₹{maxCoinsUsable})</span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">
+                          1 coin = ₹1 • Max {MAX_COINS_PERCENT}% of order value
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* ──────── PAYMENT METHOD ──────── */}
+          <div className="bg-card rounded-xl border border-border overflow-hidden">
+            <button
+              onClick={() => toggleSection("payment")}
+              className="w-full flex items-center justify-between p-4 lg:cursor-default"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <CreditCard className="h-4 w-4 text-primary" />
+                </div>
+                <h2 className="font-semibold text-sm">Payment Method</h2>
+              </div>
+              <span className="lg:hidden">
+                {expandedSection === "payment" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </span>
+            </button>
+
+            <AnimatePresence initial={false}>
+              {(expandedSection === "payment" || window.innerWidth >= 1024) && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="px-4 pb-4">
+                    <div className="flex items-center gap-3 p-4 rounded-xl border-2 border-primary bg-primary/5">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Banknote className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-bold text-gray-900">Cash on Delivery (COD)</p>
+                        <p className="text-[11px] text-muted-foreground font-medium">Pay securely when you receive your order</p>
+                      </div>
+                      <div className="h-5 w-5 rounded-full border-2 border-primary flex items-center justify-center">
+                        <div className="h-2.5 w-2.5 rounded-full bg-primary" />
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-3 text-center italic">
+                      No other payment methods are available at this time.
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+
+        {/* ──────── RIGHT: ORDER SUMMARY ──────── */}
+        <div className="lg:w-80">
+          <div className="bg-card rounded-xl border border-border p-5 sticky top-20 space-y-4">
+            <h3 className="font-semibold">Order Summary</h3>
+
+            {/* Items preview */}
+            <div className="space-y-2 max-h-40 overflow-y-auto scrollbar-hide">
+              {items.map((item) => (
+                <div key={`${item.product.id}-${item.selectedSize}-${item.selectedColor}-${item.isCoinItem}`} className="flex gap-2 text-sm">
+                  <CloudImage
+                    src={item.product.image}
+                    alt={item.product.name}
+                    className="w-10 h-12 rounded shrink-0"
+                    imageClassName="w-full h-full object-cover"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs">{item.product.name}</p>
+                    <p className="text-[11px] text-muted-foreground flex gap-2">
+                      <span>Size: {item.selectedSize}</span>
+                      {item.selectedColor && (
+                        <>
+                          <span>•</span>
+                          <span>Color: {item.selectedColor}</span>
+                        </>
+                      )}
+                      <span>× {item.quantity}</span>
+                    </p>
+                  </div>
+                  <span className="text-xs font-medium whitespace-nowrap">
+                    {item.isCoinItem ? (
+                      <span className="text-purple-700 font-bold flex items-center gap-1">
+                        <Coins className="h-3 w-3" />
+                        {(item.coinPrice || 0) * item.quantity}
+                      </span>
+                    ) : (
+                      item.offer?.type === 'bogo' && !appliedCoupon ? (
+                        <div className="text-right">
+                          <div className="text-[10px] text-discount font-bold">BOGO Active</div>
+                          <div className="line-through text-gray-400 text-[10px]">₹{(item.product.price * item.quantity).toLocaleString()}</div>
+                          <div>₹{(item.product.price * (item.quantity - Math.floor(item.quantity / 2))).toLocaleString()}</div>
+                        </div>
+                      ) : (
+                        `₹${((appliedCoupon ? item.product.price : (item.offerPrice || item.product.price)) * item.quantity).toLocaleString()}`
+                      )
+                    )}
                   </span>
                 </div>
-                {couponDiscount > 0 && appliedCoupon && (
-                  <div className="flex flex-col gap-1 border-b border-border/50 pb-2">
-                    <div className="flex justify-between text-discount text-xs">
-                      <span>Coupon ({appliedCoupon.code})</span>
-                      <span>-₹{appliedCoupon.discount}</span>
-                    </div>
-                    <div className="flex justify-between text-discount font-bold mt-1">
-                      <span>Total Savings</span>
-                      <span>-₹{couponDiscount}</span>
-                    </div>
-                  </div>
-                )}
-                {coinsValue > 0 && (
-                  <div className="flex justify-between text-discount">
-                    <span>Loyalty Coins Discount ({coinsToUse})</span>
-                    <span>-₹{coinsValue}</span>
-                  </div>
-                )}
-                <div className="border-t border-border pt-2 flex justify-between font-bold text-base">
-                  <span>Total</span>
-                  <span>₹{finalTotal.toLocaleString()}</span>
-                </div>
+              ))}
+            </div>
 
-                {(couponDiscount + coinsValue) > 0 && (
-                  <p className="text-xs font-semibold text-discount text-center">
-                    🎉 You save ₹{(couponDiscount + coinsValue).toLocaleString()} on this order!
-                  </p>
-                )}
+            <div className="border-t border-border pt-3 space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span>₹{subtotal.toLocaleString()}</span>
+              </div>
+              {totalCoinsRequired > 0 && (
+                <div className="flex justify-between text-purple-700">
+                  <span className="text-muted-foreground">Coins Redemption</span>
+                  <span className="font-medium flex items-center gap-1">
+                    <Coins className="h-3 w-3" />
+                    {totalCoinsRequired.toLocaleString()}
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Shipping</span>
+                <span className={shipping === 0 ? "text-discount font-medium" : ""}>
+                  {shipping === 0 ? "FREE" : `₹${shipping}`}
+                </span>
+              </div>
+              {couponDiscount > 0 && appliedCoupon && (
+                <div className="flex flex-col gap-1 border-b border-border/50 pb-2">
+                  <div className="flex justify-between text-discount text-xs">
+                    <span>Coupon ({appliedCoupon.code})</span>
+                    <span>-₹{appliedCoupon.discount}</span>
+                  </div>
+                  <div className="flex justify-between text-discount font-bold mt-1">
+                    <span>Total Savings</span>
+                    <span>-₹{couponDiscount}</span>
+                  </div>
+                </div>
+              )}
+              {coinsValue > 0 && (
+                <div className="flex justify-between text-discount">
+                  <span>Loyalty Coins Discount ({coinsToUse})</span>
+                  <span>-₹{coinsValue}</span>
+                </div>
+              )}
+              <div className="border-t border-border pt-2 flex justify-between font-bold text-base">
+                <span>Total</span>
+                <span>₹{finalTotal.toLocaleString()}</span>
               </div>
 
-              <button
-                onClick={handlePlaceOrder}
-                disabled={placingOrder}
-                className="w-full py-3 rounded-full bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {placingOrder ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Placing Order...
-                  </>
-                ) : (
-                  paymentMethod === "cod" ? "Place Order (COD)" : `Pay ₹${finalTotal.toLocaleString()}`
-                )}
-              </button>
+              {(couponDiscount + coinsValue) > 0 && (
+                <p className="text-xs font-semibold text-discount text-center">
+                  🎉 You save ₹{(couponDiscount + coinsValue).toLocaleString()} on this order!
+                </p>
+              )}
+            </div>
 
-              {/* Trust badges */}
-              <div className="flex items-center justify-center gap-4 pt-2 border-t border-border">
-                <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                  <ShieldCheck className="h-3.5 w-3.5" />
-                  <span>Secure</span>
-                </div>
-                <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                  <Truck className="h-3.5 w-3.5" />
-                  <span>Fast Delivery</span>
-                </div>
-                <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                  <Gift className="h-3.5 w-3.5" />
-                  <span>Earn Coins</span>
-                </div>
+            <button
+              onClick={handlePlaceOrder}
+              disabled={placingOrder}
+              className="w-full py-3 rounded-full bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {placingOrder ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Placing Order...
+                </>
+              ) : (
+                paymentMethod === "cod" ? "Place Order (COD)" : `Pay ₹${finalTotal.toLocaleString()}`
+              )}
+            </button>
+
+            {/* Trust badges */}
+            <div className="flex items-center justify-center gap-4 pt-2 border-t border-border">
+              <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                <ShieldCheck className="h-3.5 w-3.5" />
+                <span>Secure</span>
+              </div>
+              <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                <Truck className="h-3.5 w-3.5" />
+                <span>Fast Delivery</span>
+              </div>
+              <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                <Gift className="h-3.5 w-3.5" />
+                <span>Earn Coins</span>
               </div>
             </div>
           </div>

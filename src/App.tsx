@@ -58,6 +58,14 @@ const CategoryManagement = lazy(() => import("./pages/admin/CategoryManagement")
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Login = lazy(() => import("./pages/Login"));
 const AuthCallback = lazy(() => import("./pages/AuthCallback"));
+
+// Legal & Support - User
+const DynamicPage = lazy(() => import("./pages/legal/DynamicPage"));
+
+// Legal & Support - Admin
+const AdminPages = lazy(() => import("./pages/admin/content/AdminPages"));
+const AdminFAQ = lazy(() => import("./pages/admin/content/AdminFAQ"));
+const AdminContact = lazy(() => import("./pages/admin/content/AdminContact"));
 import ProtectedRoute from "@/components/admin/ProtectedRoute";
 import UserProtectedRoute from "@/components/auth/UserProtectedRoute";
 import AffiliateProtectedRoute from "@/components/auth/AffiliateProtectedRoute";
@@ -137,6 +145,14 @@ const App = () => (
                       {/* Affiliate User Routes */}
                       <Route path="/affiliate-dashboard/login" element={<AffiliateLogin />} />
                       <Route path="/affiliate-dashboard" element={<AffiliateProtectedRoute><AffiliateDashboard /></AffiliateProtectedRoute>} />
+
+                      {/* User Legal & Support Routes */}
+                      <Route path="/pages/:slug" element={<DynamicPage />} />
+
+                      {/* Admin Legal & Support Routes */}
+                      <Route path="/admin/content/pages" element={<ProtectedRoute><AdminPages /></ProtectedRoute>} />
+                      <Route path="/admin/content/faq" element={<ProtectedRoute><AdminFAQ /></ProtectedRoute>} />
+                      <Route path="/admin/content/contact" element={<ProtectedRoute><AdminContact /></ProtectedRoute>} />
 
                       <Route path="*" element={<NotFound />} />
                     </Routes>

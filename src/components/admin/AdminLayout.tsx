@@ -39,6 +39,9 @@ import {
   FolderTree,
   Database,
   Heart,
+  FileText,
+  HelpCircle,
+  MessageSquare,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -63,6 +66,9 @@ const menuItems = [
   { icon: Wallet, label: 'Wallet & Loyalty', path: '/admin/wallet' },
   { icon: Heart, label: 'Wishlist', path: '/admin/wishlist' },
   { icon: Database, label: 'Store Management', path: '/admin/store' },
+  { icon: FileText, label: 'Pages', path: '/admin/content/pages' },
+  { icon: HelpCircle, label: 'FAQs', path: '/admin/content/faq' },
+  { icon: MessageSquare, label: 'Contact Msgs', path: '/admin/content/contact' },
   { icon: Settings, label: 'Settings', path: '/admin/settings' },
 ];
 

@@ -164,7 +164,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `http://10.178.221.41:8080`,
+        // redirectTo: `http://10.178.221.41:8080`,
+        redirectTo: `stylebazaarkurti.netlify.app`,
         queryParams: {
           access_type: 'offline',
           prompt: 'consent',
