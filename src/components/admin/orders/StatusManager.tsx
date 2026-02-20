@@ -16,7 +16,7 @@ const StatusManager = ({ order, onUpdateStatus }: StatusManagerProps) => {
   const [updating, setUpdating] = useState(false);
 
   const statusOptions: { value: Order['status']; label: string; description: string }[] = [
-    { value: 'pending', label: 'Order Placed', description: 'Order received, awaiting confirmation' },
+    { value: 'placed', label: 'Order Placed', description: 'Order received, awaiting confirmation' },
     { value: 'confirmed', label: 'Confirmed', description: 'Order confirmed, ready for processing' },
     { value: 'processing', label: 'Processing', description: 'Order is being prepared' },
     { value: 'packed', label: 'Packed', description: 'Order packed, ready for shipment' },

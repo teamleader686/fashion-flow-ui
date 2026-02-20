@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import CloudImage from '@/components/ui/CloudImage';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
@@ -38,40 +38,30 @@ const AdminProducts = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const navigate = useNavigate();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Debounce search input — prevents API call on every keystroke
   useEffect(() => {
-    fetchProducts();
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setCurrentPage(1);
+    }, 400);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [searchQuery]);
 
-    // Setup realtime subscription
-    const subscription = supabase
-      .channel('products_changes')
-      .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'products' },
-        () => {
-          fetchProducts();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [currentPage, searchQuery]);
-
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
-
-      // Calculate range for pagination
       const from = (currentPage - 1) * ITEMS_PER_PAGE;
       const to = from + ITEMS_PER_PAGE - 1;
 
-      // Build query
       let query = supabase
         .from('products')
         .select(`
@@ -85,26 +75,33 @@ const AdminProducts = () => {
         .order('created_at', { ascending: false })
         .range(from, to);
 
-      // Add search filter if query exists
-      if (searchQuery.trim()) {
-        query = query.or(`name.ilike.%${searchQuery}%,sku.ilike.%${searchQuery}%`);
+      if (debouncedSearch.trim()) {
+        query = query.or(`name.ilike.%${debouncedSearch}%,sku.ilike.%${debouncedSearch}%`);
       }
 
       const { data, error, count } = await query;
-
       if (error) throw error;
-
       setProducts(data || []);
       setTotalCount(count || 0);
     } catch (error: any) {
       console.error('Error fetching products:', error);
       toast.error('Failed to load products');
     } finally {
-      setTimeout(() => {
-        setLoading(false);
-      }, 300);
+      setLoading(false);
     }
-  };
+  }, [currentPage, debouncedSearch]);
+
+  useEffect(() => {
+    fetchProducts();
+
+    const subscription = supabase
+      .channel('products_changes_admin')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, fetchProducts)
+      .subscribe();
+
+    return () => { subscription.unsubscribe(); };
+  }, [fetchProducts]);
+
 
   const toggleProductStatus = async (productId: string, currentStatus: boolean) => {
     try {

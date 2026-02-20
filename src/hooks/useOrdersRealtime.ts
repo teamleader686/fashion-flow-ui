@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, Order, Shipment, Return } from '@/lib/supabase';
 import { toast } from 'sonner';
 
@@ -13,20 +13,24 @@ export const useOrdersRealtime = (options: {
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
+    // Cancel any in-flight request
+    if (abortRef.current) abortRef.current.abort();
+    abortRef.current = new AbortController();
+
     try {
       setLoading(true);
       let query = supabase
         .from('orders')
         .select(`
           *,
-          order_items(*),
-          shipments(*),
-          returns(*)
+          order_items(id, order_id, product_name, product_image, quantity, unit_price, total_price, size, color, created_at),
+          shipments(id, carrier, tracking_number, tracking_url, status, shipped_at, delivered_at, order_id, created_at),
+          returns(id, order_id, reason, status, refund_amount, admin_notes, created_at, updated_at)
         `, { count: 'exact' });
 
-      // Apply Filters
       if (status !== 'all') {
         query = query.eq('status', status);
       }
@@ -36,7 +40,6 @@ export const useOrdersRealtime = (options: {
         query = query.or(`order_number.ilike.${s},customer_name.ilike.${s},customer_email.ilike.${s},customer_phone.ilike.${s}`);
       }
 
-      // Pagination
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
 
@@ -47,7 +50,6 @@ export const useOrdersRealtime = (options: {
       if (ordersError) throw ordersError;
 
       if (data && data.length > 0) {
-        // Fetch profiles separately to avoid FK issues
         const userIds = Array.from(new Set(data.map(o => o.user_id).filter(Boolean)));
 
         if (userIds.length > 0) {
@@ -61,12 +63,10 @@ export const useOrdersRealtime = (options: {
             return acc;
           }, {});
 
-          const ordersWithProfiles = data.map(order => ({
+          setOrders(data.map(order => ({
             ...order,
             user_profiles: profileMap[order.user_id] || null
-          }));
-
-          setOrders(ordersWithProfiles);
+          })));
         } else {
           setOrders(data);
         }
@@ -77,59 +77,37 @@ export const useOrdersRealtime = (options: {
       setTotalCount(count || 0);
       setError(null);
     } catch (err: any) {
+      if (err.name === 'AbortError') return;
       console.error('Error fetching orders:', err);
       setError(err.message);
       toast.error('Failed to load orders');
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    // Fallback security: never stay in loading state forever
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 5000);
-
-    return () => clearTimeout(timer);
-  }, [loading]);
+  }, [page, pageSize, status, search]);
 
   useEffect(() => {
     fetchOrders();
 
-    // Setup realtime subscription
     const subscription = supabase
       .channel('orders_changes_admin')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'orders' },
-        () => fetchOrders()
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'shipments' },
-        () => fetchOrders()
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'returns' },
-        () => fetchOrders()
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, fetchOrders)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shipments' }, fetchOrders)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'returns' }, fetchOrders)
       .subscribe();
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [page, pageSize, status, search]);
+  }, [fetchOrders]);
 
-  const updateOrderStatus = async (orderId: string, status: Order['status'], note?: string) => {
+  const updateOrderStatus = useCallback(async (orderId: string, status: Order['status'], note?: string) => {
     try {
-      // Update Order Status
       const { error } = await supabase
         .from('orders')
         .update({
           status,
-          order_status: status, // Update both for compatibility
+          order_status: status,
           updated_at: new Date().toISOString(),
           ...(status === 'delivered' && { delivered_at: new Date().toISOString() })
         })
@@ -137,10 +115,10 @@ export const useOrdersRealtime = (options: {
 
       if (error) throw error;
 
-      // Insert Status History
-      await supabase.from('order_status_history').insert({
+      // Fire-and-forget history insert (non-blocking)
+      supabase.from('order_status_history').insert({
         order_id: orderId,
-        status: status,
+        status,
         notes: note || `Order status updated to ${status}`
       });
 
@@ -151,9 +129,9 @@ export const useOrdersRealtime = (options: {
       toast.error('Failed to update order status');
       return false;
     }
-  };
+  }, []);
 
-  const updateShipment = async (
+  const updateShipment = useCallback(async (
     orderId: string,
     shipmentData: {
       carrier?: string;
@@ -163,7 +141,6 @@ export const useOrdersRealtime = (options: {
     }
   ) => {
     try {
-      // Check if shipment exists
       const { data: existing } = await supabase
         .from('shipments')
         .select('id')
@@ -171,7 +148,6 @@ export const useOrdersRealtime = (options: {
         .single();
 
       if (existing) {
-        // Update existing shipment
         const { error } = await supabase
           .from('shipments')
           .update({
@@ -183,27 +159,19 @@ export const useOrdersRealtime = (options: {
 
         if (error) throw error;
       } else {
-        // Create new shipment
         const { error } = await supabase
           .from('shipments')
-          .insert([{
-            order_id: orderId,
-            ...shipmentData,
-            status: shipmentData.status || 'pending'
-          }]);
+          .insert([{ order_id: orderId, ...shipmentData, status: shipmentData.status || 'pending' }]);
 
         if (error) throw error;
       }
 
-      // Update orders table with tracking info too
-      await supabase
-        .from('orders')
-        .update({
-          tracking_id: shipmentData.tracking_number,
-          shipping_partner: shipmentData.carrier,
-          ...(shipmentData.status === 'picked_up' && { shipped_at: new Date().toISOString() })
-        })
-        .eq('id', orderId);
+      // Fire-and-forget orders update
+      supabase.from('orders').update({
+        tracking_id: shipmentData.tracking_number,
+        shipping_partner: shipmentData.carrier,
+        ...(shipmentData.status === 'picked_up' && { shipped_at: new Date().toISOString() })
+      }).eq('id', orderId);
 
       toast.success('Shipment updated');
       return true;
@@ -212,9 +180,9 @@ export const useOrdersRealtime = (options: {
       toast.error('Failed to update shipment');
       return false;
     }
-  };
+  }, []);
 
-  const updateReturn = async (
+  const updateReturn = useCallback(async (
     returnId: string,
     status: Return['status'],
     adminNotes?: string
@@ -222,11 +190,7 @@ export const useOrdersRealtime = (options: {
     try {
       const { error } = await supabase
         .from('returns')
-        .update({
-          status,
-          admin_notes: adminNotes,
-          updated_at: new Date().toISOString()
-        })
+        .update({ status, admin_notes: adminNotes, updated_at: new Date().toISOString() })
         .eq('id', returnId);
 
       if (error) throw error;
@@ -237,16 +201,7 @@ export const useOrdersRealtime = (options: {
       toast.error('Failed to update return');
       return false;
     }
-  };
+  }, []);
 
-  return {
-    orders,
-    totalCount,
-    loading,
-    error,
-    refetch: fetchOrders,
-    updateOrderStatus,
-    updateShipment,
-    updateReturn
-  };
+  return { orders, totalCount, loading, error, refetch: fetchOrders, updateOrderStatus, updateShipment, updateReturn };
 };
