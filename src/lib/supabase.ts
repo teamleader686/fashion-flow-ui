@@ -93,6 +93,12 @@ export type Product = {
   is_new_arrival: boolean;
   is_bestseller: boolean;
   is_active: boolean;
+  offer_type?: 'percentage' | 'flat';
+  offer_value?: number;
+  offer_start_date?: string | null;
+  offer_end_date?: string | null;
+  is_offer_active: boolean;
+  banner_tag?: string;
   created_at: string;
   updated_at: string;
   // Relations

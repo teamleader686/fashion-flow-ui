@@ -50,7 +50,6 @@ const AffiliateMarketing = lazy(() => import("./pages/admin/AffiliateMarketing")
 const AffiliateLogin = lazy(() => import("./pages/AffiliateLogin"));
 const AffiliateDashboard = lazy(() => import("./pages/AffiliateDashboard"));
 const CouponManagement = lazy(() => import("./pages/admin/CouponManagement"));
-const OfferManagement = lazy(() => import("./pages/admin/OfferManagement"));
 const WalletManagement = lazy(() => import("./pages/admin/WalletManagement"));
 const AffiliateCoupons = lazy(() => import("./pages/admin/AffiliateCoupons"));
 const CancellationRequests = lazy(() => import("./pages/admin/CancellationRequests"));
@@ -137,7 +136,6 @@ const App = () => (
                       <Route path="/admin/affiliate-marketing" element={<ProtectedRoute><AffiliateMarketing /></ProtectedRoute>} />
                       <Route path="/admin/affiliate-coupons" element={<ProtectedRoute><AffiliateCoupons /></ProtectedRoute>} />
                       <Route path="/admin/coupons" element={<ProtectedRoute><CouponManagement /></ProtectedRoute>} />
-                      <Route path="/admin/offers" element={<ProtectedRoute><OfferManagement /></ProtectedRoute>} />
                       <Route path="/admin/wallet" element={<ProtectedRoute><WalletManagement /></ProtectedRoute>} />
                       <Route path="/admin/reviews" element={<ProtectedRoute><AdminReviews /></ProtectedRoute>} />
                       <Route path="/admin/settings" element={<ProtectedRoute><AdminSettings /></ProtectedRoute>} />

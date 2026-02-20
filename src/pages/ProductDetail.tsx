@@ -17,7 +17,6 @@ import { supabase } from "@/lib/supabase";
 import CloudImage from "@/components/ui/CloudImage";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LazySection } from "@/components/layout/LazySection";
-import { useCalculateOfferPrice, useOffers } from "@/hooks/useOffers";
 import ReviewForm from "@/components/reviews/ReviewForm";
 
 const ProductDetail = () => {
@@ -37,7 +36,6 @@ const ProductDetail = () => {
   const [selectedImage, setSelectedImage] = useState<string>("");
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false });
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const { trackInteraction } = useOffers();
 
   // Derive product from context or fetched state
   const product = products.find((p) => p.slug === slug) || fetchedProduct;
@@ -91,6 +89,12 @@ const ProductDetail = () => {
               *,
               category:categories(name, slug),
               product_images(image_url, is_primary, display_order),
+              is_offer_active,
+              offer_type,
+              offer_value,
+              offer_start_date,
+              offer_end_date,
+              banner_tag,
               product_variants(size, color, color_code, stock_quantity)
             `)
             .eq('slug', slug)
@@ -123,18 +127,36 @@ const ProductDetail = () => {
               colors = Array.from(uniqueColors.values());
             }
 
-            const discount = data.compare_at_price
+            const now = new Date();
+            const hasActiveOffer = data.is_offer_active &&
+              (!data.offer_start_date || now >= new Date(data.offer_start_date)) &&
+              (!data.offer_end_date || now <= new Date(data.offer_end_date));
+
+            let finalPrice = data.price;
+            let discountPercentage = data.compare_at_price
               ? Math.round(((data.compare_at_price - data.price) / data.compare_at_price) * 100)
               : 0;
+            let originalPrice = data.compare_at_price || data.price;
+
+            if (hasActiveOffer) {
+              originalPrice = data.price;
+              if (data.offer_type === 'percentage') {
+                finalPrice = data.price - (data.price * data.offer_value) / 100;
+                discountPercentage = Math.max(discountPercentage, data.offer_value);
+              } else if (data.offer_type === 'flat') {
+                finalPrice = data.price - data.offer_value;
+                discountPercentage = Math.max(discountPercentage, Math.round((data.offer_value / data.price) * 100));
+              }
+            }
 
             const transformed = {
               id: data.id,
               name: data.name,
               slug: data.slug,
-              price: data.price,
-              originalPrice: data.compare_at_price || data.price,
-              discount,
-              bestPrice: Math.round(data.price * 0.9),
+              price: finalPrice,
+              originalPrice: originalPrice,
+              discount: discountPercentage,
+              bestPrice: Math.round(finalPrice * 0.9),
               image: primaryImage?.image_url || allImages[0] || '/placeholder.svg',
               images: allImages.length > 0 ? allImages : ['/placeholder.svg'],
               rating: 4.5,
@@ -149,6 +171,10 @@ const ProductDetail = () => {
               loyaltyCoins: data.loyalty_coins_reward || 0,
               loyaltyPrice: data.loyalty_coins_price || null,
               shippingCharge: data.shipping_charge || 0,
+              isOfferActive: hasActiveOffer,
+              bannerTag: data.banner_tag,
+              offerType: data.offer_type,
+              offerValue: data.offer_value
             };
             setFetchedProduct(transformed);
           }
@@ -226,24 +252,11 @@ const ProductDetail = () => {
     fetchBalance();
   }, [user]);
 
-  const {
-    offer_price,
-    original_price,
-    discount_percentage,
-    has_offer,
-    offer
-  } = useCalculateOfferPrice(product?.price || 0, product?.id || "");
-
-  // Track offer view
-  useEffect(() => {
-    if (has_offer && offer) {
-      trackInteraction(offer.offer_id, 'view');
-    }
-  }, [has_offer, offer?.offer_id]);
-
-  const displayPrice = has_offer ? offer_price : (product?.price || 0);
-  const oldPrice = has_offer ? original_price : (product?.originalPrice || 0);
-  const discount = has_offer ? discount_percentage : (product?.discount || 0);
+  const displayPrice = product?.price || 0;
+  const oldPrice = product?.originalPrice || 0;
+  const discount = product?.discount || 0;
+  const has_offer = !!product?.isOfferActive;
+  const bannerTag = product?.bannerTag;
 
   // Review management states
   const [editingReviewId, setEditingReviewId] = useState<string | null>(null);
@@ -356,7 +369,7 @@ const ProductDetail = () => {
       }
     }
 
-    addItem(product, selectedSize, selectedColor || (product.colors[0]?.name || ""), purchaseMode === 'coins', offer);
+    addItem(product, selectedSize, selectedColor || (product.colors[0]?.name || ""), purchaseMode === 'coins', null);
     toast.success(purchaseMode === 'coins' ? "Added to cart with Coin payment!" : "Added to cart!");
   };
 
@@ -482,19 +495,13 @@ const ProductDetail = () => {
                       </span>
                     )}
                   </div>
-                  {has_offer && offer && (
+                  {has_offer && bannerTag && (
                     <div className="flex items-center gap-2 mt-1">
                       <span
-                        className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full text-white shadow-sm"
-                        style={{ backgroundColor: offer.badge_color || '#db2777' }}
+                        className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full text-white shadow-sm bg-pink-600"
                       >
-                        {offer.badge_text || 'Special Offer'}
+                        {bannerTag}
                       </span>
-                      {offer.type === 'flash_sale' && offer.stock_remaining !== null && (
-                        <span className="text-[11px] font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-100">
-                          🔥 Only {offer.stock_remaining} left!
-                        </span>
-                      )}
                     </div>
                   )}
                   {product.bestPrice && !has_offer && (
@@ -760,8 +767,8 @@ const ProductDetail = () => {
                                     >
                                       <Star
                                         className={`h-5 w-5 ${star <= editRating
-                                            ? "fill-yellow-500 text-yellow-500"
-                                            : "text-muted-foreground"
+                                          ? "fill-yellow-500 text-yellow-500"
+                                          : "text-muted-foreground"
                                           }`}
                                       />
                                     </button>

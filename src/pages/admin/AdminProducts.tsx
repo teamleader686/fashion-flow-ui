@@ -94,7 +94,12 @@ const AdminProducts = () => {
             available_colors,
             category:categories(name),
             product_images(image_url, is_primary),
-            active_offer:product_offers(id, banner_tag, start_date, end_date, is_active),
+            is_offer_active,
+            offer_type,
+            offer_value,
+            offer_start_date,
+            offer_end_date,
+            banner_tag,
             loyalty_config:product_loyalty_config(is_enabled),
             affiliate_config:product_affiliate_config(is_enabled)
         `, { count: 'exact' })
@@ -212,14 +217,23 @@ const AdminProducts = () => {
   };
 
   const getActiveOffer = (product: Product) => {
-    if (!product.active_offer || !Array.isArray(product.active_offer)) return null;
+    if (!product.is_offer_active) return null;
 
     const now = new Date();
-    return product.active_offer.find(offer => {
-      const start = new Date(offer.start_date);
-      const end = new Date(offer.end_date);
-      return offer.is_active && now >= start && now <= end;
-    });
+    const start = product.offer_start_date ? new Date(product.offer_start_date) : null;
+    const end = product.offer_end_date ? new Date(product.offer_end_date) : null;
+
+    const isStarted = !start || now >= start;
+    const isNotExpired = !end || now <= end;
+
+    if (isStarted && isNotExpired) {
+      return {
+        banner_tag: product.banner_tag,
+        offer_type: product.offer_type,
+        offer_value: product.offer_value
+      };
+    }
+    return null;
   };
 
   return (

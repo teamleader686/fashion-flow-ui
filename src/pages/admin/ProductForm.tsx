@@ -51,6 +51,12 @@ const ProductForm = () => {
     loyalty_coins_reward: 0,
     loyalty_coins_price: null as number | null,
     shipping_charge: 0,
+    offer_type: 'percentage' as 'percentage' | 'flat',
+    offer_value: 0,
+    offer_start_date: null as string | null,
+    offer_end_date: null as string | null,
+    is_offer_active: false,
+    banner_tag: '',
   });
 
   const [images, setImages] = useState<any[]>([]);
@@ -58,14 +64,6 @@ const ProductForm = () => {
     is_enabled: false,
     commission_type: 'percentage' as 'percentage' | 'fixed',
     commission_value: 0,
-  });
-  const [offer, setOffer] = useState({
-    is_enabled: false,
-    offer_type: 'percentage_discount' as 'percentage_discount' | 'flat_discount' | 'bogo',
-    discount_value: 0,
-    start_date: '',
-    end_date: '',
-    banner_tag: '',
   });
 
   // Warn on page leave if unsaved
@@ -94,8 +92,7 @@ const ProductForm = () => {
         .select(`
           *,
           product_images(*),
-          affiliate_config:product_affiliate_config(*),
-          offers:product_offers(*)
+          affiliate_config:product_affiliate_config(*)
         `)
         .eq('id', id)
         .single();
@@ -109,15 +106,15 @@ const ProductForm = () => {
         loyalty_coins_reward: data.loyalty_coins_reward || 0,
         loyalty_coins_price: data.loyalty_coins_price || null,
         shipping_charge: data.shipping_charge || 0,
+        offer_type: data.offer_type || 'percentage',
+        offer_value: data.offer_value || 0,
+        offer_start_date: data.offer_start_date || null,
+        offer_end_date: data.offer_end_date || null,
+        is_offer_active: data.is_offer_active || false,
+        banner_tag: data.banner_tag || '',
       });
       setImages(data.product_images || []);
       if (data.affiliate_config?.[0]) setAffiliateConfig(data.affiliate_config[0]);
-      if (data.offers?.[0]) {
-        setOffer({
-          is_enabled: true,
-          ...data.offers[0]
-        });
-      }
     } catch (error: any) {
       toast.error('Failed to load product');
       navigate('/admin/products');
@@ -151,8 +148,18 @@ const ProductForm = () => {
         return;
       }
 
-      // Create submission object to avoid mutating state
-      const submissionData = { ...formData };
+      // Create submission object to avoid mutating state and remove relations
+      const {
+        product_images,
+        affiliate_config: _,
+        offers,
+        category,
+        ...submissionData
+      } = formData as any;
+
+      // Clean up any other potential relation fields from fetch
+      delete submissionData.product_affiliate_config;
+      delete submissionData.product_offers;
 
       // Generate slug if not provided
       if (!submissionData.slug) {
@@ -216,27 +223,13 @@ const ProductForm = () => {
       }
 
       // Save affiliate config
+      const { created_at: _ca, updated_at: _ua, ...affiliateSubmission } = affiliateConfig as any;
       await supabase
         .from('product_affiliate_config')
         .upsert({
           product_id: productId,
-          ...affiliateConfig
-        });
-
-      // Save offer if enabled
-      if (offer.is_enabled && offer.start_date && offer.end_date) {
-        await supabase
-          .from('product_offers')
-          .upsert({
-            product_id: productId,
-            offer_type: offer.offer_type,
-            discount_value: offer.discount_value,
-            start_date: offer.start_date,
-            end_date: offer.end_date,
-            banner_tag: offer.banner_tag,
-            is_active: true
-          });
-      }
+          ...affiliateSubmission
+        }, { onConflict: 'product_id' });
 
       toast.success(`Product ${isEdit ? 'updated' : 'created'} successfully`);
       // Log update if editing
@@ -405,8 +398,8 @@ const ProductForm = () => {
 
               <TabsContent value="offer" className="mt-0 focus-visible:outline-none">
                 <OfferTab
-                  offer={offer}
-                  setOffer={setOffer}
+                  productData={formData}
+                  onChange={(field, value) => setFormData(prev => ({ ...prev, [field]: value }))}
                 />
               </TabsContent>
             </div>

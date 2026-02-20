@@ -74,7 +74,12 @@ const Products = () => {
           *,
           category:categories(name, slug),
           product_images(image_url, is_primary, display_order),
-          product_variants(size, color, color_code, stock_quantity)
+          is_offer_active,
+          offer_type,
+          offer_value,
+          offer_start_date,
+          offer_end_date,
+          banner_tag
         `)
         .eq('is_active', true);
 

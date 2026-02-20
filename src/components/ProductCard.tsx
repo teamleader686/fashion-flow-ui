@@ -5,7 +5,6 @@ import { useCart } from "@/contexts/CartContext";
 import { motion } from "framer-motion";
 import ProductShare from "./ProductShare";
 import CloudImage from "@/components/ui/CloudImage";
-import { useCalculateOfferPrice } from "@/hooks/useOffers";
 import { Badge } from "@/components/ui/badge";
 
 interface ProductCardProps {
@@ -16,17 +15,12 @@ const ProductCard = ({ product }: ProductCardProps) => {
   const navigate = useNavigate();
   const { wishlist, toggleWishlist } = useCart();
   const isWishlisted = wishlist.includes(product.id);
-  const {
-    offer_price,
-    original_price,
-    discount_percentage,
-    has_offer,
-    offer
-  } = useCalculateOfferPrice(product.price, product.id);
 
-  const displayPrice = has_offer ? offer_price : product.price;
-  const oldPrice = has_offer ? original_price : (product.originalPrice || 0);
-  const discount = has_offer ? discount_percentage : (product.discount || 0);
+  const displayPrice = product.price;
+  const oldPrice = product.originalPrice || 0;
+  const discount = product.discount || 0;
+  const has_offer = product.isOfferActive && product.price < (product.originalPrice || Infinity);
+  const bannerTag = product.bannerTag;
 
   const handleCardClick = () => {
     navigate(`/product/${product.slug}`);
@@ -61,16 +55,15 @@ const ProductCard = ({ product }: ProductCardProps) => {
 
         {/* Discount Badge */}
         {/* Dynamic Offer Badge */}
-        {has_offer && offer && (
+        {has_offer && (
           <div
-            className="absolute top-3 left-3 text-white text-[10px] font-bold px-2 py-1 rounded-lg shadow-lg"
-            style={{ backgroundColor: offer.badge_color || '#db2777' }}
+            className="absolute top-3 left-3 bg-pink-600 text-white text-[10px] font-bold px-2 py-1 rounded-lg shadow-lg"
           >
-            {offer.badge_text || (offer.type === 'bogo' ? 'BOGO' : `${Math.round(discount)}% OFF`)}
+            {bannerTag || `${Math.round(discount)}% OFF`}
           </div>
         )}
 
-        {/* Fallback Static Discount Badge (if no dynamic offer) */}
+        {/* Fallback Static Discount Badge (if no dynamic offer but has discount) */}
         {!has_offer && product.discount > 0 && (
           <div className="absolute top-3 left-3 bg-pink-600 text-white text-[10px] font-bold px-2 py-1 rounded-lg shadow-lg">
             {product.discount}% OFF

@@ -23,6 +23,12 @@ export interface Product {
   loyaltyCoins?: number;
   loyaltyPrice?: number | null;
   shippingCharge: number;
+  offerType?: 'percentage' | 'flat';
+  offerValue?: number;
+  offerStartDate?: string | null;
+  offerEndDate?: string | null;
+  isOfferActive?: boolean;
+  bannerTag?: string | null;
 }
 
 const transformProduct = (dbProduct: any): Product => {
@@ -48,9 +54,27 @@ const transformProduct = (dbProduct: any): Product => {
     colors = Array.from(uniqueColors.values());
   }
 
-  const discount = dbProduct.compare_at_price
+  const now = new Date();
+  const hasActiveOffer = dbProduct.is_offer_active &&
+    (!dbProduct.offer_start_date || now >= new Date(dbProduct.offer_start_date)) &&
+    (!dbProduct.offer_end_date || now <= new Date(dbProduct.offer_end_date));
+
+  let finalPrice = dbProduct.price;
+  let discount = dbProduct.compare_at_price
     ? Math.round(((dbProduct.compare_at_price - dbProduct.price) / dbProduct.compare_at_price) * 100)
     : 0;
+  let originalPrice = dbProduct.compare_at_price || dbProduct.price;
+
+  if (hasActiveOffer) {
+    originalPrice = dbProduct.price; // The listed price becomes the 'original'
+    if (dbProduct.offer_type === 'percentage') {
+      finalPrice = dbProduct.price - (dbProduct.price * dbProduct.offer_value) / 100;
+      discount = Math.max(discount, dbProduct.offer_value);
+    } else if (dbProduct.offer_type === 'flat') {
+      finalPrice = dbProduct.price - dbProduct.offer_value;
+      discount = Math.max(discount, Math.round((dbProduct.offer_value / dbProduct.price) * 100));
+    }
+  }
 
   const totalStock = dbProduct.product_variants?.reduce(
     (sum: number, v: any) => sum + (v.stock_quantity || 0), 0
@@ -60,10 +84,10 @@ const transformProduct = (dbProduct: any): Product => {
     id: dbProduct.id,
     name: dbProduct.name,
     slug: dbProduct.slug,
-    price: dbProduct.price,
-    originalPrice: dbProduct.compare_at_price || dbProduct.price,
+    price: finalPrice,
+    originalPrice: originalPrice,
     discount,
-    bestPrice: Math.round(dbProduct.price * 0.9),
+    bestPrice: Math.round(finalPrice * 0.9),
     image: primaryImage?.image_url || allImages[0] || '/placeholder.svg',
     images: allImages.length > 0 ? allImages : ['/placeholder.svg'],
     rating: 4.5,
@@ -78,6 +102,12 @@ const transformProduct = (dbProduct: any): Product => {
     loyaltyCoins: dbProduct.loyalty_coins_reward || 0,
     loyaltyPrice: dbProduct.loyalty_coins_price || null,
     shippingCharge: dbProduct.shipping_charge || 0,
+    offerType: dbProduct.offer_type,
+    offerValue: dbProduct.offer_value,
+    offerStartDate: dbProduct.offer_start_date,
+    offerEndDate: dbProduct.offer_end_date,
+    isOfferActive: dbProduct.is_offer_active,
+    bannerTag: dbProduct.banner_tag,
   };
 };
 
@@ -95,6 +125,7 @@ export const useProducts = () => {
           id, name, slug, price, compare_at_price, description,
           is_new_arrival, is_featured, stock_quantity, shipping_charge,
           loyalty_coins_reward, loyalty_coins_price, available_sizes, available_colors,
+          is_offer_active, offer_type, offer_value, offer_start_date, offer_end_date, banner_tag,
           category:categories(name, slug),
           product_images(image_url, is_primary, display_order),
           product_variants(size, color, color_code, stock_quantity)

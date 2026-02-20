@@ -59,7 +59,6 @@ const menuItems = [
   { icon: Instagram, label: 'Instagram', path: '/admin/instagram-marketing' },
   { icon: TrendingUp, label: 'Affiliates', path: '/admin/affiliate-marketing' },
   { icon: Tag, label: 'Coupons', path: '/admin/coupons' },
-  { icon: Gift, label: 'Offers', path: '/admin/offers' },
   { icon: Star, label: 'Reviews', path: '/admin/reviews' },
   { icon: Wallet, label: 'Wallet & Loyalty', path: '/admin/wallet' },
   { icon: Heart, label: 'Wishlist', path: '/admin/wishlist' },
