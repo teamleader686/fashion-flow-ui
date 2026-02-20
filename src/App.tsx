@@ -54,6 +54,7 @@ const WalletManagement = lazy(() => import("./pages/admin/WalletManagement"));
 const AffiliateCoupons = lazy(() => import("./pages/admin/AffiliateCoupons"));
 const CancellationRequests = lazy(() => import("./pages/admin/CancellationRequests"));
 const CategoryManagement = lazy(() => import("./pages/admin/CategoryManagement"));
+const AdminStorageBackup = lazy(() => import("./pages/admin/AdminStorageBackup"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Login = lazy(() => import("./pages/Login"));
 const AuthCallback = lazy(() => import("./pages/AuthCallback"));
@@ -141,6 +142,7 @@ const App = () => (
                       <Route path="/admin/settings" element={<ProtectedRoute><AdminSettings /></ProtectedRoute>} />
                       <Route path="/admin/store" element={<ProtectedRoute><StoreManagement /></ProtectedRoute>} />
                       <Route path="/admin/store/storage" element={<ProtectedRoute><StorageMonitoring /></ProtectedRoute>} />
+                      <Route path="/admin/storage-backup" element={<ProtectedRoute><AdminStorageBackup /></ProtectedRoute>} />
                       <Route path="/admin/notifications" element={<ProtectedRoute><AdminNotifications /></ProtectedRoute>} />
                       <Route path="/admin/wishlist" element={<ProtectedRoute><AdminWishlist /></ProtectedRoute>} />
 

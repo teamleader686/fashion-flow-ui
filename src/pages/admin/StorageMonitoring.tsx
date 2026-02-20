@@ -4,7 +4,7 @@ import StorageChart from '@/components/admin/storage/StorageChart';
 import StorageBreakdown from '@/components/admin/storage/StorageBreakdown';
 import StorageAnalytics from '@/components/admin/storage/StorageAnalytics';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, ArrowLeft, Download } from 'lucide-react';
+import { RefreshCw, ArrowLeft, Download, Database } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
@@ -105,6 +105,10 @@ export default function StorageMonitoring() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Button onClick={() => navigate('/admin/storage-backup')}>
+              <Database className="h-4 w-4 mr-2" />
+              Backup & Clean Data
+            </Button>
             <Button onClick={handleExport} variant="outline" disabled={loading}>
               <Download className="h-4 w-4 mr-2" />
               Export Excel
