@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,37 +15,56 @@ const AdminLogin = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const { signIn, signOut, isAdmin, user, loading: authLoading } = useAuth();
+  const { isAdmin, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const hasRedirected = useRef(false);
 
-  // Redirect if admin status is confirmed
+  // If already logged in as admin, redirect immediately
   useEffect(() => {
-    if (user && !authLoading && isAdmin) {
-      toast.success('Welcome back, Admin!');
-      navigate('/admin/dashboard');
+    if (!authLoading && user && isAdmin && !hasRedirected.current) {
+      hasRedirected.current = true;
+      navigate('/admin/dashboard', { replace: true });
     }
   }, [isAdmin, user, authLoading, navigate]);
 
-  // Handle access denied - if user is logged in but not an admin, log them out
-  useEffect(() => {
-    const handleAccessDenied = async () => {
-      if (user && !authLoading && !isAdmin && loading) {
-        await signOut();
-        setError('Access denied. This portal is for administrators only.');
-        setLoading(false);
-      }
-    };
-    handleAccessDenied();
-  }, [user, authLoading, isAdmin, loading, signOut]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
+
     setError('');
     setLoading(true);
 
     try {
-      await signIn(email, password);
-      // Wait for AuthContext to update and provide the profile
+      // Step 1: Sign in with Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (authError) throw authError;
+      if (!authData.user) throw new Error('No user returned from sign in');
+
+      // Step 2: Check admin role directly — fast, no reactive chain
+      const { data: profileData, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('role')
+        .eq('user_id', authData.user.id)
+        .maybeSingle();
+
+      if (profileError) throw profileError;
+
+      if (!profileData || profileData.role !== 'admin') {
+        // Not an admin — sign out and show error
+        await supabase.auth.signOut();
+        setError('Access denied. This portal is for administrators only.');
+        setLoading(false);
+        return;
+      }
+
+      // Step 3: Admin confirmed — navigate immediately
+      toast.success('Welcome back, Admin!');
+      hasRedirected.current = true;
+      navigate('/admin/dashboard', { replace: true });
     } catch (err: any) {
       console.error('Login error:', err);
       setError(err.message || 'Invalid email or password');
@@ -75,7 +95,7 @@ const AdminLogin = () => {
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="email"
                   type="email"
@@ -92,7 +112,7 @@ const AdminLogin = () => {
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="password"
                   type="password"
@@ -109,14 +129,14 @@ const AdminLogin = () => {
             <Button
               type="submit"
               className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700"
-              disabled={loading}
+              disabled={loading || authLoading}
             >
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading ? 'Verifying...' : 'Sign In'}
             </Button>
 
-            <div className="text-center text-sm text-gray-500 mt-4">
-              <p>Admin access only</p>
-            </div>
+            <p className="text-center text-sm text-muted-foreground mt-4">
+              Admin access only
+            </p>
           </form>
         </CardContent>
       </Card>
