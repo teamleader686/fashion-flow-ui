@@ -93,10 +93,7 @@ export function useAnalyticsData(
         // Expenses (shipping costs, returns, etc.)
         current.expenses += parseFloat(order.shipping_cost || '0');
 
-        // Add estimated product cost (assuming 60% of order value as cost)
-        if (['delivered', 'shipped', 'out_for_delivery', 'processing', 'confirmed'].includes(order.status)) {
-          current.expenses += parseFloat(order.total_amount || '0') * 0.6;
-        }
+
 
         dataByDate.set(dateKey, current);
       });

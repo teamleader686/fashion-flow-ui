@@ -31,10 +31,8 @@ import {
   Menu,
   Instagram,
   Search,
-  Bell,
   ChevronLeft,
   Truck,
-  X,
   XCircle,
   FolderTree,
   Database,
@@ -264,11 +262,11 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
           {/* Spacer */}
           <div className="flex-1" />
 
-          {/* Search (desktop) */}
-          <div className="hidden md:flex relative w-64">
+          {/* Search (desktop) - Halted for production until functional
+          {/* <div className="hidden md:flex relative w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Search…" className="pl-9 h-9 bg-muted/50" />
-          </div>
+          </div> */}
 
           {/* Storage alert (shows only when storage >= 80%) */}
           <StorageHeaderAlert />

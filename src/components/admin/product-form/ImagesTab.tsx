@@ -92,9 +92,31 @@ const ImagesTab = ({ productId, images, setImages }: ImagesTabProps) => {
     }
   };
 
-  const removeImage = (index: number) => {
+  const removeImage = async (index: number) => {
+    const imageToRemove = images[index];
+
+    // Optimistically update UI
     const newImages = images.filter((_, i) => i !== index);
     setImages(newImages);
+
+    // If it's a supabase storage URL, try to delete it
+    if (imageToRemove?.image_url?.includes('product-images')) {
+      try {
+        // Extract file path from URL
+        const matches = imageToRemove.image_url.match(/product-images\/(.*)/);
+        if (matches && matches[1]) {
+          const filePath = matches[1];
+          await supabase.storage
+            .from('product-images')
+            .remove([filePath]);
+
+          // Log deletion
+          storageLogger.logFileDelete('product_images', 'product-images', filePath, 0);
+        }
+      } catch (error) {
+        console.error('Failed to cleanup image from storage', error);
+      }
+    }
   };
 
   const setPrimaryImage = (index: number) => {
@@ -106,94 +128,117 @@ const ImagesTab = ({ productId, images, setImages }: ImagesTabProps) => {
   };
 
   return (
-    <div className="space-y-6 py-4">
-      <div>
-        <Label>Product Images</Label>
-        <p className="text-sm text-gray-500 mb-4">
-          Upload product images. First image will be the primary image. Max 10MB per image.
-        </p>
+    <div className="space-y-8 py-4">
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <h3 className="text-lg font-semibold text-gray-900">Product Images</h3>
+            <p className="text-sm text-muted-foreground">
+              Upload clear, high-quality images. The first image will be the primary cover.
+            </p>
+          </div>
+          <StorageAlertBanner compact className="w-auto" />
+        </div>
 
-        {/* Storage warning */}
-        <StorageAlertBanner compact className="mb-4" />
-
-        <div className="border-2 border-dashed rounded-lg p-8 text-center">
+        <div className="group relative border-2 border-dashed border-gray-300 rounded-xl p-10 text-center hover:border-purple-500 hover:bg-purple-50/30 transition-all cursor-pointer bg-gray-50/50">
           <Input
             type="file"
             accept="image/*"
             multiple
             onChange={handleFileUpload}
             disabled={uploading}
-            className="hidden"
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
             id="image-upload"
           />
-          <label
-            htmlFor="image-upload"
-            className={`cursor-pointer ${uploading ? 'pointer-events-none opacity-50' : ''}`}
-          >
+          <div className="flex flex-col items-center justify-center space-y-4 pointer-events-none">
             {uploading ? (
               <>
-                <Loader2 className="h-12 w-12 text-primary mx-auto mb-4 animate-spin" />
-                <p className="text-sm text-gray-600 font-medium">
-                  Uploading images... {uploadProgress}%
-                </p>
-                <Progress value={uploadProgress} className="w-full max-w-xs mx-auto mt-3" />
+                <div className="relative">
+                  <div className="absolute inset-0 bg-white rounded-full opacity-50 blur p-2"></div>
+                  <Loader2 className="h-12 w-12 text-purple-600 animate-spin relative z-10" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-purple-700">Uploading {uploadProgress}%</p>
+                  <Progress value={uploadProgress} className="w-48 h-1.5" />
+                </div>
               </>
             ) : (
               <>
-                <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-sm text-gray-600">
-                  Click to upload or drag and drop
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  PNG, JPG, GIF, WebP up to 10MB
-                </p>
+                <div className="p-4 bg-white rounded-full shadow-sm ring-1 ring-gray-200 group-hover:scale-110 transition-transform duration-300">
+                  <Upload className="h-8 w-8 text-purple-600" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-base font-medium text-gray-900">Click or drag images here to upload</p>
+                  <p className="text-sm text-gray-500">Supports JPG, PNG, WebP (Max 10MB)</p>
+                </div>
               </>
             )}
-          </label>
+          </div>
         </div>
       </div>
 
       {images.length > 0 && (
-        <div>
-          <Label className="mb-3 block">Uploaded Images ({images.length})</Label>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <Label className="text-base font-medium text-gray-900">Gallery ({images.length})</Label>
+            <span className="text-xs text-muted-foreground bg-gray-100 px-2 py-1 rounded-full">Drag to reorder (Coming soon)</span>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {images.map((image, index) => (
-              <div key={index} className="relative group">
+              <div key={index} className="group relative aspect-square bg-gray-100 rounded-lg overflow-hidden border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
                 <img
                   src={image.image_url}
                   alt={`Product ${index + 1}`}
-                  className="w-full h-40 object-cover rounded-lg border-2 border-gray-200"
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                 />
-                <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2">
-                  <Button
-                    size="icon"
-                    variant="secondary"
-                    onClick={() => setPrimaryImage(index)}
-                    title="Set as primary"
-                    type="button"
-                  >
-                    <Star
-                      className={`h-4 w-4 ${image.is_primary ? 'fill-yellow-400 text-yellow-400' : ''
-                        }`}
-                    />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="destructive"
-                    onClick={() => removeImage(index)}
-                    type="button"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
+
+                {/* Overlay */}
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-3">
+                  <div className="flex justify-end">
+                    <Button
+                      size="icon"
+                      variant="destructive"
+                      className="h-8 w-8 bg-red-500 hover:bg-red-600 text-white shadow-sm"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        removeImage(index);
+                      }}
+                      type="button"
+                      title="Delete Image"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  <div className="flex justify-center">
+                    {!image.is_primary && (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="w-full bg-white/90 hover:bg-white text-xs h-8"
+                        onClick={() => setPrimaryImage(index)}
+                        type="button"
+                      >
+                        Set as Cover
+                      </Button>
+                    )}
+                  </div>
                 </div>
+
+                {/* Status Badges */}
                 {image.is_primary && (
-                  <div className="absolute top-2 left-2 bg-yellow-400 text-black text-xs px-2 py-1 rounded font-medium">
-                    Primary
+                  <div className="absolute top-2 left-2 bg-purple-500/90 backdrop-blur-sm text-white text-[10px] px-2 py-1 rounded-full font-semibold shadow-sm flex items-center gap-1">
+                    <Star className="h-3 w-3 fill-current" />
+                    Cover
                   </div>
                 )}
-                <div className="absolute bottom-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
-                  #{index + 1}
-                </div>
+                {!image.is_primary && (
+                  <div className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-sm text-white text-[10px] px-1.5 py-0.5 rounded font-mono opacity-60">
+                    {index + 1}
+                  </div>
+                )}
               </div>
             ))}
           </div>

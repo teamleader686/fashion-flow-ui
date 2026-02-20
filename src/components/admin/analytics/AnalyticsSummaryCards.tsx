@@ -37,8 +37,6 @@ export default function AnalyticsSummaryCards({ data, loading }: AnalyticsSummar
       icon: DollarSign,
       color: 'text-green-600',
       bgColor: 'bg-green-50',
-      trend: '+12.5%',
-      trendUp: true,
     },
     {
       title: 'Total Expenses',
@@ -46,8 +44,6 @@ export default function AnalyticsSummaryCards({ data, loading }: AnalyticsSummar
       icon: TrendingDown,
       color: 'text-red-600',
       bgColor: 'bg-red-50',
-      trend: '+8.2%',
-      trendUp: false,
     },
     {
       title: 'Net Profit',
@@ -55,8 +51,6 @@ export default function AnalyticsSummaryCards({ data, loading }: AnalyticsSummar
       icon: TrendingUp,
       color: 'text-blue-600',
       bgColor: 'bg-blue-50',
-      trend: '+15.3%',
-      trendUp: true,
     },
     {
       title: 'Profit Margin',
@@ -64,8 +58,6 @@ export default function AnalyticsSummaryCards({ data, loading }: AnalyticsSummar
       icon: Activity,
       color: 'text-purple-600',
       bgColor: 'bg-purple-50',
-      trend: '+2.1%',
-      trendUp: true,
     },
   ];
 
@@ -80,13 +72,6 @@ export default function AnalyticsSummaryCards({ data, loading }: AnalyticsSummar
                 <div className={`p-2 rounded-lg ${card.bgColor}`}>
                   <Icon className={`h-4 w-4 ${card.color}`} />
                 </div>
-                <span
-                  className={`text-xs font-medium ${
-                    card.trendUp ? 'text-green-600' : 'text-red-600'
-                  }`}
-                >
-                  {card.trend}
-                </span>
               </div>
               <p className="text-xs text-muted-foreground mb-1">{card.title}</p>
               <p className="text-lg sm:text-xl font-bold">{card.value}</p>

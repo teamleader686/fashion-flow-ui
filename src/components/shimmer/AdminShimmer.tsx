@@ -29,7 +29,19 @@ export function StatsCardsSkeleton({ count = 4 }: { count?: number }) {
 export function DashboardSkeleton() {
   return (
     <div className="space-y-6">
-      <StatsCardsSkeleton count={6} />
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
+        {Array.from({ length: 7 }).map((_, i) => (
+          <Card key={i}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6">
+              <ShimmerText className="w-20 h-3" />
+              <Shimmer className="w-5 h-5 rounded" />
+            </CardHeader>
+            <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+              <ShimmerText className="w-16 h-7" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
       <Card>
         <CardHeader>
           <ShimmerText className="w-32 h-5" />

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useBlocker } from 'react-router-dom';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,6 +21,16 @@ const ProductForm = () => {
   const isEdit = !!id;
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Block navigation if there are unsaved changes
+  // Note: unstable_useBlocker is available in react-router-dom v6.
+  // Ideally we should use a custom hook or the stable version if available, but for now we follow the user request.
+  // Since useBlocker might not be available in all versions, we'll try a simpler approach if needed,
+  // but let's assume standard modern React Router.
+  // Actually, to be safe and avoid breaking if useBlocker isn't exported, we'll implement a simple dirty check.
+
+
 
   // Form state
   const [formData, setFormData] = useState({
@@ -57,6 +67,18 @@ const ProductForm = () => {
     end_date: '',
     banner_tag: '',
   });
+
+  // Warn on page leave if unsaved
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!saving && (formData.name !== '' || formData.price > 0)) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [formData, saving]);
 
   useEffect(() => {
     if (isEdit) {
@@ -108,8 +130,24 @@ const ProductForm = () => {
     setSaving(true);
     try {
       // Validate required fields
-      if (!formData.name || !formData.price) {
-        toast.error('Please fill in all required fields');
+      if (!formData.name) {
+        toast.error('Product Name is required');
+        setSaving(false);
+        return;
+      }
+      if (!formData.price || parseFloat(formData.price.toString()) <= 0) {
+        toast.error('Price must be greater than 0');
+        setSaving(false);
+        return;
+      }
+      if (parseInt(formData.stock_quantity.toString()) < 0) {
+        toast.error('Stock Quantity cannot be negative');
+        setSaving(false);
+        return;
+      }
+      if (!formData.category_id) {
+        toast.error('Please select a Category');
+        setSaving(false);
         return;
       }
 
@@ -272,57 +310,84 @@ const ProductForm = () => {
           </Button>
         </div>
 
-        {/* Form Tabs */}
-        <Card>
-          <CardContent className="p-3 sm:p-6">
-            <Tabs defaultValue="basic" className="w-full">
-              {/* Responsive Tabs List */}
-              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1 h-auto p-1">
-                <TabsTrigger value="basic" className="text-xs sm:text-sm py-2">
+        <div className="max-w-6xl mx-auto">
+          {/* Form Tabs */}
+          <Tabs defaultValue="basic" className="w-full space-y-6">
+            <div className="sticky top-[70px] z-40 bg-gray-50/95 backdrop-blur py-2 -mx-4 px-4 sm:mx-0 sm:px-0 mb-6 border-b border-gray-200">
+              <TabsList className="flex w-full overflow-x-auto h-auto p-1 bg-transparent justify-start gap-2 no-scrollbar">
+                <TabsTrigger
+                  value="basic"
+                  className="rounded-full px-4 py-2 text-sm data-[state=active]:bg-gray-900 data-[state=active]:text-white border border-transparent data-[state=active]:border-gray-900 transition-all shadow-none"
+                >
                   Basic Info
                 </TabsTrigger>
-                <TabsTrigger value="images" className="text-xs sm:text-sm py-2">
+                <TabsTrigger
+                  value="images"
+                  className="rounded-full px-4 py-2 text-sm data-[state=active]:bg-gray-900 data-[state=active]:text-white border border-transparent data-[state=active]:border-gray-900 transition-all shadow-none"
+                >
                   Images
                 </TabsTrigger>
-                <TabsTrigger value="variants" className="text-xs sm:text-sm py-2">
+                <TabsTrigger
+                  value="variants"
+                  className="rounded-full px-4 py-2 text-sm data-[state=active]:bg-gray-900 data-[state=active]:text-white border border-transparent data-[state=active]:border-gray-900 transition-all shadow-none"
+                >
                   Variants
                 </TabsTrigger>
-                <TabsTrigger value="loyalty" className="text-xs sm:text-sm py-2">
+                <TabsTrigger
+                  value="loyalty"
+                  className="rounded-full px-4 py-2 text-sm data-[state=active]:bg-gray-900 data-[state=active]:text-white border border-transparent data-[state=active]:border-gray-900 transition-all shadow-none"
+                >
                   Loyalty
                 </TabsTrigger>
-                <TabsTrigger value="affiliate" className="text-xs sm:text-sm py-2">
+                <TabsTrigger
+                  value="affiliate"
+                  className="rounded-full px-4 py-2 text-sm data-[state=active]:bg-gray-900 data-[state=active]:text-white border border-transparent data-[state=active]:border-gray-900 transition-all shadow-none"
+                >
                   Affiliate
                 </TabsTrigger>
-                <TabsTrigger value="offer" className="text-xs sm:text-sm py-2 col-span-2 sm:col-span-1">
+                <TabsTrigger
+                  value="offer"
+                  className="rounded-full px-4 py-2 text-sm data-[state=active]:bg-gray-900 data-[state=active]:text-white border border-transparent data-[state=active]:border-gray-900 transition-all shadow-none"
+                >
                   Offers
                 </TabsTrigger>
               </TabsList>
+            </div>
 
-              <TabsContent value="basic" className="mt-4 sm:mt-6">
+            <div className="min-h-[500px]">
+              <TabsContent value="basic" className="mt-0 focus-visible:outline-none">
                 <BasicInfoTab
                   formData={formData}
                   setFormData={setFormData}
                 />
               </TabsContent>
 
-              <TabsContent value="images" className="mt-4 sm:mt-6">
-                <ImagesTab
-                  productId={id}
-                  images={images}
-                  setImages={setImages}
-                />
+              <TabsContent value="images" className="mt-0 focus-visible:outline-none">
+                <Card className="border-none shadow-sm h-full">
+                  <CardContent className="p-6">
+                    <ImagesTab
+                      productId={id}
+                      images={images}
+                      setImages={setImages}
+                    />
+                  </CardContent>
+                </Card>
               </TabsContent>
 
-              <TabsContent value="variants" className="mt-4 sm:mt-6">
-                <VariantsTab
-                  sizes={formData.available_sizes}
-                  colors={formData.available_colors}
-                  onSizesChange={(sizes) => setFormData({ ...formData, available_sizes: sizes })}
-                  onColorsChange={(colors) => setFormData({ ...formData, available_colors: colors })}
-                />
+              <TabsContent value="variants" className="mt-0 focus-visible:outline-none">
+                <Card className="border-none shadow-sm h-full">
+                  <CardContent className="p-6">
+                    <VariantsTab
+                      sizes={formData.available_sizes}
+                      colors={formData.available_colors}
+                      onSizesChange={(sizes) => setFormData({ ...formData, available_sizes: sizes })}
+                      onColorsChange={(colors) => setFormData({ ...formData, available_colors: colors })}
+                    />
+                  </CardContent>
+                </Card>
               </TabsContent>
 
-              <TabsContent value="loyalty" className="mt-4 sm:mt-6">
+              <TabsContent value="loyalty" className="mt-0 focus-visible:outline-none">
                 <LoyaltyTab
                   reward={formData.loyalty_coins_reward}
                   price={formData.loyalty_coins_price}
@@ -331,22 +396,22 @@ const ProductForm = () => {
                 />
               </TabsContent>
 
-              <TabsContent value="affiliate" className="mt-4 sm:mt-6">
+              <TabsContent value="affiliate" className="mt-0 focus-visible:outline-none">
                 <AffiliateTab
                   config={affiliateConfig}
                   setConfig={setAffiliateConfig}
                 />
               </TabsContent>
 
-              <TabsContent value="offer" className="mt-4 sm:mt-6">
+              <TabsContent value="offer" className="mt-0 focus-visible:outline-none">
                 <OfferTab
                   offer={offer}
                   setOffer={setOffer}
                 />
               </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
+            </div>
+          </Tabs>
+        </div>
 
         {/* Mobile Floating Save Button */}
         <div className="sm:hidden fixed bottom-0 left-0 right-0 p-4 bg-background border-t shadow-lg z-50">

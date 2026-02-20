@@ -21,7 +21,9 @@ export default function ProductTableSkeleton({ rows = 10 }: ProductTableSkeleton
             <TableHead>Product</TableHead>
             <TableHead>SKU</TableHead>
             <TableHead>Price</TableHead>
+            <TableHead>Shipping</TableHead>
             <TableHead>Stock</TableHead>
+            <TableHead>Variants</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Features</TableHead>
             <TableHead className="text-right">Actions</TableHead>
@@ -48,9 +50,20 @@ export default function ProductTableSkeleton({ rows = 10 }: ProductTableSkeleton
               <TableCell>
                 <Skeleton className="h-4 w-16" />
               </TableCell>
+              {/* Shipping */}
+              <TableCell>
+                <Skeleton className="h-5 w-12 rounded-full" />
+              </TableCell>
               {/* Stock */}
               <TableCell>
                 <Skeleton className="h-6 w-12 rounded-full" />
+              </TableCell>
+              {/* Variants */}
+              <TableCell>
+                <div className="flex gap-1">
+                  <Skeleton className="h-5 w-8 rounded" />
+                  <Skeleton className="h-5 w-8 rounded" />
+                </div>
               </TableCell>
               {/* Status */}
               <TableCell>

@@ -63,214 +63,190 @@ const VariantsTab = ({ sizes, colors, onSizesChange, onColorsChange }: VariantsT
   };
 
   return (
-    <div className="space-y-6 py-4">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pb-10">
       {/* Sizes Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Product Sizes</CardTitle>
-          <CardDescription>
-            Add available sizes for this product. Click quick-add buttons or enter custom sizes.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Quick Add Common Sizes */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-6 h-full">
+        <div className="flex items-center gap-3 border-b pb-4">
+          <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+            <span className="text-lg font-bold">S</span>
+          </div>
           <div>
-            <Label className="text-sm text-gray-600 mb-2 block">Quick Add</Label>
+            <h3 className="font-semibold text-gray-900">Size Configuration</h3>
+            <p className="text-sm text-muted-foreground">Manage available apparel sizes</p>
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          {/* Quick Add */}
+          <div className="space-y-3">
+            <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Quick Select</Label>
             <div className="flex flex-wrap gap-2">
               {commonSizes.map((size) => (
-                <Button
+                <button
                   key={size}
                   type="button"
-                  variant={sizes.includes(size) ? "default" : "outline"}
-                  size="sm"
                   onClick={() => {
-                    if (sizes.includes(size)) {
-                      removeSize(size);
-                    } else {
-                      addSize(size);
-                    }
+                    if (sizes.includes(size)) removeSize(size);
+                    else addSize(size);
                   }}
-                  className="text-xs"
+                  className={`
+                        px-3 py-1.5 text-sm font-medium rounded-md transition-all border
+                        ${sizes.includes(size)
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                      : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300 hover:bg-blue-50'}
+                    `}
                 >
                   {size}
-                </Button>
+                </button>
               ))}
             </div>
           </div>
 
-          {/* Custom Size Input */}
-          <div>
-            <Label htmlFor="custom-size" className="text-sm text-gray-600 mb-2 block">
-              Add Custom Size
-            </Label>
+          {/* Custom Input */}
+          <div className="space-y-3">
+            <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Add Custom Size</Label>
             <div className="flex gap-2">
               <Input
-                id="custom-size"
                 value={newSize}
                 onChange={(e) => setNewSize(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && addSize(newSize)}
-                placeholder="e.g., 32, 34, 36"
-                className="flex-1"
+                placeholder="e.g. 32, XL+"
+                className="h-10 border-gray-200"
               />
               <Button
                 type="button"
                 onClick={() => addSize(newSize)}
                 disabled={!newSize.trim()}
-                size="icon"
+                className="bg-gray-900 text-white hover:bg-gray-800"
               >
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
           </div>
 
-          {/* Selected Sizes */}
+          {/* Chip Display */}
           {sizes.length > 0 && (
-            <div>
-              <Label className="text-sm text-gray-600 mb-2 block">
-                Selected Sizes ({sizes.length})
-              </Label>
+            <div className="pt-4 border-t border-dashed">
+              <p className="text-sm font-medium text-gray-700 mb-3">Active Sizes ({sizes.length})</p>
               <div className="flex flex-wrap gap-2">
                 {sizes.map((size) => (
-                  <Badge
-                    key={size}
-                    variant="secondary"
-                    className="px-3 py-1.5 text-sm flex items-center gap-2"
-                  >
-                    {size}
+                  <div key={size} className="flex items-center gap-1.5 pl-3 pr-2 py-1.5 bg-gray-100 text-gray-800 rounded-full text-sm group border border-gray-200 hover:bg-white hover:border-red-200 transition-colors">
+                    <span className="font-medium">{size}</span>
                     <button
                       type="button"
                       onClick={() => removeSize(size)}
-                      className="hover:text-red-500 transition-colors"
+                      className="p-0.5 rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
                     >
-                      <X className="h-3 w-3" />
+                      <X className="h-3.5 w-3.5" />
                     </button>
-                  </Badge>
+                  </div>
                 ))}
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Colors Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Product Colors</CardTitle>
-          <CardDescription>
-            Add available colors for this product. Choose from presets or create custom colors.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Quick Add Common Colors */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-6 h-full">
+        <div className="flex items-center gap-3 border-b pb-4">
+          <div className="p-2 bg-purple-50 text-purple-600 rounded-lg">
+            <Palette className="h-5 w-5" />
+          </div>
           <div>
-            <Label className="text-sm text-gray-600 mb-2 block">Quick Add</Label>
+            <h3 className="font-semibold text-gray-900">Color Configuration</h3>
+            <p className="text-sm text-muted-foreground">Manage product color options</p>
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          {/* Quick Add */}
+          <div className="space-y-3">
+            <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Quick Select</Label>
             <div className="flex flex-wrap gap-2">
-              {commonColors.map((color) => (
-                <Button
-                  key={color.name}
-                  type="button"
-                  variant={colors.some(c => c.name === color.name) ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    if (colors.some(c => c.name === color.name)) {
-                      removeColor(color.name);
-                    } else {
-                      addColor(color);
-                    }
-                  }}
-                  className="text-xs flex items-center gap-2"
-                >
-                  <div
-                    className="w-4 h-4 rounded-full border border-gray-300"
-                    style={{ backgroundColor: color.hex }}
-                  />
-                  {color.name}
-                </Button>
-              ))}
-            </div>
-          </div>
-
-          {/* Custom Color Input */}
-          <div>
-            <Label className="text-sm text-gray-600 mb-2 block">Add Custom Color</Label>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Input
-                value={newColorName}
-                onChange={(e) => setNewColorName(e.target.value)}
-                placeholder="Color name (e.g., Navy Blue)"
-                className="flex-1"
-              />
-              <div className="flex gap-2">
-                <div className="relative">
-                  <Input
-                    type="color"
-                    value={newColorHex}
-                    onChange={(e) => setNewColorHex(e.target.value)}
-                    className="w-20 h-10 cursor-pointer"
-                  />
-                  <Palette className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none text-gray-400" />
-                </div>
-                <Button
-                  type="button"
-                  onClick={() => addColor({ name: newColorName, hex: newColorHex })}
-                  disabled={!newColorName.trim()}
-                  size="icon"
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {/* Selected Colors */}
-          {colors.length > 0 && (
-            <div>
-              <Label className="text-sm text-gray-600 mb-2 block">
-                Selected Colors ({colors.length})
-              </Label>
-              <div className="flex flex-wrap gap-2">
-                {colors.map((color) => (
-                  <Badge
+              {commonColors.map((color) => {
+                const isSelected = colors.some(c => c.name === color.name);
+                return (
+                  <button
                     key={color.name}
-                    variant="secondary"
-                    className="px-3 py-1.5 text-sm flex items-center gap-2"
+                    type="button"
+                    onClick={() => {
+                      if (isSelected) removeColor(color.name);
+                      else addColor(color);
+                    }}
+                    className={`
+                                flex items-center gap-2 pl-2 pr-3 py-1.5 text-sm font-medium rounded-md transition-all border
+                                ${isSelected
+                        ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
+                        : 'bg-white text-gray-700 border-gray-200 hover:border-purple-300 hover:bg-purple-50'}
+                            `}
                   >
-                    <div
-                      className="w-4 h-4 rounded-full border border-gray-300"
+                    <span
+                      className="w-3 h-3 rounded-full border border-black/10 shadow-sm"
                       style={{ backgroundColor: color.hex }}
                     />
                     {color.name}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Custom Input */}
+          <div className="space-y-3">
+            <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Custom Color</Label>
+            <div className="flex gap-3">
+              <div className="relative group">
+                <Input
+                  type="color"
+                  value={newColorHex}
+                  onChange={(e) => setNewColorHex(e.target.value)}
+                  className="h-10 w-14 p-1 cursor-pointer border-gray-200"
+                />
+              </div>
+              <Input
+                value={newColorName}
+                onChange={(e) => setNewColorName(e.target.value)}
+                placeholder="Color Name (e.g. Teal)"
+                className="flex-1 h-10 border-gray-200"
+              />
+              <Button
+                type="button"
+                onClick={() => addColor({ name: newColorName, hex: newColorHex })}
+                disabled={!newColorName.trim()}
+                className="bg-gray-900 text-white hover:bg-gray-800"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Chip Display */}
+          {colors.length > 0 && (
+            <div className="pt-4 border-t border-dashed">
+              <p className="text-sm font-medium text-gray-700 mb-3">Active Colors ({colors.length})</p>
+              <div className="flex flex-wrap gap-2">
+                {colors.map((color) => (
+                  <div key={color.name} className="flex items-center gap-2 pl-2 pr-2 py-1.5 bg-gray-100 text-gray-800 rounded-full text-sm group border border-gray-200 hover:bg-white hover:border-red-200 transition-colors">
+                    <span
+                      className="w-4 h-4 rounded-full border border-white shadow-sm ring-1 ring-gray-200"
+                      style={{ backgroundColor: color.hex }}
+                    />
+                    <span className="font-medium pr-1">{color.name}</span>
                     <button
                       type="button"
                       onClick={() => removeColor(color.name)}
-                      className="hover:text-red-500 transition-colors"
+                      className="p-0.5 rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
                     >
-                      <X className="h-3 w-3" />
+                      <X className="h-3.5 w-3.5" />
                     </button>
-                  </Badge>
+                  </div>
                 ))}
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
-
-      {/* Info Card */}
-      <Card className="bg-blue-50 border-blue-200">
-        <CardContent className="pt-4">
-          <div className="flex gap-3">
-            <div className="text-blue-500 mt-0.5">ℹ️</div>
-            <div className="text-sm text-blue-900 space-y-1">
-              <p className="font-medium">How it works:</p>
-              <ul className="list-disc list-inside space-y-1 text-blue-800">
-                <li>Sizes and colors will be displayed on product pages</li>
-                <li>Customers can filter products by size and color</li>
-                <li>Stock is managed at the product level (not per variant)</li>
-              </ul>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 };

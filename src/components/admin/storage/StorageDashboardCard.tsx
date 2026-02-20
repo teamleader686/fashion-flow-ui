@@ -10,7 +10,7 @@ export default function StorageDashboardCard() {
     if (loading) {
         return (
             <Card className="hover:shadow-lg transition-shadow cursor-pointer animate-pulse">
-                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6">
                     <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
                         Storage
                     </CardTitle>
@@ -18,7 +18,7 @@ export default function StorageDashboardCard() {
                         <HardDrive className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
                     </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
                     <div className="h-6 bg-gray-200 rounded w-20 mb-2" />
                     <div className="h-2 bg-gray-200 rounded" />
                 </CardContent>
@@ -60,7 +60,7 @@ export default function StorageDashboardCard() {
             className="hover:shadow-lg transition-shadow cursor-pointer group"
             onClick={() => navigate('/admin/store/storage')}
         >
-            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6">
                 <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
                     Storage Used
                 </CardTitle>
@@ -68,7 +68,7 @@ export default function StorageDashboardCard() {
                     <Icon className={`h-4 w-4 sm:h-5 sm:w-5 ${statusColor} ${isCritical ? 'animate-pulse' : ''}`} />
                 </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
                 <div className={`text-xl sm:text-2xl font-bold ${statusColor}`}>
                     {usagePercentage.toFixed(1)}%
                 </div>
