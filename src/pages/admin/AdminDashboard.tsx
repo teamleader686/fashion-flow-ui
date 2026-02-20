@@ -65,41 +65,39 @@ const AdminDashboard = () => {
 
   const fetchDashboardStats = async () => {
     try {
-      const { data: orders } = await supabase
-        .from('orders')
-        .select('total_amount, created_at, status')
-        .not('status', 'in', '(cancelled,returned)');
+      // Parallel API calls — much faster than sequential
+      const [ordersRes, pendingRes, customersRes, lowStockRes] = await Promise.all([
+        supabase
+          .from('orders')
+          .select('total_amount, created_at, status')
+          .not('status', 'in', '(cancelled,returned)'),
+        supabase
+          .from('orders')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'placed'),
+        supabase
+          .from('user_profiles')
+          .select('id', { count: 'exact', head: true })
+          .eq('role', 'customer'),
+        supabase
+          .from('product_variants')
+          .select('id', { count: 'exact', head: true })
+          .lte('stock_quantity', 10),
+      ]);
 
-      const { data: pending } = await supabase
-        .from('orders')
-        .select('id')
-        .eq('status', 'pending');
-
-      const { data: customers } = await supabase
-        .from('user_profiles')
-        .select('id')
-        .eq('role', 'customer');
-
-      const { data: lowStock } = await supabase
-        .from('product_variants')
-        .select('id')
-        .lte('stock_quantity', 10);
-
+      const orders = ordersRes.data || [];
       const today = new Date().toISOString().split('T')[0];
-      const todayOrders = orders?.filter(o =>
-        o.created_at.startsWith(today)
-      ).length || 0;
-
-      const totalRevenue = orders?.reduce((sum, order) =>
-        sum + parseFloat(order.total_amount || '0'), 0
-      ) || 0;
+      const todayOrders = orders.filter(o => o.created_at.startsWith(today)).length;
+      const totalRevenue = orders.reduce(
+        (sum, order) => sum + parseFloat(order.total_amount || '0'), 0
+      );
 
       setStats({
-        totalOrders: orders?.length || 0,
+        totalOrders: orders.length,
         totalRevenue,
-        pendingOrders: pending?.length || 0,
-        totalCustomers: customers?.length || 0,
-        lowStockProducts: lowStock?.length || 0,
+        pendingOrders: pendingRes.count || 0,
+        totalCustomers: customersRes.count || 0,
+        lowStockProducts: lowStockRes.count || 0,
         todayOrders,
       });
     } catch (error) {

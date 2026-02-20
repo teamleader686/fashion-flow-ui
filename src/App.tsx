@@ -73,7 +73,16 @@ import ProfileCompletionGuard from "@/components/ProfileCompletionGuard";
 
 import ErrorBoundary from "@/components/layout/ErrorBoundary";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 2,       // 2 min cache
+      gcTime: 1000 * 60 * 10,         // 10 min GC
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 const AdminWishlist = lazy(() => import("./pages/admin/AdminWishlist"));
 

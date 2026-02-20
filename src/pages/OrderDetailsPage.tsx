@@ -134,8 +134,8 @@ export default function OrderDetailsPage() {
                         Quantity: {item.quantity}
                       </p>
                       <p className="text-sm font-medium mt-1">
-                        ₹{item.price.toLocaleString('en-IN')} × {item.quantity} = ₹
-                        {item.total.toLocaleString('en-IN')}
+                        ₹{item.unit_price.toLocaleString('en-IN')} × {item.quantity} = ₹
+                        {item.total_price.toLocaleString('en-IN')}
                       </p>
                     </div>
                   </div>
@@ -206,7 +206,6 @@ export default function OrderDetailsPage() {
             <CardContent>
               <p className="text-sm">
                 {order.shipping_address_line1}
-                {order.shipping_address_line2 && `, ${order.shipping_address_line2}`}
                 <br />
                 {order.shipping_city}, {order.shipping_state} - {order.shipping_zip}
               </p>
