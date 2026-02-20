@@ -160,9 +160,95 @@ export default function CategoryManagement() {
     }
   };
 
+  const handleCategorySaved = (savedCategory: any) => {
+    if (!savedCategory) {
+      fetchCategories();
+      return;
+    }
+
+    setCategories((prev) => {
+      const exists = prev.find((c) => c.id === savedCategory.id);
+      if (exists) {
+        return prev.map((c) =>
+          c.id === savedCategory.id
+            ? { ...savedCategory, product_count: c.product_count }
+            : c
+        );
+      }
+      return [{ ...savedCategory, product_count: 0 }, ...prev];
+    });
+  };
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  // Reset page when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
   const filteredCategories = categories.filter((cat) =>
     cat.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const totalPages = Math.ceil(filteredCategories.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedCategories = filteredCategories.slice(startIndex, startIndex + itemsPerPage);
+
+  const renderPagination = () => {
+    if (filteredCategories.length <= itemsPerPage) return null;
+
+    return (
+      <div className="flex items-center justify-between px-2 py-4">
+        <div className="flex-1 text-sm text-muted-foreground hidden sm:block">
+          Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredCategories.length)} of {filteredCategories.length} entries
+        </div>
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+          >
+            Previous
+          </Button>
+          <div className="flex items-center gap-1">
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              // Logic to show generic page numbers if too many
+              let pageNum = i + 1;
+              if (totalPages > 5 && currentPage > 3) {
+                pageNum = currentPage - 3 + i;
+                if (pageNum > totalPages) pageNum = totalPages - (4 - i);
+              }
+
+              return (
+                <Button
+                  key={i}
+                  variant={currentPage === pageNum ? "default" : "outline"}
+                  size="sm"
+                  className="w-8 h-8 p-0 hidden sm:inline-flex"
+                  onClick={() => setCurrentPage(pageNum)}
+                >
+                  {pageNum}
+                </Button>
+              );
+            })}
+            <span className="sm:hidden text-sm">
+              Page {currentPage} of {totalPages}
+            </span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </Button>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <AdminLayout>
@@ -244,6 +330,7 @@ export default function CategoryManagement() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Image</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Slug</TableHead>
                   <TableHead>Products</TableHead>
@@ -256,6 +343,7 @@ export default function CategoryManagement() {
                 {loading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <TableRow key={i}>
+                      <TableCell><ShimmerCard className="w-10 h-10 rounded-md" /></TableCell>
                       <TableCell><ShimmerText className="w-32 h-4" /></TableCell>
                       <TableCell><ShimmerText className="w-24 h-4" /></TableCell>
                       <TableCell><ShimmerText className="w-16 h-4" /></TableCell>
@@ -271,8 +359,21 @@ export default function CategoryManagement() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredCategories.map((category) => (
+                  paginatedCategories.map((category) => (
                     <TableRow key={category.id}>
+                      <TableCell>
+                        {category.image_url ? (
+                          <img
+                            src={category.image_url}
+                            alt={category.name}
+                            className="w-10 h-10 rounded-md object-cover"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center">
+                            <Package className="h-5 w-5 text-muted-foreground" />
+                          </div>
+                        )}
+                      </TableCell>
                       <TableCell className="font-medium">{category.name}</TableCell>
                       <TableCell className="text-muted-foreground font-mono text-sm">
                         {category.slug}
@@ -314,6 +415,7 @@ export default function CategoryManagement() {
                 )}
               </TableBody>
             </Table>
+            {renderPagination()}
           </CardContent>
         </Card>
 
@@ -339,17 +441,32 @@ export default function CategoryManagement() {
               </CardContent>
             </Card>
           ) : (
-            filteredCategories.map((category) => (
+            paginatedCategories.map((category) => (
               <Card key={category.id}>
                 <CardContent className="p-4">
-                  <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-start gap-3 mb-3">
+                    {category.image_url ? (
+                      <img
+                        src={category.image_url}
+                        alt={category.name}
+                        className="w-12 h-12 rounded-md object-cover flex-shrink-0"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-md bg-muted flex items-center justify-center flex-shrink-0">
+                        <Package className="h-6 w-6 text-muted-foreground" />
+                      </div>
+                    )}
                     <div className="flex-1">
-                      <h3 className="font-semibold">{category.name}</h3>
-                      <p className="text-sm text-muted-foreground font-mono">{category.slug}</p>
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h3 className="font-semibold">{category.name}</h3>
+                          <p className="text-sm text-muted-foreground font-mono">{category.slug}</p>
+                        </div>
+                        <Badge variant={category.status === 'active' ? 'default' : 'secondary'}>
+                          {category.status}
+                        </Badge>
+                      </div>
                     </div>
-                    <Badge variant={category.status === 'active' ? 'default' : 'secondary'}>
-                      {category.status}
-                    </Badge>
                   </div>
 
                   <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
@@ -392,6 +509,30 @@ export default function CategoryManagement() {
               </Card>
             ))
           )}
+          {/* Mobile Pagination */}
+          {filteredCategories.length > itemsPerPage && (
+            <div className="flex justify-between items-center bg-card p-4 rounded-lg border shadow-sm">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </Button>
+              <span className="text-sm font-medium">
+                Page {currentPage} of {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -403,7 +544,7 @@ export default function CategoryManagement() {
           setSelectedCategory(null);
         }}
         category={selectedCategory}
-        onSuccess={fetchCategories}
+        onSuccess={handleCategorySaved}
       />
 
       {/* Delete Confirmation Dialog */}

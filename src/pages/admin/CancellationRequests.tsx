@@ -96,6 +96,15 @@ export default function CancellationRequests() {
     }
   };
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+
+  // Reset page when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter]);
+
   const handleApprove = async (requestId: string) => {
     try {
       const { data: adminData } = await supabase.auth.getUser();
@@ -105,26 +114,41 @@ export default function CancellationRequests() {
       const request = requests.find((r) => r.id === requestId);
       if (!request) throw new Error('Request not found');
 
+      // Optimistic update
+      setRequests(prev => prev.map(r =>
+        r.id === requestId
+          ? { ...r, status: 'approved', reviewed_by: adminData.user.id, reviewed_at: new Date().toISOString() }
+          : r
+      ));
+      setSelectedRequest(null);
+      toast.success('Cancellation request approved');
+
       const { error } = await supabase.rpc('approve_cancellation_request', {
         p_request_id: requestId,
         p_admin_id: adminData.user.id,
       });
 
-      if (error) throw error;
+      if (error) {
+        // Revert on error
+        setRequests(prev => prev.map(r =>
+          r.id === requestId
+            ? { ...r, status: 'pending', reviewed_by: null, reviewed_at: null }
+            : r
+        ));
+        throw error;
+      }
 
-      // Send notification to user
-      await notificationService.notifyCancellationApproved(
+      // Send notification in background
+      notificationService.notifyCancellationApproved(
         request.order_id,
         request.user_id,
         request.order?.order_number || ''
-      );
+      ).catch(console.error);
 
-      toast.success('Cancellation request approved');
-      await fetchRequests();
-      setSelectedRequest(null);
     } catch (error: any) {
       console.error('Error approving request:', error);
       toast.error(error.message || 'Failed to approve request');
+      await fetchRequests(); // Fallback sync
     }
   };
 
@@ -137,28 +161,43 @@ export default function CancellationRequests() {
       const request = requests.find((r) => r.id === requestId);
       if (!request) throw new Error('Request not found');
 
+      // Optimistic update
+      setRequests(prev => prev.map(r =>
+        r.id === requestId
+          ? { ...r, status: 'rejected', reviewed_by: adminData.user.id, reviewed_at: new Date().toISOString(), admin_note: rejectionReason }
+          : r
+      ));
+      setSelectedRequest(null);
+      toast.success('Cancellation request rejected');
+
       const { error } = await supabase.rpc('reject_cancellation_request', {
         p_request_id: requestId,
         p_admin_id: adminData.user.id,
         p_admin_note: rejectionReason,
       });
 
-      if (error) throw error;
+      if (error) {
+        // Revert on error
+        setRequests(prev => prev.map(r =>
+          r.id === requestId
+            ? { ...r, status: 'pending', reviewed_by: null, reviewed_at: null, admin_note: null }
+            : r
+        ));
+        throw error;
+      }
 
-      // Send notification to user
-      await notificationService.notifyCancellationRejected(
+      // Send notification in background
+      notificationService.notifyCancellationRejected(
         request.order_id,
         request.user_id,
         request.order?.order_number || '',
         rejectionReason
-      );
+      ).catch(console.error);
 
-      toast.success('Cancellation request rejected');
-      await fetchRequests();
-      setSelectedRequest(null);
     } catch (error: any) {
       console.error('Error rejecting request:', error);
       toast.error(error.message || 'Failed to reject request');
+      await fetchRequests(); // Fallback sync
     }
   };
 
@@ -166,6 +205,63 @@ export default function CancellationRequests() {
     if (statusFilter === 'all') return true;
     return req.status === statusFilter;
   });
+
+  const totalPages = Math.ceil(filteredRequests.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedRequests = filteredRequests.slice(startIndex, startIndex + itemsPerPage);
+
+  const renderPagination = () => {
+    if (filteredRequests.length <= itemsPerPage) return null;
+
+    return (
+      <div className="flex items-center justify-between px-2 py-4 border-t mt-4">
+        <div className="flex-1 text-sm text-muted-foreground hidden sm:block">
+          Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredRequests.length)} of {filteredRequests.length} entries
+        </div>
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+          >
+            Previous
+          </Button>
+          <div className="flex items-center gap-1">
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              let pageNum = i + 1;
+              if (totalPages > 5 && currentPage > 3) {
+                pageNum = currentPage - 3 + i;
+                if (pageNum > totalPages) pageNum = totalPages - (4 - i);
+              }
+              return (
+                <Button
+                  key={i}
+                  variant={currentPage === pageNum ? "default" : "outline"}
+                  size="sm"
+                  className="w-8 h-8 p-0 hidden sm:inline-flex"
+                  onClick={() => setCurrentPage(pageNum)}
+                >
+                  {pageNum}
+                </Button>
+              );
+            })}
+            <span className="sm:hidden text-sm">
+              Page {currentPage} of {totalPages}
+            </span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </Button>
+        </div>
+      </div>
+    );
+  };
 
   const statusCounts = {
     all: requests.length,
@@ -258,7 +354,7 @@ export default function CancellationRequests() {
                 </div>
               ) : (
                 <div className="divide-y">
-                  {filteredRequests.map((request) => (
+                  {paginatedRequests.map((request) => (
                     <div
                       key={request.id}
                       className="p-4 sm:p-6 hover:bg-muted/50 transition-colors"
@@ -322,6 +418,8 @@ export default function CancellationRequests() {
                       )}
                     </div>
                   ))}
+                  {/* Pagination Controls */}
+                  {renderPagination()}
                 </div>
               )}
             </ScrollArea>

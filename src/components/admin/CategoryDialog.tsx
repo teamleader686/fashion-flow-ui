@@ -39,7 +39,7 @@ interface CategoryDialogProps {
   open: boolean;
   onClose: () => void;
   category: Category | null;
-  onSuccess: () => void;
+  onSuccess: (category?: Category) => void;
 }
 
 interface FormData {
@@ -132,15 +132,89 @@ export default function CategoryDialog({
     setImagePreview(null);
   };
 
+  const compressImage = (file: File): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      img.src = objectUrl;
+
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl); // Cleanup
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Canvas context not available'));
+          return;
+        }
+
+        // Max dimensions - 800px is enough for category thumbnails
+        const MAX_WIDTH = 800;
+        const MAX_HEIGHT = 800;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(new Error('Canvas to Blob failed'));
+            }
+          },
+          'image/jpeg',
+          0.7 // 70% quality is good balance
+        );
+      };
+      img.onerror = (error) => {
+        URL.revokeObjectURL(objectUrl);
+        reject(error);
+      };
+    });
+  };
+
   const uploadImage = async (file: File): Promise<string | null> => {
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+      // Compress image before upload
+      let fileToUpload = file;
+
+      // Only compress if it's a large image (> 500KB)
+      if (file.size > 500 * 1024) {
+        try {
+          const compressedBlob = await compressImage(file);
+          fileToUpload = new File([compressedBlob], file.name.replace(/\.[^/.]+$/, ".jpg"), {
+            type: 'image/jpeg',
+          });
+        } catch (e) {
+          console.warn("Compression failed, uploading original", e);
+        }
+      }
+
+      const fileExt = fileToUpload.name.split('.').pop() || 'jpg';
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `categories/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('category-images')
-        .upload(filePath, file);
+        .upload(filePath, fileToUpload, {
+          cacheControl: '3600',
+          upsert: false
+        });
 
       if (uploadError) throw uploadError;
 
@@ -154,9 +228,10 @@ export default function CategoryDialog({
   };
 
   const onSubmit = async (data: FormData) => {
-    try {
-      setLoading(true);
+    if (loading) return;
+    setLoading(true);
 
+    try {
       let imageUrl = category?.image_url || null;
 
       // Upload new image if selected
@@ -173,6 +248,7 @@ export default function CategoryDialog({
           );
         }
       } else if (!imagePreview) {
+        // If image was removed
         imageUrl = null;
       }
 
@@ -185,29 +261,45 @@ export default function CategoryDialog({
         display_order: data.display_order,
       };
 
+      let savedCategory;
+
       if (category) {
         // Update existing category
-        const { error } = await supabase
+        const { data: updated, error } = await supabase
           .from('categories')
           .update(categoryData)
-          .eq('id', category.id);
+          .eq('id', category.id)
+          .select()
+          .single();
 
         if (error) throw error;
+        savedCategory = updated;
 
         toast.success('Category updated successfully');
         storageLogger.logUpdate('categories', category.id, 0.5);
       } else {
         // Create new category
-        const { error } = await supabase.from('categories').insert(categoryData);
+        const { data: newCat, error } = await supabase
+          .from('categories')
+          .insert(categoryData)
+          .select()
+          .single();
 
         if (error) throw error;
+        savedCategory = newCat;
 
         toast.success('Category created successfully');
         storageLogger.logCreate('categories', undefined, 1);
       }
 
-      onSuccess();
+      onSuccess(savedCategory);
       onClose();
+
+      // Cleanup
+      reset();
+      setImageFile(null);
+      setImagePreview(null);
+
     } catch (error: any) {
       console.error('Error saving category:', error);
       if (error.code === '23505') {
@@ -224,11 +316,11 @@ export default function CategoryDialog({
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         {/* Header with proper padding - extra right padding for close button */}
-        <DialogHeader className="pl-6 pr-14 pt-6 pb-4 space-y-2">
-          <DialogTitle className="text-2xl font-semibold">
+        <DialogHeader className="px-4 sm:px-6 pt-5 sm:pt-6 pb-4 pr-10 sm:pr-14 space-y-2">
+          <DialogTitle className="text-xl sm:text-2xl font-semibold">
             {category ? 'Edit Category' : 'Create Category'}
           </DialogTitle>
-          <DialogDescription className="text-base">
+          <DialogDescription className="text-sm sm:text-base">
             {category
               ? 'Update category details and settings'
               : 'Add a new category for organizing products'}
@@ -236,7 +328,7 @@ export default function CategoryDialog({
         </DialogHeader>
 
         {/* Form with proper padding - equal on all sides, extra right for close button */}
-        <form onSubmit={handleSubmit(onSubmit)} className="pl-6 pr-6 pb-6 space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="px-4 sm:px-6 pb-6 space-y-5 sm:space-y-6">
           {/* Name */}
           <div className="space-y-2.5">
             <Label htmlFor="name" className="text-sm font-medium">
