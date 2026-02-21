@@ -68,12 +68,12 @@ export default function AuthCallback() {
                 email: user.email,
                 name: user.user_metadata?.full_name || user.user_metadata?.name || '',
                 profile_image: user.user_metadata?.avatar_url || user.user_metadata?.picture || '',
-                updated_at: new Date().toISOString(),
             };
 
             // Only set profile_completed for brand new users
             if (!existingUser) {
                 userData.profile_completed = false;
+                userData.is_profile_complete = false;
                 userData.created_at = new Date().toISOString();
             }
 

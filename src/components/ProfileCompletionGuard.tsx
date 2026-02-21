@@ -32,7 +32,7 @@ export default function ProfileCompletionGuard({ children }: ProfileCompletionGu
                 .from("users")
                 .select("is_profile_complete, profile_completed") // Check both just in case
                 .eq("id", user.id)
-                .single();
+                .maybeSingle();
 
             if (error) {
                 console.error("Error checking profile status:", error);

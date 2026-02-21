@@ -10,7 +10,7 @@ export const useShippingRealtime = () => {
   const fetchShippingOrders = async () => {
     try {
       setLoading(true);
-      
+
       const { data: orders, error } = await supabase
         .from('orders')
         .select('*')
@@ -66,45 +66,58 @@ export const useShippingRealtime = () => {
 
   // Subscribe to realtime updates
   useEffect(() => {
-    fetchShippingOrders();
+    let mounted = true;
+    if (mounted) fetchShippingOrders();
 
-    // Subscribe to orders table changes
-    const ordersSubscription = supabase
-      .channel('shipping_orders_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'orders'
-        },
-        (payload) => {
-          console.log('Order change detected:', payload);
-          fetchShippingOrders();
-        }
-      )
-      .subscribe();
+    let ordersSubscription: any;
+    let shipmentsSubscription: any;
 
-    // Subscribe to shipments table changes
-    const shipmentsSubscription = supabase
-      .channel('shipments_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'shipments'
-        },
-        (payload) => {
-          console.log('Shipment change detected:', payload);
-          fetchShippingOrders();
-        }
-      )
-      .subscribe();
+    try {
+      // Subscribe to orders table changes
+      ordersSubscription = supabase
+        .channel(`shipping_orders_changes_${Date.now()}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'orders'
+          },
+          (payload) => {
+            console.log('Order change detected:', payload);
+            if (mounted) fetchShippingOrders();
+          }
+        )
+        .subscribe((status, err) => {
+          if (err) console.error("Realtime subscription error in shipping orders:", err);
+        });
+
+      // Subscribe to shipments table changes
+      shipmentsSubscription = supabase
+        .channel(`shipments_changes_${Date.now()}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'shipments'
+          },
+          (payload) => {
+            console.log('Shipment change detected:', payload);
+            if (mounted) fetchShippingOrders();
+          }
+        )
+        .subscribe((status, err) => {
+          if (err) console.error("Realtime subscription error in shipments:", err);
+        });
+    } catch (e) {
+      console.error("Failed to setup real-time subscription for shipping", e);
+    }
 
     return () => {
-      ordersSubscription.unsubscribe();
-      shipmentsSubscription.unsubscribe();
+      mounted = false;
+      if (ordersSubscription) supabase.removeChannel(ordersSubscription);
+      if (shipmentsSubscription) supabase.removeChannel(shipmentsSubscription);
     };
   }, []);
 
@@ -127,11 +140,11 @@ export const useShippingRealtime = () => {
             tracking_number: shipmentData.tracking_number,
             tracking_url: shipmentData.tracking_url,
             status: shipmentData.status,
-            shipped_at: shipmentData.status === 'picked_up' || shipmentData.status === 'in_transit' 
-              ? new Date().toISOString() 
+            shipped_at: shipmentData.status === 'picked_up' || shipmentData.status === 'in_transit'
+              ? new Date().toISOString()
               : (existingShipment as any).shipped_at,
-            delivered_at: shipmentData.status === 'delivered' 
-              ? new Date().toISOString() 
+            delivered_at: shipmentData.status === 'delivered'
+              ? new Date().toISOString()
               : null
           })
           .eq('id', existingShipment.id);

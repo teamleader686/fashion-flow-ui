@@ -85,25 +85,37 @@ export const useWallet = () => {
   }, [user]);
 
   useEffect(() => {
-    // Fallback security: never stay in loading state forever
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 5000);
+    let mounted = true;
 
-    return () => clearTimeout(timer);
-  }, [loading]);
+    if (user && mounted) {
+      fetchWalletData();
+    }
 
-  useEffect(() => {
-    fetchWalletData();
     if (!user) return;
 
-    const channel = supabase.channel('user_wallet_updates')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'loyalty_wallet', filter: `user_id=eq.${user.id}` }, () => fetchWalletData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'loyalty_transactions', filter: `user_id=eq.${user.id}` }, () => fetchWalletData())
-      .subscribe();
+    let channel: any;
+    try {
+      channel = supabase.channel(`user_wallet_${user.id}_${Date.now()}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'loyalty_wallet', filter: `user_id=eq.${user.id}` }, () => {
+          if (mounted) fetchWalletData();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'loyalty_transactions', filter: `user_id=eq.${user.id}` }, () => {
+          if (mounted) fetchWalletData();
+        })
+        .subscribe((status, err) => {
+          if (err) console.error("Realtime subscription error in useWallet:", err);
+        });
+    } catch (e) {
+      console.error("Failed to setup real-time subscription for wallet", e);
+    }
 
-    return () => { channel.unsubscribe(); };
-  }, [user, fetchWalletData, pathname]);
+    return () => {
+      mounted = false;
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [user, fetchWalletData]);
 
   return { wallet, transactions, loading, error, refetch: fetchWalletData };
 };

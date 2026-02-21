@@ -241,46 +241,62 @@ export const useUserOrderStats = () => {
   }, [user]);
 
   useEffect(() => {
-    fetchStats();
+    let mounted = true;
+
+    if (user && mounted) {
+      fetchStats();
+    }
 
     if (!user) return;
 
-    // Setup real-time subscriptions
-    const ordersChannel = supabase
-      .channel('user_orders_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'orders',
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => {
-          fetchStats();
-        }
-      )
-      .subscribe();
+    let ordersChannel: any;
+    let loyaltyChannel: any;
 
-    const loyaltyChannel = supabase
-      .channel('user_loyalty_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'loyalty_transactions',
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => {
-          fetchStats();
-        }
-      )
-      .subscribe();
+    try {
+      // Setup real-time subscriptions securely
+      ordersChannel = supabase
+        .channel(`user_orders_stats_changes_${user.id}_${Date.now()}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'orders',
+            filter: `user_id=eq.${user.id}`,
+          },
+          () => {
+            if (mounted) fetchStats();
+          }
+        )
+        .subscribe((status, err) => {
+          if (err) console.error("Realtime subscription error in orders stats:", err);
+        });
+
+      loyaltyChannel = supabase
+        .channel(`user_loyalty_stats_changes_${user.id}_${Date.now()}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'loyalty_transactions',
+            filter: `user_id=eq.${user.id}`,
+          },
+          () => {
+            if (mounted) fetchStats();
+          }
+        )
+        .subscribe((status, err) => {
+          if (err) console.error("Realtime subscription error in loyalty stats:", err);
+        });
+    } catch (e) {
+      console.error("Failed to setup real-time subscription for stats", e);
+    }
 
     return () => {
-      ordersChannel.unsubscribe();
-      loyaltyChannel.unsubscribe();
+      mounted = false;
+      if (ordersChannel) supabase.removeChannel(ordersChannel);
+      if (loyaltyChannel) supabase.removeChannel(loyaltyChannel);
     };
   }, [fetchStats, user]);
 

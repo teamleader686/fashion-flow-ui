@@ -87,17 +87,34 @@ export const useOrdersRealtime = (options: {
   }, [page, pageSize, status, search]);
 
   useEffect(() => {
-    fetchOrders();
+    let mounted = true;
+    if (mounted) fetchOrders();
 
-    const subscription = supabase
-      .channel('orders_changes_admin')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, fetchOrders)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'shipments' }, fetchOrders)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'returns' }, fetchOrders)
-      .subscribe();
+    let subscription: any;
+    try {
+      subscription = supabase
+        .channel(`orders_changes_admin_${Date.now()}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+          if (mounted) fetchOrders();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'shipments' }, () => {
+          if (mounted) fetchOrders();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'returns' }, () => {
+          if (mounted) fetchOrders();
+        })
+        .subscribe((status, err) => {
+          if (err) console.error("Realtime subscription error in admin orders:", err);
+        });
+    } catch (e) {
+      console.error("Failed to setup real-time subscription for admin orders", e);
+    }
 
     return () => {
-      subscription.unsubscribe();
+      mounted = false;
+      if (subscription) {
+        supabase.removeChannel(subscription);
+      }
     };
   }, [fetchOrders]);
 

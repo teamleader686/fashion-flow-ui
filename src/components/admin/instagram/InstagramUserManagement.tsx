@@ -36,21 +36,32 @@ const InstagramUserManagement = () => {
   const [userToDelete, setUserToDelete] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchUsers();
+    let mounted = true;
+    if (mounted) fetchUsers();
 
-    // Setup realtime subscription
-    const subscription = supabase
-      .channel('instagram_users_changes')
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'instagram_users' },
-        () => {
-          fetchUsers();
-        }
-      )
-      .subscribe();
+    let subscription: any;
+    try {
+      // Setup realtime subscription securely
+      subscription = supabase
+        .channel(`instagram_users_changes_${Date.now()}`)
+        .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'instagram_users' },
+          () => {
+            if (mounted) fetchUsers();
+          }
+        )
+        .subscribe((status, err) => {
+          if (err) console.error("Realtime subscription error in instagram users:", err);
+        });
+    } catch (e) {
+      console.error("Failed to setup real-time subscription for instagram users", e);
+    }
 
     return () => {
-      subscription.unsubscribe();
+      mounted = false;
+      if (subscription) {
+        supabase.removeChannel(subscription);
+      }
     };
   }, []);
 
@@ -74,14 +85,14 @@ const InstagramUserManagement = () => {
   const toggleUserStatus = async (userId: string, currentStatus: string) => {
     try {
       const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
-      
+
       const { error } = await supabase
         .from('instagram_users')
         .update({ status: newStatus })
         .eq('id', userId);
 
       if (error) throw error;
-      
+
       toast.success(`User ${newStatus === 'active' ? 'activated' : 'deactivated'}`);
       fetchUsers();
     } catch (error: any) {
@@ -99,7 +110,7 @@ const InstagramUserManagement = () => {
         .eq('id', userToDelete);
 
       if (error) throw error;
-      
+
       toast.success('User deleted successfully');
       setDeleteDialogOpen(false);
       setUserToDelete(null);

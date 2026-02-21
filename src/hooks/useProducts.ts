@@ -151,14 +151,29 @@ export const useProducts = () => {
   }, []);
 
   useEffect(() => {
-    fetchProducts();
+    let mounted = true;
+    if (mounted) fetchProducts();
 
-    const subscription = supabase
-      .channel('products_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, fetchProducts)
-      .subscribe();
+    let subscription: any;
+    try {
+      subscription = supabase
+        .channel(`products_changes_${Date.now()}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
+          if (mounted) fetchProducts();
+        })
+        .subscribe((status, err) => {
+          if (err) console.error("Realtime subscription error in products:", err);
+        });
+    } catch (e) {
+      console.error("Failed to setup real-time subscription for products", e);
+    }
 
-    return () => { subscription.unsubscribe(); };
+    return () => {
+      mounted = false;
+      if (subscription) {
+        supabase.removeChannel(subscription);
+      }
+    };
   }, [fetchProducts]);
 
   return { products, loading, error, refetch: fetchProducts };
@@ -191,14 +206,29 @@ export const useCategories = () => {
   }, []);
 
   useEffect(() => {
-    fetchCategories();
+    let mounted = true;
+    if (mounted) fetchCategories();
 
-    const subscription = supabase
-      .channel('categories_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, fetchCategories)
-      .subscribe();
+    let subscription: any;
+    try {
+      subscription = supabase
+        .channel(`categories_changes_${Date.now()}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => {
+          if (mounted) fetchCategories();
+        })
+        .subscribe((status, err) => {
+          if (err) console.error("Realtime subscription error in categories:", err);
+        });
+    } catch (e) {
+      console.error("Failed to setup real-time subscription for categories", e);
+    }
 
-    return () => { subscription.unsubscribe(); };
+    return () => {
+      mounted = false;
+      if (subscription) {
+        supabase.removeChannel(subscription);
+      }
+    };
   }, [fetchCategories]);
 
   return { categories, loading, error, refetch: fetchCategories };

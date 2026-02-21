@@ -251,61 +251,77 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
   // Setup real-time subscriptions
   useEffect(() => {
+    let mounted = true;
     if (!user) return;
 
-    // Subscribe to orders changes
-    const ordersChannel = supabase
-      .channel('orders-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'orders',
-          filter: isAdmin ? undefined : `user_id=eq.${user.id}`,
-        },
-        () => {
-          fetchOrders();
-        }
-      )
-      .subscribe();
+    let ordersChannel: any;
+    let shipmentsChannel: any;
+    let trackingChannel: any;
 
-    // Subscribe to shipments changes
-    const shipmentsChannel = supabase
-      .channel('shipments-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'shipments',
-        },
-        () => {
-          fetchOrders();
-        }
-      )
-      .subscribe();
+    try {
+      // Subscribe to orders changes
+      ordersChannel = supabase
+        .channel(`orders_changes_${user.id}_${Date.now()}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'orders',
+            filter: isAdmin ? undefined : `user_id=eq.${user.id}`,
+          },
+          () => {
+            if (mounted) fetchOrders();
+          }
+        )
+        .subscribe((status, err) => {
+          if (err) console.error("Realtime subscription error in order context:", err);
+        });
 
-    // Subscribe to tracking events changes
-    const trackingChannel = supabase
-      .channel('tracking-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'shipment_tracking_events',
-        },
-        () => {
-          fetchOrders();
-        }
-      )
-      .subscribe();
+      // Subscribe to shipments changes
+      shipmentsChannel = supabase
+        .channel(`shipments_changes_${user.id}_${Date.now()}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'shipments',
+          },
+          () => {
+            if (mounted) fetchOrders();
+          }
+        )
+        .subscribe((status, err) => {
+          if (err) console.error("Realtime subscription error in shipments context:", err);
+        });
+
+      // Subscribe to tracking events changes
+      trackingChannel = supabase
+        .channel(`tracking_changes_${user.id}_${Date.now()}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'shipment_tracking_events',
+          },
+          () => {
+            if (mounted) fetchOrders();
+          }
+        )
+        .subscribe((status, err) => {
+          if (err) console.error("Realtime subscription error in tracking context:", err);
+        });
+    } catch (e) {
+      console.error("Failed to setup real-time subscriptions for OrderContext", e);
+    }
 
     return () => {
-      ordersChannel.unsubscribe();
-      shipmentsChannel.unsubscribe();
-      trackingChannel.unsubscribe();
+      mounted = false;
+      if (ordersChannel) supabase.removeChannel(ordersChannel);
+      if (shipmentsChannel) supabase.removeChannel(shipmentsChannel);
+      if (trackingChannel) supabase.removeChannel(trackingChannel);
     };
   }, [user, isAdmin, fetchOrders]);
 

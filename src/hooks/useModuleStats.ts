@@ -252,42 +252,54 @@ export const useModuleStats = () => {
   }, []);
 
   useEffect(() => {
-    fetchStats();
+    let mounted = true;
+    if (mounted) fetchStats();
 
     // Setup real-time subscriptions for automatic updates
     const channels: any[] = [];
 
-    // Subscribe to all relevant tables
-    const tables = [
-      'products',
-      'categories',
-      'affiliate_users',
-      'instagram_campaigns',
-      'user_profiles',
-      'shipments',
-      'cancellation_requests',
-      'coupons',
-      'offers',
-      'loyalty_transactions',
-    ];
+    // Subscribe to all relevant tables softly to avoid overwhelming connections
+    // Supabase allows many filters on one channel instead of creating 10 channels.
+    try {
+      const globalChannel = supabase.channel(`module_stats_changes_${Date.now()}`);
 
-    tables.forEach((table) => {
-      const channel = supabase
-        .channel(`${table}_changes`)
-        .on(
+      const tables = [
+        'products',
+        'categories',
+        'affiliate_users',
+        'instagram_campaigns',
+        'user_profiles',
+        'shipments',
+        'cancellation_requests',
+        'coupons',
+        'offers',
+        'loyalty_transactions',
+      ];
+
+      tables.forEach((table) => {
+        globalChannel.on(
           'postgres_changes',
           { event: '*', schema: 'public', table },
           () => {
-            fetchStats();
+            if (mounted) fetchStats();
           }
-        )
-        .subscribe();
+        );
+      });
 
-      channels.push(channel);
-    });
+      globalChannel.subscribe((status, err) => {
+        if (err) console.error("Realtime subscription error in module stats:", err);
+      });
+
+      channels.push(globalChannel);
+    } catch (e) {
+      console.error("Failed to setup real-time subscription for module stats", e);
+    }
 
     return () => {
-      channels.forEach((channel) => channel.unsubscribe());
+      mounted = false;
+      channels.forEach((channel) => {
+        if (channel) supabase.removeChannel(channel);
+      });
     };
   }, [fetchStats]);
 

@@ -1,6 +1,6 @@
 import Layout from "@/components/layout/Layout";
 import { User, Package, MapPin, Wallet, Gift, LogIn, Settings, Heart } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 
@@ -15,12 +15,24 @@ const menuItems = [
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { FileText, HelpCircle, MessageSquare, ChevronRight } from "lucide-react";
-
+import { toast } from "sonner";
 // ... existing code
 
 const Account = () => {
   const { user, profile, loading, signOut } = useAuth();
   const [pages, setPages] = useState<{ slug: string; title: string }[]>([]);
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      toast.success("Successfully logged out");
+      navigate("/");
+    } catch (error) {
+      console.error("Logout error:", error);
+      toast.error("Failed to log out");
+    }
+  };
 
   useEffect(() => {
     supabase.from("pages").select("slug, title").eq("is_active", true)
@@ -129,7 +141,7 @@ const Account = () => {
         {user && (
           <div className="pt-4 text-center">
             <button
-              onClick={() => signOut()}
+              onClick={handleLogout}
               className="text-sm font-medium text-destructive hover:underline transition-all"
             >
               Log Out From Account

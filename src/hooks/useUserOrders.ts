@@ -29,70 +29,81 @@ export function useUserOrders() {
         .select(`
           *,
           order_items (*),
-          shipments (*)
+          shipment:shipments (*)
         `)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (fetchError) throw fetchError;
+      if (fetchError) {
+        console.error('Supabase fetch error:', fetchError);
+        throw fetchError;
+      }
 
-      // Transform data
-      const transformedOrders = (data || []).map((order) => ({
-        ...order,
-        shipment: order.shipments?.[0] || null,
-      })) as Order[];
+      // Transform data securely
+      const transformedOrders = (data || []).map((order) => {
+        // Handle array or object for shipments relation depending on Supabase version
+        let shipmentDetail = null;
+        if (order.shipment) {
+          shipmentDetail = Array.isArray(order.shipment) ? order.shipment[0] : order.shipment;
+        } else if ((order as any).shipments) {
+          shipmentDetail = Array.isArray((order as any).shipments) ? (order as any).shipments[0] : (order as any).shipments;
+        }
+
+        return {
+          ...order,
+          shipment: shipmentDetail || null,
+        };
+      }) as Order[];
 
       setOrders(transformedOrders);
     } catch (err: any) {
       console.error('Error fetching orders:', err);
       setError(err.message || 'Failed to fetch orders');
-      // toast.error('Failed to load orders');
     } finally {
-      setTimeout(() => {
-        setLoading(false);
-      }, 300);
+      setLoading(false);
     }
   }, [user]);
 
   useEffect(() => {
-    fetchOrders();
+    let mounted = true;
+
+    if (user && mounted) {
+      fetchOrders();
+    }
 
     if (!user) return;
 
-    // Subscribe to real-time updates
-    const channel = supabase
-      .channel(`user_orders_${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'orders',
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => {
-          console.log('Order updated, refreshing...');
-          fetchOrders();
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'shipments',
-        },
-        () => {
-          console.log('Shipment updated, refreshing...');
-          fetchOrders();
-        }
-      )
-      .subscribe();
+    let channel: any;
+    try {
+      // Subscribe to real-time updates securely
+      channel = supabase
+        .channel(`user_orders_${user.id}_${Date.now()}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'orders',
+            filter: `user_id=eq.${user.id}`,
+          },
+          () => {
+            if (mounted) fetchOrders();
+          }
+        )
+        .subscribe((status, err) => {
+          if (err) console.error("Realtime subscription error in useUserOrders:", err);
+        });
+    } catch (e) {
+      console.error("Failed to setup real-time subscription", e);
+    }
 
     return () => {
-      channel.unsubscribe();
+      mounted = false;
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
-  }, [user, fetchOrders, pathname]);
+  }, [user, fetchOrders]);
 
   const cancelOrder = async (orderId: string, reason: string, comment: string): Promise<boolean> => {
     try {

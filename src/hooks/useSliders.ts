@@ -124,18 +124,31 @@ export const useSliders = () => {
     };
 
     useEffect(() => {
-        fetchSliders();
+        let mounted = true;
+        if (mounted) fetchSliders();
 
-        const subscription = supabase
-            .channel('sliders_changes')
-            .on('postgres_changes',
-                { event: '*', schema: 'public', table: 'sliders' },
-                () => fetchSliders()
-            )
-            .subscribe();
+        let subscription: any;
+        try {
+            subscription = supabase
+                .channel(`sliders_changes_${Date.now()}`)
+                .on('postgres_changes',
+                    { event: '*', schema: 'public', table: 'sliders' },
+                    () => {
+                        if (mounted) fetchSliders();
+                    }
+                )
+                .subscribe((status, err) => {
+                    if (err) console.error("Realtime subscription error in sliders:", err);
+                });
+        } catch (e) {
+            console.error("Failed to setup real-time subscription for sliders", e);
+        }
 
         return () => {
-            subscription.unsubscribe();
+            mounted = false;
+            if (subscription) {
+                supabase.removeChannel(subscription);
+            }
         };
     }, []);
 

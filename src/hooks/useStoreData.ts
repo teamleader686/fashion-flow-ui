@@ -135,26 +135,39 @@ export const useStoreData = () => {
   }, []);
 
   useEffect(() => {
-    fetchStats();
+    let mounted = true;
+    if (mounted) fetchStats();
 
-    // Setup real-time subscriptions for automatic updates
-    const ordersChannel = supabase
-      .channel('store_orders_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
-        fetchStats();
-      })
-      .subscribe();
+    let ordersChannel: any;
+    let productsChannel: any;
 
-    const productsChannel = supabase
-      .channel('store_products_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
-        fetchStats();
-      })
-      .subscribe();
+    try {
+      // Setup real-time subscriptions for automatic updates securely
+      ordersChannel = supabase
+        .channel(`store_orders_changes_${Date.now()}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+          if (mounted) fetchStats();
+        })
+        .subscribe((status, err) => {
+          if (err) console.error("Realtime subscription error in store orders:", err);
+        });
+
+      productsChannel = supabase
+        .channel(`store_products_changes_${Date.now()}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
+          if (mounted) fetchStats();
+        })
+        .subscribe((status, err) => {
+          if (err) console.error("Realtime subscription error in store products:", err);
+        });
+    } catch (e) {
+      console.error("Failed to setup real-time subscription for store stats", e);
+    }
 
     return () => {
-      ordersChannel.unsubscribe();
-      productsChannel.unsubscribe();
+      mounted = false;
+      if (ordersChannel) supabase.removeChannel(ordersChannel);
+      if (productsChannel) supabase.removeChannel(productsChannel);
     };
   }, [fetchStats]);
 

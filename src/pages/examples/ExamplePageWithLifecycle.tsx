@@ -62,26 +62,33 @@ export default function ExamplePageWithLifecycle() {
   // REAL-TIME SUBSCRIPTION WITH AUTO-CLEANUP
   // ============================================================================
   useSubscription(() => {
-    const channel = supabase
-      .channel('example_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'your_table',
-        },
-        (payload) => {
-          console.log('Real-time update:', payload);
-          fetchData(); // Refresh data
-        }
-      )
-      .subscribe();
+    let channel: any;
+    try {
+      channel = supabase
+        .channel(`example_changes_${Date.now()}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'your_table',
+          },
+          (payload) => {
+            console.log('Real-time update:', payload);
+            fetchData(); // Refresh data
+          }
+        )
+        .subscribe((status, err) => {
+          if (err) console.error("Realtime subscription error in example:", err);
+        });
+    } catch (e) {
+      console.error("Failed to setup real-time subscription for example", e);
+    }
 
     // Return cleanup function
     return () => {
-      console.log('Unsubscribing from real-time channel');
-      channel.unsubscribe();
+      console.log('Removing real-time channel');
+      if (channel) supabase.removeChannel(channel);
     };
   }, []);
 

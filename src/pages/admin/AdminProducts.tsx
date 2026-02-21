@@ -123,18 +123,35 @@ const AdminProducts = () => {
   }, [currentPage, debouncedSearch]);
 
   useEffect(() => {
-    fetchProducts();
-    fetchStats();
+    let mounted = true;
+    if (mounted) {
+      fetchProducts();
+      fetchStats();
+    }
 
-    const subscription = supabase
-      .channel('products_changes_admin')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
-        fetchProducts();
-        fetchStats();
-      })
-      .subscribe();
+    let subscription: any;
+    try {
+      subscription = supabase
+        .channel(`products_changes_admin_${Date.now()}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
+          if (mounted) {
+            fetchProducts();
+            fetchStats();
+          }
+        })
+        .subscribe((status, err) => {
+          if (err) console.error("Realtime subscription error in admin products:", err);
+        });
+    } catch (e) {
+      console.error("Failed to setup real-time subscription for admin products", e);
+    }
 
-    return () => { subscription.unsubscribe(); };
+    return () => {
+      mounted = false;
+      if (subscription) {
+        supabase.removeChannel(subscription);
+      }
+    };
   }, [fetchProducts]);
 
   const fetchStats = async () => {

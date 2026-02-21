@@ -357,27 +357,38 @@ export function useInstagramNotifications(recipientType: 'admin' | 'instagram_us
   };
 
   useEffect(() => {
-    fetchNotifications();
+    let mounted = true;
+    if (mounted) fetchNotifications();
 
-    // Subscribe to new notifications
-    const subscription = supabase
-      .channel('instagram_notifications')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'instagram_notifications',
-          filter: `recipient_type=eq.${recipientType}`
-        },
-        () => {
-          fetchNotifications();
-        }
-      )
-      .subscribe();
+    let subscription: any;
+    try {
+      // Subscribe to new notifications securely
+      subscription = supabase
+        .channel(`instagram_notifications_${recipientType}_${Date.now()}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'instagram_notifications',
+            filter: `recipient_type=eq.${recipientType}`
+          },
+          () => {
+            if (mounted) fetchNotifications();
+          }
+        )
+        .subscribe((status, err) => {
+          if (err) console.error("Realtime subscription error in instagram notifications:", err);
+        });
+    } catch (e) {
+      console.error("Failed to setup real-time subscription for instagram notifications", e);
+    }
 
     return () => {
-      subscription.unsubscribe();
+      mounted = false;
+      if (subscription) {
+        supabase.removeChannel(subscription);
+      }
     };
   }, [recipientType]);
 

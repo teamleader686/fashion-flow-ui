@@ -51,27 +51,38 @@ export default function CategoryManagement() {
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
 
   useEffect(() => {
-    fetchCategories();
+    let mounted = true;
+    if (mounted) fetchCategories();
 
-    // Subscribe to real-time updates
-    const channel = supabase
-      .channel('categories_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'categories',
-        },
-        () => {
-          console.log('Category updated');
-          fetchCategories();
-        }
-      )
-      .subscribe();
+    let channel: any;
+    try {
+      // Subscribe to real-time updates securely
+      channel = supabase
+        .channel(`categories_changes_${Date.now()}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'categories',
+          },
+          () => {
+            console.log('Category updated');
+            if (mounted) fetchCategories();
+          }
+        )
+        .subscribe((status, err) => {
+          if (err) console.error("Realtime subscription error in categories:", err);
+        });
+    } catch (e) {
+      console.error("Failed to setup real-time subscription for categories", e);
+    }
 
     return () => {
-      channel.unsubscribe();
+      mounted = false;
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
   }, []);
 

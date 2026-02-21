@@ -49,27 +49,38 @@ export default function CancellationRequests() {
   const [statusFilter, setStatusFilter] = useState<string>('pending');
 
   useEffect(() => {
-    fetchRequests();
+    let mounted = true;
+    if (mounted) fetchRequests();
 
-    // Subscribe to real-time updates
-    const channel = supabase
-      .channel('cancellation_requests_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'cancellation_requests',
-        },
-        () => {
-          console.log('Cancellation request updated');
-          fetchRequests();
-        }
-      )
-      .subscribe();
+    let channel: any;
+    try {
+      // Subscribe to real-time updates securely
+      channel = supabase
+        .channel(`cancellation_requests_changes_${Date.now()}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'cancellation_requests',
+          },
+          () => {
+            console.log('Cancellation request updated');
+            if (mounted) fetchRequests();
+          }
+        )
+        .subscribe((status, err) => {
+          if (err) console.error("Realtime subscription error in cancellation requests:", err);
+        });
+    } catch (e) {
+      console.error("Failed to setup real-time subscription for cancellation requests", e);
+    }
 
     return () => {
-      channel.unsubscribe();
+      mounted = false;
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
   }, []);
 

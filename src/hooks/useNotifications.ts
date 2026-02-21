@@ -114,40 +114,52 @@ export function useNotifications({
   }, [userId, role, module]);
 
   useEffect(() => {
-    fetchNotifications();
+    let mounted = true;
+
+    if (mounted) fetchNotifications();
 
     if (!autoRefresh) return;
 
-    // Subscribe to real-time updates
-    const channel = supabase
-      .channel(`notifications_${userId}_${role}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload) => {
-          console.log('Notification change:', payload);
-          fetchNotifications();
+    let channel: any;
+    try {
+      // Subscribe to real-time updates securely
+      channel = supabase
+        .channel(`notifications_${userId}_${role}_${Date.now()}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${userId}`,
+          },
+          (payload) => {
+            console.log('Notification change:', payload);
+            if (mounted) fetchNotifications();
 
-          // Show toast for new notifications
-          if (payload.eventType === 'INSERT') {
-            const newNotification = payload.new as Notification;
-            if (newNotification.priority === 'urgent' || newNotification.priority === 'high') {
-              toast.info(newNotification.title, {
-                description: newNotification.message,
-              });
+            // Show toast for new notifications
+            if (payload.eventType === 'INSERT') {
+              const newNotification = payload.new as Notification;
+              if (newNotification.priority === 'urgent' || newNotification.priority === 'high') {
+                toast.info(newNotification.title, {
+                  description: newNotification.message,
+                });
+              }
             }
           }
-        }
-      )
-      .subscribe();
+        )
+        .subscribe((status, err) => {
+          if (err) console.error("Realtime subscription error in notifications:", err);
+        });
+    } catch (e) {
+      console.error("Failed to setup real-time subscription for notifications", e);
+    }
 
     return () => {
-      channel.unsubscribe();
+      mounted = false;
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
   }, [userId, role, module, autoRefresh, fetchNotifications]);
 
