@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Loader2, ShoppingBag } from 'lucide-react';
+import { Loader2, ShoppingBag, ArrowLeft } from 'lucide-react';
 
 export default function Login() {
     const navigate = useNavigate();
@@ -42,8 +42,18 @@ export default function Login() {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-tr from-pink-50 via-white to-purple-50 p-6">
-            <Card className="w-full max-w-[400px] shadow-xl border-none bg-white rounded-3xl overflow-hidden">
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-tr from-pink-50 via-white to-purple-50 p-6 relative">
+            {/* Back Button */}
+            <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate(-1)}
+                className="absolute top-4 left-4 sm:top-8 sm:left-8 bg-white/60 backdrop-blur-md hover:bg-white text-gray-700 shadow-sm border border-gray-200/50 rounded-full h-10 w-10 z-10"
+            >
+                <ArrowLeft className="h-5 w-5" />
+            </Button>
+
+            <Card className="w-full max-w-[400px] shadow-xl border-none bg-white rounded-3xl overflow-hidden mt-8 sm:mt-0">
                 <CardHeader className="space-y-4 text-center pt-10 pb-6">
                     {/* Premium Logo Section */}
                     <div className="flex justify-center">

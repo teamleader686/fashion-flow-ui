@@ -178,11 +178,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
-    setUser(null);
-    setProfile(null);
-    setAdminUser(null);
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error("Supabase signOut error:", error);
+      }
+    } catch (err) {
+      console.error("Exception during signOut:", err);
+    } finally {
+      setUser(null);
+      setProfile(null);
+      setAdminUser(null);
+      localStorage.removeItem('profile_complete');
+      localStorage.removeItem('affiliate_referral_code'); // Clean up any affiliate codes
+      // Aggressively clear supabase keys
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('sb-')) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(k => localStorage.removeItem(k));
+    }
   };
 
   const refreshProfile = async () => {

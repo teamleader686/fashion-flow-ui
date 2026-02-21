@@ -9,15 +9,24 @@ import {
   CreditCard,
   ChevronRight,
   Truck,
+  Pencil,
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { useState } from 'react';
+import EditOrderModal from './EditOrderModal';
+import CancelOrderDialog from './CancelOrderDialog';
 
 interface OrderCardProps {
   order: Order;
   onViewDetails: (order: Order) => void;
+  onCancelOrder?: (orderId: string, reason: string, comment: string) => Promise<boolean>;
 }
 
-export default function OrderCard({ order, onViewDetails }: OrderCardProps) {
+export default function OrderCard({ order, onViewDetails, onCancelOrder }: OrderCardProps) {
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       pending: 'bg-gray-100 text-gray-800 border-gray-200', // placed
@@ -52,6 +61,22 @@ export default function OrderCard({ order, onViewDetails }: OrderCardProps) {
 
   const itemCount = order.order_items?.length || 0;
   const firstItem = order.order_items?.[0];
+
+  const canEdit = ['placed', 'confirmed', 'processing', 'packed', 'pending'].includes(order.status) &&
+    (!order.cancellation_status || order.cancellation_status === 'none');
+
+  const canCancel = ['placed', 'confirmed', 'processing', 'pending'].includes(order.status) &&
+    (!order.cancellation_status || order.cancellation_status === 'none') && onCancelOrder;
+
+  const handleCancelOrder = async (reason: string, comment: string) => {
+    if (!onCancelOrder) return;
+    setLoading(true);
+    const success = await onCancelOrder(order.id, reason, comment);
+    setLoading(false);
+    if (success) {
+      setCancelDialogOpen(false);
+    }
+  };
 
   return (
     <Card className="hover:shadow-md transition-shadow">
@@ -142,15 +167,55 @@ export default function OrderCard({ order, onViewDetails }: OrderCardProps) {
         )}
 
         {/* Action Button */}
-        <Button
-          variant="outline"
-          className="w-full"
-          onClick={() => onViewDetails(order)}
-        >
-          View Details
-          <ChevronRight className="h-4 w-4 ml-2" />
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button
+            variant="outline"
+            className="flex-1"
+            onClick={() => onViewDetails(order)}
+          >
+            View Details
+            <ChevronRight className="h-4 w-4 ml-2" />
+          </Button>
+          {canEdit && (
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setEditDialogOpen(true)}
+            >
+              <Pencil className="h-4 w-4 mr-2" />
+              Edit Order
+            </Button>
+          )}
+          {canCancel && (
+            <Button
+              variant="destructive"
+              className="flex-1"
+              onClick={() => setCancelDialogOpen(true)}
+            >
+              Cancel Order
+            </Button>
+          )}
+        </div>
       </CardContent>
+
+      {canEdit && (
+        <EditOrderModal
+          order={order}
+          open={editDialogOpen}
+          onClose={() => setEditDialogOpen(false)}
+          onUpdate={() => setEditDialogOpen(false)}
+        />
+      )}
+
+      {canCancel && (
+        <CancelOrderDialog
+          open={cancelDialogOpen}
+          onClose={() => setCancelDialogOpen(false)}
+          onConfirm={handleCancelOrder}
+          orderNumber={order.order_number}
+          loading={loading}
+        />
+      )}
     </Card>
   );
 }

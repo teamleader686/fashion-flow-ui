@@ -30,6 +30,7 @@ import { supabase } from '@/lib/supabase';
 import CancelOrderDialog from './CancelOrderDialog';
 import ReturnRequestDialog from './ReturnRequestDialog';
 import OrderTimeline from './OrderTimeline';
+import EditOrderModal from './EditOrderModal';
 
 interface OrderDetailModalProps {
   order: Order | null;
@@ -50,6 +51,7 @@ export default function OrderDetailModal({
 }: OrderDetailModalProps) {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [history, setHistory] = useState<OrderStatusHistory[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -89,6 +91,8 @@ export default function OrderDetailModal({
   const canCancel = ['placed', 'confirmed', 'processing', 'pending'].includes(order.status) &&
     (!order.cancellation_status || order.cancellation_status === 'none');
   const canReturn = order.status === 'delivered';
+  const canEdit = ['placed', 'confirmed', 'processing', 'packed', 'pending'].includes(order.status) &&
+    (!order.cancellation_status || order.cancellation_status === 'none');
   const isCancellationRequested = order.cancellation_status === 'requested' || order.status === 'cancellation_requested';
 
   const handleCancelOrder = async (reason: string, comment: string) => {
@@ -340,7 +344,7 @@ export default function OrderDetailModal({
               </div>
 
               {/* Action Buttons */}
-              {(canCancel || canReturn || isCancellationRequested || canConfirm) && (
+              {(canCancel || canReturn || isCancellationRequested || canConfirm || canEdit) && (
                 <>
                   <Separator />
                   {order.cancellation_status === 'requested' && (
@@ -388,6 +392,16 @@ export default function OrderDetailModal({
 
                     {!isCancellationRequested && (
                       <div className="flex flex-col sm:flex-row gap-3">
+                        {canEdit && (
+                          <Button
+                            variant="outline"
+                            className="flex-1 rounded-xl h-12"
+                            onClick={() => setEditDialogOpen(true)}
+                            disabled={loading}
+                          >
+                            Edit Order
+                          </Button>
+                        )}
                         {canCancel && (
                           <Button
                             variant="destructive"
@@ -433,6 +447,16 @@ export default function OrderDetailModal({
         onClose={() => setReturnDialogOpen(false)}
         onSubmit={handleRequestReturn}
         orderNumber={order.order_number}
+      />
+
+      <EditOrderModal
+        order={order}
+        open={editDialogOpen}
+        onClose={() => setEditDialogOpen(false)}
+        onUpdate={() => {
+          setEditDialogOpen(false);
+          onClose(); // Close the detail modal or we can just let realtime handle it
+        }}
       />
     </>
   );

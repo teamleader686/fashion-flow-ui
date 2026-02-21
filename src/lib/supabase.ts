@@ -226,6 +226,7 @@ export type Order = {
   packed_at?: string;
   cancellation_status?: 'none' | 'requested' | 'approved' | 'rejected';
   order_status?: string; // For compatibility with user's new column
+  special_notes?: string; // Added for edit order functionality
   // Relations
   order_items?: OrderItem[];
   shipment?: Shipment;

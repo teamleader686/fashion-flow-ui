@@ -15,13 +15,13 @@ const CategoryCircles = () => {
 
   return (
     <section className="py-4 lg:py-8 overflow-hidden">
-      <div className="container px-0 sm:px-6">
-        <div className="flex gap-4 sm:gap-8 overflow-x-auto scrollbar-hide pt-2 pb-4 snap-x snap-mandatory px-4 sm:px-0 lg:justify-center">
+      <div className="w-full">
+        <div className="flex gap-4 sm:gap-8 overflow-x-auto scrollbar-hide pt-2 pb-4 snap-x snap-mandatory pl-4 pr-0 sm:px-6 lg:justify-center">
           {categories.map((cat) => (
             <Link
               key={cat.id}
               to={`/products?category=${cat.slug}`}
-              className="flex flex-col items-center gap-3 flex-shrink-0 snap-center first:pl-2 last:pr-2 sm:first:pl-0 sm:last:pr-0"
+              className="flex flex-col items-center gap-3 flex-shrink-0 snap-center pr-4 sm:pr-0 last:pr-4 sm:last:pr-0"
             >
               <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-28 lg:h-28 rounded-full overflow-hidden ring-2 ring-offset-2 ring-primary/20 hover:ring-primary transition-all duration-300 shadow-sm">
                 <img
