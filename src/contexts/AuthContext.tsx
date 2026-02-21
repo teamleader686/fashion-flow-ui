@@ -158,7 +158,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `https://stylebazaarkurti123.netlify.app`,
+        redirectTo: `fashion-flow-rbsz4m2zp-shiv9.vercel.app`,
         queryParams: {
           access_type: 'offline',
           prompt: 'consent',
