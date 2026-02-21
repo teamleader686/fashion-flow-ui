@@ -110,7 +110,34 @@ const AdminLogin = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Password</Label>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!email) {
+                      setError("Please enter your email first to reset password.");
+                      return;
+                    }
+                    try {
+                      setLoading(true);
+                      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                        redirectTo: `${window.location.origin}/admin/reset-password`,
+                      });
+                      if (error) throw error;
+                      toast.success("Password reset link sent to your email.");
+                    } catch (err: any) {
+                      toast.error(err.message || "Failed to send reset link.");
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  className="text-xs transition-colors hover:text-primary text-muted-foreground underline underline-offset-4"
+                  disabled={loading}
+                >
+                  Forgot password?
+                </button>
+              </div>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input

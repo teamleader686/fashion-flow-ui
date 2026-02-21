@@ -32,11 +32,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (!mounted) return;
 
         if (session?.user) {
-          console.log("User already logged in:", session.user.email);
           setUser(session.user);
           await fetchUserProfile(session.user.id);
         } else {
-          console.log("No active session found");
           setUser(null);
           setLoading(false);
         }
@@ -51,18 +49,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Fallback: Ensure loading always completes
     const fallbackTimer = setTimeout(() => {
       if (mounted) setLoading(false);
-    }, 8000); // 8 seconds for auth a bit longer than data
+    }, 5000); // 5 seconds for auth fallack
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("Auth Event:", event);
-
       if (session?.user) {
-        console.log("User logged in:", session.user.email);
         setUser(session.user);
         await fetchUserProfile(session.user.id);
       } else {
-        console.log("User logged out");
         setUser(null);
         setProfile(null);
         setAdminUser(null);
@@ -164,8 +158,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        // redirectTo: `http://10.178.221.41:8080`,
-        redirectTo: `stylebazaarkurti.netlify.app`,
+        redirectTo: `${window.location.origin}/auth/callback`,
         queryParams: {
           access_type: 'offline',
           prompt: 'consent',

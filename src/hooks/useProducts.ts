@@ -59,26 +59,30 @@ const transformProduct = (dbProduct: any): Product => {
     (!dbProduct.offer_start_date || now >= new Date(dbProduct.offer_start_date)) &&
     (!dbProduct.offer_end_date || now <= new Date(dbProduct.offer_end_date));
 
-  let finalPrice = dbProduct.price;
-  let discount = dbProduct.compare_at_price
-    ? Math.round(((dbProduct.compare_at_price - dbProduct.price) / dbProduct.compare_at_price) * 100)
-    : 0;
   let originalPrice = dbProduct.compare_at_price || dbProduct.price;
+  let finalPrice = dbProduct.price;
 
   if (hasActiveOffer) {
-    originalPrice = dbProduct.price; // The listed price becomes the 'original'
     if (dbProduct.offer_type === 'percentage') {
       finalPrice = dbProduct.price - (dbProduct.price * dbProduct.offer_value) / 100;
-      discount = Math.max(discount, dbProduct.offer_value);
     } else if (dbProduct.offer_type === 'flat') {
-      finalPrice = dbProduct.price - dbProduct.offer_value;
-      discount = Math.max(discount, Math.round((dbProduct.offer_value / dbProduct.price) * 100));
+      finalPrice = Math.max(0, dbProduct.price - dbProduct.offer_value);
     }
   }
+
+  let discount = originalPrice > finalPrice
+    ? Math.round(((originalPrice - finalPrice) / originalPrice) * 100)
+    : 0;
 
   const totalStock = dbProduct.product_variants?.reduce(
     (sum: number, v: any) => sum + (v.stock_quantity || 0), 0
   ) || dbProduct.stock_quantity || 0;
+
+  const approvedReviews = dbProduct.product_reviews?.filter((r: any) => r.is_approved !== false) || [];
+  const reviewCount = approvedReviews.length;
+  const rating = reviewCount > 0
+    ? Number((approvedReviews.reduce((sum: number, r: any) => sum + r.rating, 0) / reviewCount).toFixed(1))
+    : 4.5; // fallback to 4.5 if no reviews
 
   return {
     id: dbProduct.id,
@@ -87,11 +91,11 @@ const transformProduct = (dbProduct: any): Product => {
     price: finalPrice,
     originalPrice: originalPrice,
     discount,
-    bestPrice: Math.round(finalPrice * 0.9),
+    bestPrice: Math.round(finalPrice * 0.9), // Keeping best price logic as is for now
     image: primaryImage?.image_url || allImages[0] || '/placeholder.svg',
     images: allImages.length > 0 ? allImages : ['/placeholder.svg'],
-    rating: 4.5,
-    reviewCount: 0,
+    rating,
+    reviewCount,
     category: dbProduct.category?.slug || 'uncategorized',
     colors,
     sizes,
@@ -128,7 +132,8 @@ export const useProducts = () => {
           is_offer_active, offer_type, offer_value, offer_start_date, offer_end_date, banner_tag,
           category:categories(name, slug),
           product_images(image_url, is_primary, display_order),
-          product_variants(size, color, color_code, stock_quantity)
+          product_variants(size, color, color_code, stock_quantity),
+          product_reviews(rating, is_approved)
         `)
         .eq('is_active', true)
         .order('created_at', { ascending: false });

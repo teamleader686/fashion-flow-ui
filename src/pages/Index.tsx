@@ -114,17 +114,17 @@ const Index = () => {
             <div>
               <h5 className="font-semibold text-sm mb-3 uppercase tracking-wide">Help</h5>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><span className="hover:text-foreground cursor-pointer">Track Order</span></li>
-                <li><span className="hover:text-foreground cursor-pointer">Returns</span></li>
-                <li><span className="hover:text-foreground cursor-pointer">FAQ</span></li>
+                <li><Link to="/pages/track-order" className="hover:text-foreground">Track Order</Link></li>
+                <li><Link to="/pages/returns" className="hover:text-foreground">Returns</Link></li>
+                <li><Link to="/pages/faq" className="hover:text-foreground">FAQ</Link></li>
               </ul>
             </div>
             <div>
               <h5 className="font-semibold text-sm mb-3 uppercase tracking-wide">Connect</h5>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><span className="hover:text-foreground cursor-pointer">Instagram</span></li>
-                <li><span className="hover:text-foreground cursor-pointer">Facebook</span></li>
-                <li><span className="hover:text-foreground cursor-pointer">WhatsApp</span></li>
+                <li><a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="hover:text-foreground cursor-pointer">Instagram</a></li>
+                <li><a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="hover:text-foreground cursor-pointer">Facebook</a></li>
+                <li><a href="https://wa.me/919876543210" target="_blank" rel="noopener noreferrer" className="hover:text-foreground cursor-pointer">WhatsApp</a></li>
               </ul>
             </div>
           </div>

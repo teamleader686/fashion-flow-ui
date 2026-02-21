@@ -235,7 +235,13 @@ const Products = () => {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-xl lg:text-2xl font-bold">{categoryTitle}</h1>
-            <p className="text-sm text-muted-foreground">{filteredProducts.length} products found</p>
+            <p className="text-sm text-muted-foreground">
+              {isLoading || loading ? (
+                "Loading products..."
+              ) : (
+                `${filteredProducts.length} products found`
+              )}
+            </p>
           </div>
           <button
             onClick={() => setShowFilters(!showFilters)}

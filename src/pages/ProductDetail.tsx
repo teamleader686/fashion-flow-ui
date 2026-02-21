@@ -284,7 +284,7 @@ const ProductDetail = () => {
         .update({
           comment: editContent,
           rating: editRating,
-          updated_at: new Date(),
+          updated_at: new Date().toISOString(),
         })
         .eq("id", editingReviewId);
 
@@ -568,7 +568,7 @@ const ProductDetail = () => {
             )}
 
             {/* Loyalty Earn Info (only in money mode) */}
-            {purchaseMode === 'money' && product.loyaltyCoins && product.loyaltyCoins > 0 && (
+            {purchaseMode === 'money' && (product.loyaltyCoins || 0) > 0 && (
               <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 rounded-lg p-4">
                 <div className="flex items-start gap-3">
                   <div className="flex-shrink-0 w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">

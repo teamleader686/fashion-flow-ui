@@ -113,6 +113,13 @@ const Checkout = () => {
   const [showMap, setShowMap] = useState(false);
   const [mapLocation, setMapLocation] = useState<{ lat?: number; lng?: number; address?: string }>({});
 
+  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
+  useEffect(() => {
+    const handleResize = () => setIsDesktop(window.innerWidth >= 1024);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Calculations
   const subtotalWithOffers = totalPrice;
   const subtotalWithoutOffers = items.reduce((sum, i) => sum + (i.isCoinItem ? 0 : i.product.price * i.quantity), 0);
@@ -277,7 +284,7 @@ const Checkout = () => {
     // Prepare order data
     const orderData = {
       customer_name: address.fullName,
-      customer_email: address.addressLine2 || undefined, // Using addressLine2 as email placeholder
+      customer_email: profile?.email || user?.email || undefined,
       customer_phone: address.phone,
       shipping_address_line1: address.addressLine1,
       shipping_address_line2: address.addressLine2 || undefined,
@@ -367,7 +374,7 @@ const Checkout = () => {
               </button>
 
               <AnimatePresence initial={false}>
-                {(expandedSection === "address" || window.innerWidth >= 1024) && (
+                {(expandedSection === "address" || isDesktop) && (
                   <motion.div
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: "auto", opacity: 1 }}
@@ -564,7 +571,7 @@ const Checkout = () => {
             </button>
 
             <AnimatePresence initial={false}>
-              {(expandedSection === "coupon" || window.innerWidth >= 1024) && (
+              {(expandedSection === "coupon" || isDesktop) && (
                 <motion.div
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: "auto", opacity: 1 }}
@@ -690,7 +697,7 @@ const Checkout = () => {
             </button>
 
             <AnimatePresence initial={false}>
-              {(expandedSection === "coins" || window.innerWidth >= 1024) && (
+              {(expandedSection === "coins" || isDesktop) && (
                 <motion.div
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: "auto", opacity: 1 }}
@@ -764,7 +771,7 @@ const Checkout = () => {
             </button>
 
             <AnimatePresence initial={false}>
-              {(expandedSection === "payment" || window.innerWidth >= 1024) && (
+              {(expandedSection === "payment" || isDesktop) && (
                 <motion.div
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: "auto", opacity: 1 }}

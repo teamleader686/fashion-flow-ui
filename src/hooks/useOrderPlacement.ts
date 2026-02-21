@@ -65,13 +65,11 @@ export const useOrderPlacement = () => {
 
       if (affiliateCoupon) {
         finalAffiliateId = affiliateCoupon.affiliate_user_id;
-        console.log('[Order] Attribution via Affiliate Coupon:', affiliateCoupon.code);
       } else {
         // Fallback to profile referral
         const profileAffiliateId = (profile as any)?.referred_by_affiliate;
         if (profileAffiliateId) {
           finalAffiliateId = profileAffiliateId;
-          console.log('[Order] Attribution via Profile Referral');
         } else {
           // Fallback to tracking link
           const storedReferralCode = localStorage.getItem('affiliate_referral_code');
@@ -84,7 +82,6 @@ export const useOrderPlacement = () => {
               .single();
             if (aff) {
               finalAffiliateId = aff.id;
-              console.log('[Order] Attribution via Link Referral');
             }
           }
         }
@@ -107,7 +104,26 @@ export const useOrderPlacement = () => {
 
         if (campaign) {
           finalCampaignId = campaign.id;
-          console.log('[Order] Attribution via Instagram Campaign:', campaignCode);
+        }
+      }
+
+      // ============================================
+      // STEP 1.8: VALIDATE STOCK
+      // ============================================
+      for (const item of orderData.items) {
+        // Simplified stock check - just grabbing available stock from DB
+        const { data: stockData, error: stockErr } = await supabase
+          .from('products')
+          .select('name, stock_quantity')
+          .eq('id', item.product_id)
+          .single();
+
+        if (!stockErr && stockData) {
+          // If variants are used, this check might need to look at product_variants
+          // assuming primary stock_quantity applies if base product is used
+          if (stockData.stock_quantity !== null && stockData.stock_quantity < item.quantity) {
+            throw new Error(`Insufficient stock for ${stockData.name}. Only ${stockData.stock_quantity} available.`);
+          }
         }
       }
 

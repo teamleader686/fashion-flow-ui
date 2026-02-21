@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from "react";
 import type { Product } from "@/hooks/useProducts";
 
 export interface CartItem {
@@ -31,7 +31,18 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 import { useWishlist } from "@/hooks/useWishlist";
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [items, setItems] = useState<CartItem[]>([]);
+  const [items, setItems] = useState<CartItem[]>(() => {
+    try {
+      const savedCart = localStorage.getItem('stylebazaar_cart');
+      return savedCart ? JSON.parse(savedCart) : [];
+    } catch (error) {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('stylebazaar_cart', JSON.stringify(items));
+  }, [items]);
   const { wishlist, toggleWishlist, loading: wishlistLoading } = useWishlist();
 
   const addItem = useCallback((product: Product, selectedSize: string, selectedColor: string, isCoinItem: boolean = false, offer: any = null) => {
@@ -124,10 +135,16 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const totalCoinsRequired = items.reduce((sum, i) => sum + (i.isCoinItem && i.coinPrice ? i.coinPrice * i.quantity : 0), 0);
   // Calculate unique products shipping charge sum - once per product type
-  const totalShippingCost = items.reduce((sum, i) => {
-    // If it's a coin item, maybe shipping is still applicable? User didn't specify. Assuming yes.
-    return sum + (i.product.shippingCharge || 0);
-  }, 0);
+  const totalShippingCost = useMemo(() => {
+    const uniqueProducts = new Set();
+    return items.reduce((sum, i) => {
+      if (!uniqueProducts.has(i.product.id)) {
+        uniqueProducts.add(i.product.id);
+        return sum + (i.product.shippingCharge || 0);
+      }
+      return sum;
+    }, 0);
+  }, [items]);
 
   return (
     <CartContext.Provider
